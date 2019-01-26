@@ -1,0 +1,21 @@
+﻿Uri: https://www.link-0.com/relative/url/test.html
+https://www.link-1.com
+http://www.link-2.com
+https://www.link-3.com/hooray/for/everything and some other words
+"https://www.link-4.com/hooray/for/everything" and some other words
+'https://www.link-5.com/hooray/for/everything' and some other words
+(https://www.link-6.com/hooray/for/everything) and some other words
+[https://www.link-7.com/hooray/for/everything] and some other words
+{https://www.link-8.com/hooray/for/everything} and some other words
+<https://www.link-9.com/hooray/for/everything> and some other words
+<a>https://www.link-10.com/hooray/for/everything</a> and some other words
+and some words here href='https://www.link-11.com/hooray/for/everything' and some other words
+and some words here href="https://www.link-12.com/hooray/for/everything" and some other words
+
+some other words
+some words
+href="/index-13.html"
+href="index/14.html"
+
+
+
