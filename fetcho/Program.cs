@@ -7,7 +7,7 @@
             log4net.Config.XmlConfigurator.Configure();
             var config = new FetchoConfiguration(args);
             var fetcho = new Fetcho(config);
-            fetcho.Process();
+            fetcho.Process().GetAwaiter().GetResult();
         }
     }
 }

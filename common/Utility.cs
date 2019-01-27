@@ -38,7 +38,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                log.Error(ex);
                 addr = IPAddress.None;
                 return addr;
             }
@@ -97,7 +97,7 @@ namespace Fetcho.Common
                     // if absolute url
                     if (tempUrl.StartsWith("/", StringComparison.InvariantCultureIgnoreCase) || tempUrl.StartsWith("\\", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        tempUrl = string.Format("{0}://{1}{2}", sourceUri.Scheme, sourceUri.Host, tempUrl);
+                        tempUrl = string.Format("{0}://{1}{2}", sourceUri?.Scheme, sourceUri?.Host, tempUrl);
                     }
                     // if relative url
                     else if (sourceUri != null)

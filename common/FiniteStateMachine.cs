@@ -20,7 +20,7 @@ namespace Fetcho.Common
     [Serializable]
     public class FiniteStateMachine<TStateType, TInputType> : IDisposable
     {
-        FiniteStateMachineNode<TStateType, TInputType> rootNode;
+        private FiniteStateMachineNode<TStateType, TInputType> rootNode;
 
         public FiniteStateMachineNode<TStateType, TInputType> RootNode
         {
@@ -174,12 +174,12 @@ namespace Fetcho.Common
         public void Clear()
         {
             if (rootNode != null)
-                recurseClear(rootNode);
+                RecurseClear(rootNode);
 
             rootNode = null;
         }
 
-        private void recurseClear(FiniteStateMachineNode<TStateType, TInputType> node)
+        private void RecurseClear(FiniteStateMachineNode<TStateType, TInputType> node)
         {
             foreach (var state in node.State)
             {
@@ -191,7 +191,7 @@ namespace Fetcho.Common
             node.DefaultTransition = null;
 
             foreach (var child in node.Transitions.Values)
-                recurseClear(child);
+                RecurseClear(child);
         }
 
         protected virtual void Dispose(bool disposable)

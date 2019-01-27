@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common;
 
@@ -14,6 +15,8 @@ namespace Fetcho.queueo
     {
         public const int InitialBufferSize = 100000;
         public const int FastCacheSize = 10000;
+        public const int MaxConcurrentTasks = 1000;
+        SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
 
         public QueueoConfiguration Configuration
         {
@@ -26,14 +29,12 @@ namespace Fetcho.queueo
             Configuration = config;
         }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task Process()
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
-            var watch = new Stopwatch();
+            var cts = new CancellationTokenSource();
+            var cancellationToken = cts.Token;
             var lookupCache = new FastLookupCache<Uri>(FastCacheSize); // put all the URLs into here will remove duplicates roughly
             var list = new List<QueueItem>(InitialBufferSize);
-            var tasks = new List<Task>(InitialBufferSize);
 
             var reader = Configuration.InStream;
 
@@ -58,9 +59,7 @@ namespace Fetcho.queueo
                             TargetUri = target
                         };
 
-                        var calc = Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(queueItem);
-
-                        tasks.Add(calc);
+                        var t = CalculateQueueSequenceNumber(queueItem, cancellationToken);
 
                         list.Add(queueItem);
                     }
@@ -68,12 +67,24 @@ namespace Fetcho.queueo
                 line = reader.ReadLine();
             }
 
-            Task.WaitAll(tasks.ToArray());
+            while ( true)
+            {
+                await Task.Delay(10000, cancellationToken);
+                if (taskPool.CurrentCount == MaxConcurrentTasks)
+                    break;
+            }
 
-            outputQueueItems(list.OrderBy(x => x.Sequence));
+            OutputQueueItems(list.OrderBy(x => x.Sequence));
         }
 
-        void outputQueueItems(IEnumerable<QueueItem> items)
+        async Task CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
+        {
+            await taskPool.WaitAsync(cancellationToken);
+            await Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(item, cancellationToken);
+            taskPool.Release();
+        }
+
+        void OutputQueueItems(IEnumerable<QueueItem> items)
         {
             foreach (var item in items) Console.WriteLine(item);
         }

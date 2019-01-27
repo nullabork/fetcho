@@ -15,7 +15,7 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Init all lists to this
         /// </summary>
-        public const int InitialBufferSize = 10000;
+        public const int MaxConcurrentTasks = 30000;
 
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
@@ -23,30 +23,30 @@ namespace Fetcho.NextLinks
         public const int MaximumSequenceForLinks = 200000000;
 
         /// <summary>
+        /// 
+        /// </summary>
+        public const int HowOftenToReportStatusInMilliseconds = 30000;
+
+        public const bool QuotaEnabled = true;
+
+        /// <summary>
         /// Log4Net logger
         /// </summary>
         static readonly ILog log = LogManager.GetLogger(typeof(NextLinks));
 
         /// <summary>
-        /// Links to accept
-        /// </summary>
-        List<QueueItem> links = new List<QueueItem>(InitialBufferSize);
-
-        /// <summary>
-        /// Links to reject
-        /// </summary>
-        List<QueueItem> rejects = new List<QueueItem>(InitialBufferSize);
-
-        /// <summary>
-        /// Syncronise the access to links & rejects using this
-        /// </summary>
-        readonly object collectionLocker = new object();
-
-        /// <summary>
         /// I'm the real SemaphoreSlim ... shady
         /// </summary>
         /// <remarks>Limits the number of queue validations occurring at once to the initial buffer size to avoid downloading more robots than we need to</remarks>
-        static readonly SemaphoreSlim maxNextLinks = new SemaphoreSlim(InitialBufferSize);
+        static readonly SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
+
+        private int _activeTasks = 0;
+
+        public int LinksAccepted = 0;
+        public int LinksRejected = 0;
+
+        public TextWriter acceptStream;
+        public TextWriter rejectStream;
 
         /// <summary>
         /// Configuration of this passed in when calling it
@@ -68,9 +68,14 @@ namespace Fetcho.NextLinks
 
         public async Task Process()
         {
+
             try
             {
-                var tasks = new List<Task>(InitialBufferSize);
+                var cts = new CancellationTokenSource();
+                var cancellationToken = cts.Token;
+
+                acceptStream = GetAcceptStream();
+                rejectStream = GetRejectStream();
 
                 using (var reader = GetInputStream())
                 {
@@ -78,17 +83,17 @@ namespace Fetcho.NextLinks
                     {
                         string line = reader.ReadLine();
                         var item = QueueItem.Parse(line);
-
-                        if (tasks.Count % 100 == 0) Thread.Sleep(1);
-
-                        tasks.Add(ValidateQueueItem(item));
+                        var t = ValidateQueueItem(item, cancellationToken);
                     }
                 }
 
-                Task.WaitAll(tasks.ToArray());
-
-                OutputLinks();
-                WriteOutRejects();
+                while (true)
+                {
+                    await Task.Delay(HowOftenToReportStatusInMilliseconds, cancellationToken);
+                    ReportStatus();
+                    if (_activeTasks == 0)
+                        return;
+                }
             }
             catch (Exception ex)
             {
@@ -96,18 +101,24 @@ namespace Fetcho.NextLinks
             }
         }
 
+        void ReportStatus() => log.InfoFormat("NEXTLINKS: Active Fetches {0}", _activeTasks);
+
         /// <summary>
         /// Asyncronously validates a QueueItem
         /// </summary>
         /// <param name="item">The queue item</param>
         /// <returns>Async task (no return value)</returns>
-        async Task ValidateQueueItem(QueueItem item)
+        async Task ValidateQueueItem(QueueItem item, CancellationToken cancellationToken)
         {
             try
             {
-                while (!await maxNextLinks.WaitAsync(10000))
+                Interlocked.Increment(ref _activeTasks);
+                while (!await taskPool.WaitAsync(10000, cancellationToken))
+                {
+                    log.Info("Waiting to ValidateQueueItem");
                     if (QuotaReached())
                         break;
+                }
 
                 if (item == null)
                 {
@@ -117,78 +128,92 @@ namespace Fetcho.NextLinks
 
                 else if (QuotaReached())
                 {
-                    RejectLink(item);
+                    await RejectLink(item);
                 }
 
                 else if (item.HasAnIssue)
                 {
-                    RejectLink(item);
+                    await RejectLink(item);
                 }
 
                 else if (IsMalformedQueueItem(item))
                 {
                     item.MalformedUrl = true;
-                    RejectLink(item);
+                    await RejectLink(item);
                 }
 
                 else if (IsSequenceTooHigh(item))
                 {
                     item.SequenceTooHigh = true;
-                    RejectLink(item);
+                    await RejectLink(item);
                 }
 
-                else if (await IsBlockedByRobots(item))
+                else if (await IsBlockedByRobots(item, cancellationToken))
                 {
                     item.BlockedByRobots = true;
-                    RejectLink(item);
+                    await RejectLink(item);
                 }
 
                 else
                 {
-                    AcceptLink(item);
+                    await AcceptLink(item);
                 }
             }
-            catch( Exception ex)
+            catch (Exception ex)
             {
                 log.Error(ex);
             }
             finally
             {
-                maxNextLinks.Release();
+                taskPool.Release();
+                Interlocked.Decrement(ref _activeTasks);
             }
         }
 
-        void AcceptLink(QueueItem item) { lock (collectionLocker) links.Add(item); }
-        void RejectLink(QueueItem item) { lock (collectionLocker) rejects.Add(item); }
-
-        void OutputLinks()
+        void AcceptLink(QueueItem item)
         {
-            foreach (var item in links)
-            {
-                Console.WriteLine(item);
-            }
+            log.InfoFormat("AcceptLink {0}", item.TargetUri);
+            OutputAcceptedLink(item);
         }
 
-        void WriteOutRejects()
+        void RejectLink(QueueItem item)
         {
-            // bail if there's no where to write them
+            log.InfoFormat("RejectLink {0}", item.TargetUri);
+            OutputRejectedLink(item);
+        }
+
+        void OutputAcceptedLink(QueueItem item)
+        {
+            LinksAccepted++;
+            if (acceptStream != null)
+                acceptStream.WriteLine(item.ToString());
+        }
+
+        void OutputRejectedLink(QueueItem item)
+        {
+            LinksRejected++;
+            if (rejectStream != null)
+                rejectStream.WriteLine(item.ToString());
+        }
+
+        TextWriter GetRejectStream()
+        {
             if (String.IsNullOrWhiteSpace(Configuration.RejectedLinkFilePath))
-                return;
+                return null;
 
-            using (var stream = new StreamWriter(Configuration.RejectedLinkFilePath, false))
-            {
-                foreach (var item in rejects)
-                {
-                    stream.WriteLine(item);
-                }
-            }
+            return new StreamWriter(Configuration.RejectedLinkFilePath, false);
+        }
+
+        TextWriter GetAcceptStream()
+        {
+            return Console.Out;
         }
 
         /// <summary>
         /// Returns true if we've reached the maximum accepted links
         /// </summary>
         /// <returns></returns>
-        bool QuotaReached() => links.Count >= InitialBufferSize;
+        bool QuotaReached() => QuotaEnabled && LinksAccepted >= MaxConcurrentTasks;
 
         /// <summary>
         /// Returns true if the queue item is malformed and of no use to us
@@ -210,7 +235,7 @@ namespace Fetcho.NextLinks
         /// </summary>
         /// <param name="item"></param>
         /// <returns>bool</returns>
-        async Task<bool> IsBlockedByRobots(QueueItem item)
+        async Task<bool> IsBlockedByRobots(QueueItem item, CancellationToken cancellationToken)
         {
             bool rtn = false;
 
@@ -218,7 +243,7 @@ namespace Fetcho.NextLinks
             {
                 var watch = new Stopwatch();
                 watch.Start();
-                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host);
+                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host, cancellationToken);
                 if (r == null) rtn = false;
                 else if (r.IsDisallowed(item.TargetUri)) rtn = true;
                 watch.Stop();

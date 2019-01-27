@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common;
 using log4net;
@@ -15,7 +16,7 @@ namespace Fetcho.queueo
     {
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
-        static readonly object _database_lock = new object();
+        static readonly object hostCountLock = new object();
         static readonly Dictionary<string, int> HostCount = new Dictionary<string, int>();
 
         const int MinDomainsAreEqualSeq = 1000000;
@@ -31,14 +32,14 @@ namespace Fetcho.queueo
 
         const int MultiHostLinkSpreadFactor = 100000;
 
-        public async Task<object> CalculateQueueSequenceNumber(QueueItem item)
+        public async Task<object> CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
         {
             try
             {
                 string host = item.TargetUri.Host;
                 int sequence = rand.Next(MinRandSeq, MaxRandSeq);
 
-                if (!await NeedsVisiting(item))
+                if (!await NeedsVisiting(item, cancellationToken))
                     sequence += DoesntNeedVisiting;
 
                 if (DomainsAreEqual(item))
@@ -47,7 +48,7 @@ namespace Fetcho.queueo
                 {
                     try
                     {
-                        if (await DomainsShareCommonIPAddresses(item))
+                        if (await DomainsShareCommonIPAddresses(item, cancellationToken))
                             sequence += rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
 
                     }
@@ -57,8 +58,9 @@ namespace Fetcho.queueo
                     }
                 }
 
-                if (!HostCount.ContainsKey(host))
-                    HostCount.Add(host, 0);
+                lock(hostCountLock)
+                    if (!HostCount.ContainsKey(host))
+                        HostCount.Add(host, 0);
 
                 unchecked
                 {
@@ -77,7 +79,7 @@ namespace Fetcho.queueo
 
         }
 
-        async Task<bool> NeedsVisiting(QueueItem item)
+        async Task<bool> NeedsVisiting(QueueItem item, CancellationToken cancellationToken)
         {
             try
             {
@@ -85,7 +87,7 @@ namespace Fetcho.queueo
 
                 using (var db = new Database())
                 {
-                    rtn = await db.NeedsVisiting(item.TargetUri);
+                    rtn = await db.NeedsVisiting(item.TargetUri, cancellationToken);
                 }
 
                 return rtn;
@@ -99,7 +101,7 @@ namespace Fetcho.queueo
 
         bool DomainsAreEqual(QueueItem item) => item.SourceUri.Host == item.TargetUri.Host;
 
-        async Task<bool> DomainsShareCommonIPAddresses(QueueItem item)
+        async Task<bool> DomainsShareCommonIPAddresses(QueueItem item, CancellationToken cancellationToken)
         {
             var t1 = Dns.GetHostAddressesAsync(item.SourceUri.Host);
             var t2 = Dns.GetHostAddressesAsync(item.TargetUri.Host);

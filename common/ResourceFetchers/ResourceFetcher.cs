@@ -40,22 +40,19 @@ namespace Fetcho.Common
 
         protected bool RequestWritten { get; set; }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public virtual async Task Fetch(Uri uri,
+        public abstract Task Fetch(Uri uri,
                                    TextWriter writeStream,
-                                   DateTime? lastFetchedDate)
-        {
-            throw new NotImplementedException();
-        }
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+                                   DateTime? lastFetchedDate,
+                                   CancellationToken cancellationToken);
 
         public static async Task FetchFactory(Uri uri,
                                     TextWriter writeStream,
-                                    DateTime? lastFetchedDate)
+                                    DateTime? lastFetchedDate,
+                                    CancellationToken cancellationToken)
         {
             if (uri.Scheme == Uri.UriSchemeHttp ||
                 uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
+                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate, cancellationToken);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
             else

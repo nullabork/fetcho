@@ -34,43 +34,40 @@ namespace Fetcho.Common
         /// <returns></returns>
         public override async Task Fetch(Uri uri,
                                                  TextWriter writeStream,
-                                                 DateTime? lastFetchedDate)
+                                                 DateTime? lastFetchedDate,
+                                                 CancellationToken cancellationToken)
         {
             using (var db = new Database())
-            {
-                var site = await db.GetSite(uri);
-                if (site == null)
-                {
-                    site = new Site(uri);
-                    await db.SaveSite(site);
-                }
+                await db.SaveWebResource(uri, DateTime.Now.AddDays(7), cancellationToken);
 
-                await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
-            }
-
-            await HostCacheManager.WaitToFetch(uri.Host);
+            await HostCacheManager.WaitToFetch(uri.Host, cancellationToken);
 
             base.BeginRequest();
 
             var request = CreateRequest(uri, lastFetchedDate);
 
-            try // its blocking here, we need to lock because of output exception below but this syncronises the downloads from the servers
-            {
-                using (var response = await request.GetResponseAsync() as HttpWebResponse)
-                {
-                    Monitor.Enter(SyncOutput);
-                    OutputRequest(request, writeStream);
-                    string block_reason = "";
+            HttpWebResponse response = null;
 
-                    if (IsBlocked(response, out block_reason))
-                    {
-                        log.Error(string.Format("URI is blocked, {0}. {1}", block_reason, request.RequestUri));
-                        response.Close();
-                    }
-                    else
-                    {
-                        OutputResponse(response, writeStream);
-                    }
+            try
+            {
+                var netTask = request.GetResponseAsync();
+
+                await Task.WhenAny(netTask, Task.Delay(request.Timeout, cancellationToken));
+                Monitor.Enter(SyncOutput);
+                OutputRequest(request, writeStream);
+                if (netTask.Status != TaskStatus.RanToCompletion)
+                    throw new TimeoutException(string.Format("Request timed out: {0}", request.RequestUri));
+
+                response = await netTask as HttpWebResponse;
+
+                if (IsBlocked(response, out string block_reason))
+                {
+                    log.Error(string.Format("URI is blocked, {0}. {1}", block_reason, request.RequestUri));
+                    response.Close();
+                }
+                else
+                {
+                    OutputResponse(response, writeStream);
                 }
             }
             catch (Exception ex)
@@ -80,6 +77,8 @@ namespace Fetcho.Common
             }
             finally
             {
+                response?.Dispose();
+                response = null;
                 base.EndRequest();
                 if (Monitor.IsEntered(SyncOutput)) Monitor.Exit(SyncOutput);
             }
@@ -114,7 +113,7 @@ namespace Fetcho.Common
             return rtn;
         }
 
-        WebRequest CreateRequest(Uri uri, DateTime? lastFetchedDate)
+        HttpWebRequest CreateRequest(Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
@@ -128,7 +127,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout lowered to speed things up
-            request.Timeout = 30000;
+            request.Timeout = 5000;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;

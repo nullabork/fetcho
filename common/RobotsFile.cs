@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
-
+using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common.entities;
 using log4net;
@@ -268,22 +268,22 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="uri">Any URI for which you want the robots file for</param>
         /// <returns></returns>
-        public static async Task<RobotsFile> GetFile(Uri uri)
+        public static async Task<RobotsFile> GetFile(Uri uri, CancellationToken cancellationToken)
         {
             //log.Debug("Downloading robots: " + uri);
 
             Site site = null;
             RobotsFile robotsFile = null;
+            var robotsUri = MakeRobotsUri(uri);
 
             try
             {
-                var robotsUri = makeRobotsUri(uri);
 
                 bool needsVisiting = true;
 
                 using (var db = new Database())
                 {
-                    site = await db.GetSite(robotsUri);
+                    site = await db.GetSite(robotsUri, cancellationToken);
                     if (site != null)
                         needsVisiting = site.RobotsNeedsVisiting;
                     else
@@ -292,26 +292,35 @@ namespace Fetcho.Common
 
                 if (needsVisiting)
                 {
+                    log.InfoFormat("Robots {0} needs visiting", robotsUri);
+
                     if (site != null && site.IsBlocked)
                     {
                         log.Error("Can't get robots file as site is blocked by policy: " + robotsUri);
                         return null;
                     }
 
-                    robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched);
+                    log.InfoFormat("Downloading Robots {0}", robotsUri);
+                    robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched, cancellationToken);
+                    log.InfoFormat("Downloaded Robots {0}", robotsUri);
                     site.LastRobotsFetched = DateTime.Now;
                     site.RobotsFile = robotsFile;
                     using (var db = new Database())
-                        await db.SaveSite(site);
+                        await db.SaveSite(site, cancellationToken);
                 }
                 else
                     robotsFile = site.RobotsFile;
+
+                log.Info("HERE " + robotsUri);
             }
             catch (Exception ex)
             {
                 log.Error(ex);
             }
-
+            finally
+            {
+                log.Info("FINALLY " + robotsUri);
+            }
             return robotsFile;
         }
 
@@ -327,7 +336,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="anyUri"></param>
         /// <returns></returns>
-        static Uri makeRobotsUri(Uri anyUri)
+        static Uri MakeRobotsUri(Uri anyUri)
         {
             if (!anyUri.IsAbsoluteUri)
                 throw new FetchoException("Needs to be an absolute URI");
@@ -343,7 +352,7 @@ namespace Fetcho.Common
         /// <param name="robotsUri"></param>
         /// <param name="lastFetched"></param>
         /// <returns></returns>
-        static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
+        static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched, CancellationToken cancellationToken)
         {
             RobotsFile robots = null;
 
@@ -360,7 +369,7 @@ namespace Fetcho.Common
                 using (var ms = new MemoryStream())
                 using (var writer = new StreamWriter(new MemoryStream()))
                 {
-                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, lastFetched);
+                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, lastFetched, cancellationToken);
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(ms);
                 }

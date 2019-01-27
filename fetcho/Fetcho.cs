@@ -10,44 +10,50 @@ namespace Fetcho
 {
     public class Fetcho
     {
+        const int MaxConcurrentFetches = 1000;
         const int HowOftenToReportStatusInMilliseconds = 30000;
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int activeFetches = 0;
         public FetchoConfiguration Configuration { get; set; }
+        SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
 
         public Fetcho(FetchoConfiguration config)
         {
             Configuration = config;
         }
 
-        public void Process()
+        public async Task Process()
         {
             var uris = getInputStream();
-            fetchUris(uris);
+            await FetchUris(uris);
         }
 
-        void fetchUris(TextReader uris)
+        async Task FetchUris(TextReader uris)
         {
-            var tasks = new List<Task>();
-            var u = parseUri(uris.ReadLine());
-
-            tasks.Add(ReportStatus());
+            var cts = new CancellationTokenSource();
+            var cancellationToken = cts.Token;
+            var u = ParseUri(uris.ReadLine());
 
             while (u != null)
             {
-                var l = u;
+                await fetchLock.WaitAsync(cancellationToken);
+                var t = FetchQueueItem(u, cts.Token);
 
-                tasks.Add(FetchQueueItem(l));
-
-                if (tasks.Count % 100 == 0) Thread.Sleep(25);
-
-                u = parseUri(uris.ReadLine());
+                u = ParseUri(uris.ReadLine());
             }
 
-            Task.WaitAll(tasks.ToArray());
+            await Task.Delay(HowOftenToReportStatusInMilliseconds);
+
+            while (true)
+            {
+                await Task.Delay(HowOftenToReportStatusInMilliseconds, cancellationToken);
+                log.InfoFormat("STATUS: Active Fetches {0}", activeFetches);
+                if (activeFetches == 0)
+                    return;
+            }
         }
 
-        Uri parseUri(string line)
+        Uri ParseUri(string line)
         {
             try
             {
@@ -67,21 +73,12 @@ namespace Fetcho
                 return null;
             }
         }
-        async Task FetchQueueItem(Uri uri)
+        async Task FetchQueueItem(Uri uri, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref activeFetches);
-            await ResourceFetcher.FetchFactory(uri, Console.Out, DateTime.MinValue);
+            await ResourceFetcher.FetchFactory(uri, Console.Out, DateTime.MinValue, cancellationToken);
+            fetchLock.Release();
             Interlocked.Decrement(ref activeFetches);
-        }
-
-        async Task ReportStatus()
-        {
-            await Task.Delay(HowOftenToReportStatusInMilliseconds);
-            while ( activeFetches > 0 )
-            {
-                log.InfoFormat("STATUS: Active Fetches {0}", activeFetches);
-                await Task.Delay(HowOftenToReportStatusInMilliseconds);
-            }
         }
 
         /// <summary>
