@@ -13,7 +13,7 @@ namespace Fetcho.queueo
     /// </summary>
     class Queueo
     {
-        public const int InitialBufferSize = 100000;
+        public const int InitialBufferSize = 10000;
         public const int FastCacheSize = 10000;
         public const int MaxConcurrentTasks = 1000;
         SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
@@ -40,7 +40,7 @@ namespace Fetcho.queueo
 
             string line = reader.ReadLine();
 
-            while (!String.IsNullOrWhiteSpace(line) && list.Count < InitialBufferSize)
+            while (!String.IsNullOrWhiteSpace(line))
             {
                 string[] tokens = line.Split('\t');
 
@@ -64,6 +64,13 @@ namespace Fetcho.queueo
                         list.Add(queueItem);
                     }
                 }
+
+                if ( list.Count >= InitialBufferSize)
+                {
+                    OutputQueueItems(list.OrderBy(x => x.Sequence));
+                    list.Clear();
+                }
+
                 line = reader.ReadLine();
             }
 
@@ -75,6 +82,7 @@ namespace Fetcho.queueo
             }
 
             OutputQueueItems(list.OrderBy(x => x.Sequence));
+            list.Clear();
         }
 
         async Task CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)

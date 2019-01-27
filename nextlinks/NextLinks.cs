@@ -113,9 +113,9 @@ namespace Fetcho.NextLinks
             try
             {
                 Interlocked.Increment(ref _activeTasks);
-                while (!await taskPool.WaitAsync(10000, cancellationToken))
+                while (!await taskPool.WaitAsync(30000, cancellationToken))
                 {
-                    log.Info("Waiting to ValidateQueueItem");
+                    //log.Info("Waiting to ValidateQueueItem");
                     if (QuotaReached())
                         break;
                 }
@@ -128,35 +128,35 @@ namespace Fetcho.NextLinks
 
                 else if (QuotaReached())
                 {
-                    await RejectLink(item);
+                    RejectLink(item);
                 }
 
                 else if (item.HasAnIssue)
                 {
-                    await RejectLink(item);
+                    RejectLink(item);
                 }
 
                 else if (IsMalformedQueueItem(item))
                 {
                     item.MalformedUrl = true;
-                    await RejectLink(item);
+                    RejectLink(item);
                 }
 
                 else if (IsSequenceTooHigh(item))
                 {
                     item.SequenceTooHigh = true;
-                    await RejectLink(item);
+                    RejectLink(item);
                 }
 
                 else if (await IsBlockedByRobots(item, cancellationToken))
                 {
                     item.BlockedByRobots = true;
-                    await RejectLink(item);
+                    RejectLink(item);
                 }
 
                 else
                 {
-                    await AcceptLink(item);
+                    AcceptLink(item);
                 }
             }
             catch (Exception ex)

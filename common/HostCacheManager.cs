@@ -69,18 +69,20 @@ namespace Fetcho.Common
         /// Delay until we can fetch
         /// </summary>
         /// <param name="hostName"></param>
-        /// <returns></returns>
-        public static async Task WaitToFetch(string hostName, CancellationToken cancellationToken)
+        /// <returns>True if we can fetch, false if timeout or cancelled</returns>
+        public static async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds, CancellationToken cancellationToken)
         {
+            DateTime startTime = DateTime.Now;
             bool keepWaiting = true;
+            bool success = false;
             HostCacheManagerRecord host_record = await GetRecord(hostName, cancellationToken);
 
             while (keepWaiting)
             {
                 try
                 {
-                    while (!await host_record.FetchWaitHandle.WaitAsync(10000, cancellationToken))
-                        log.InfoFormat("WaitToFetch waiting {0}", hostName);
+                    while (!await host_record.FetchWaitHandle.WaitAsync(360000, cancellationToken))
+                        log.InfoFormat("Been waiting a long time to update a record: {0}", host_record.Host);
 
                     DateTime n = DateTime.Now;
                     if (host_record.IsFetchable)
@@ -88,6 +90,7 @@ namespace Fetcho.Common
                         host_record.LastCall = n;
                         host_record.TouchCount++;
                         keepWaiting = false;
+                        success = true;
                     }
                 }
                 catch (Exception ex)
@@ -101,13 +104,21 @@ namespace Fetcho.Common
 
                 if (keepWaiting)
                 {
-                    log.InfoFormat("Waiting on {0}", hostName);
-                    await Task.Delay(random.Next(1, host_record.MaxFetchSpeedInMilliseconds));
+                    if (timeoutMilliseconds != Timeout.Infinite && (DateTime.Now - startTime).TotalMilliseconds > timeoutMilliseconds)
+                        keepWaiting = false;
+                    else
+                    {
+                        //log.InfoFormat("Waiting on {0}", hostName);
+                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds / 2, host_record.MaxFetchSpeedInMilliseconds * 2), cancellationToken);
+                    }
                 }
             }
+
+            return success;
         }
 
-        public static async Task WaitToFetch(IPAddress ipAddress, CancellationToken cancellationToken) => await WaitToFetch(ipAddress.ToString(), cancellationToken);
+        public static async Task WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds, CancellationToken cancellationToken) => 
+            await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds, cancellationToken);
 
 
 
@@ -139,7 +150,7 @@ namespace Fetcho.Common
             // bump the host
             try
             {
-                while (!await hosts_lock.WaitAsync(10000, cancellationToken))
+                while (!await hosts_lock.WaitAsync(120000, cancellationToken))
                     log.InfoFormat("GetRecord waiting {0}", fromHost);
 
                 BumpHost(fromHost);

@@ -6,7 +6,7 @@ set datapath=data
 set current=0
 set previous=0
 
-fetcho %datapath%\nextlinks-%previous%.txt > %datapath%\packet-%current%.txt
+fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.txt
 echo %datapath%\packet-%current%.txt
 
 :loop
@@ -24,7 +24,7 @@ echo %datapath%\packet-%current%.txt
   set /A previous=current
   set /A current=current+1
   
-  fetcho %datapath%\nextlinks-%previous%.txt > %datapath%\packet-%current%.txt
+  fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.txt
   echo %datapath%\packet-%current%.txt
 goto loop
 

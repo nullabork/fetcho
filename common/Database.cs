@@ -22,7 +22,7 @@ namespace Fetcho.Common
 
         static readonly BinaryFormatter formatter = new BinaryFormatter();
         public const int DefaultDatabasePort = 5432;
-        public const int MaxConcurrentConnections = 5;
+        public const int MaxConcurrentConnections = 10;
         static readonly ILog log = LogManager.GetLogger(typeof(Database));
 
         static readonly SemaphoreSlim connPool = new SemaphoreSlim(MaxConcurrentConnections);
@@ -68,7 +68,7 @@ namespace Fetcho.Common
                     connstr.Host = Server;
                 conn = new NpgsqlConnection(connstr.ToString());
 
-                await BlockIfTooManyConnections(cancellationToken);
+                await WaitIfTooManyActiveConnections(cancellationToken);
                 await conn.OpenAsync(cancellationToken);
                 Server = conn.Host;
                 Port = conn.Port;
@@ -83,7 +83,7 @@ namespace Fetcho.Common
         /// Will block until a DB connection is available
         /// </summary>
         /// <returns></returns>
-        async Task BlockIfTooManyConnections(CancellationToken cancellationToken)
+        async Task WaitIfTooManyActiveConnections(CancellationToken cancellationToken)
         {
             while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds, cancellationToken))
                 log.Info("Waiting for a database connection");
@@ -232,8 +232,8 @@ namespace Fetcho.Common
 
         static void _saveWebResourceSetParams(NpgsqlCommand cmd, Uri uri, DateTime nextfetch)
         {
-            cmd.Parameters.Add(new NpgsqlParameter("urihash", MD5Hash.Compute(uri).Values));
-            cmd.Parameters.Add(new NpgsqlParameter("next_fetch", nextfetch));
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", nextfetch));
         }
 
         /// <summary>

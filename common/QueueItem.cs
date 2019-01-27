@@ -4,9 +4,9 @@ namespace Fetcho.Common
 {
   public class QueueItem
   {
-    public const int BadQueueItemSequenceNumber = int.MaxValue;
+    public const uint BadQueueItemSequenceNumber = uint.MaxValue;
     
-    public int Sequence {
+    public uint Sequence {
       get;
       set;
     }
@@ -65,7 +65,7 @@ namespace Fetcho.Common
       
       
       QueueItem item = new QueueItem() {
-        Sequence = int.Parse(tokens[1]),
+        Sequence = uint.Parse(tokens[1]),
         SourceUri = new Uri(tokens[2]),
         TargetUri = new Uri(tokens[3])
       };

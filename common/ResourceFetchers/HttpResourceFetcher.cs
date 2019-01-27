@@ -37,10 +37,11 @@ namespace Fetcho.Common
                                                  DateTime? lastFetchedDate,
                                                  CancellationToken cancellationToken)
         {
+            if (!await HostCacheManager.WaitToFetch(uri.Host, 120000, cancellationToken))
+                throw new TimeoutException("Waited too long to start fetching");
+
             using (var db = new Database())
                 await db.SaveWebResource(uri, DateTime.Now.AddDays(7), cancellationToken);
-
-            await HostCacheManager.WaitToFetch(uri.Host, cancellationToken);
 
             base.BeginRequest();
 

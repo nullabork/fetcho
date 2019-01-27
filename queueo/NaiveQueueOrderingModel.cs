@@ -19,37 +19,37 @@ namespace Fetcho.queueo
         static readonly object hostCountLock = new object();
         static readonly Dictionary<string, int> HostCount = new Dictionary<string, int>();
 
-        const int MinDomainsAreEqualSeq = 1000000;
+        const int MinDomainsAreEqualSeq = 10000000;
         const int MaxDomainsAreEqualSeq = 100000000;
 
-        const int MinCommonIPSeq = 1000000;
+        const int MinCommonIPSeq = 10000000;
         const int MaxCommonIPSeq = 100000000;
 
         const int MinRandSeq = 0;
-        const int MaxRandSeq = 75000000;
+        const int MaxRandSeq = 5000000;
 
         const int DoesntNeedVisiting = 750000000;
 
-        const int MultiHostLinkSpreadFactor = 100000;
+        const int MultiHostLinkSpreadFactor = 250000;
 
         public async Task<object> CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
         {
             try
             {
                 string host = item.TargetUri.Host;
-                int sequence = rand.Next(MinRandSeq, MaxRandSeq);
+                uint sequence = (uint)rand.Next(MinRandSeq, MaxRandSeq);
 
                 if (!await NeedsVisiting(item, cancellationToken))
                     sequence += DoesntNeedVisiting;
 
                 if (DomainsAreEqual(item))
-                    sequence += rand.Next(MinDomainsAreEqualSeq, MaxDomainsAreEqualSeq);
+                    sequence += (uint)rand.Next(MinDomainsAreEqualSeq, MaxDomainsAreEqualSeq);
                 else
                 {
                     try
                     {
                         if (await DomainsShareCommonIPAddresses(item, cancellationToken))
-                            sequence += rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
+                            sequence += (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
 
                     }
                     catch (SocketException)
@@ -64,7 +64,7 @@ namespace Fetcho.queueo
 
                 unchecked
                 {
-                    sequence += HostCount[host] * MultiHostLinkSpreadFactor;
+                    sequence += (uint)HostCount[host] * (uint)MultiHostLinkSpreadFactor;
                 }
 
                 HostCount[host]++;

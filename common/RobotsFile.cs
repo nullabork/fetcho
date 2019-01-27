@@ -300,9 +300,7 @@ namespace Fetcho.Common
                         return null;
                     }
 
-                    log.InfoFormat("Downloading Robots {0}", robotsUri);
                     robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched, cancellationToken);
-                    log.InfoFormat("Downloaded Robots {0}", robotsUri);
                     site.LastRobotsFetched = DateTime.Now;
                     site.RobotsFile = robotsFile;
                     using (var db = new Database())
@@ -311,15 +309,10 @@ namespace Fetcho.Common
                 else
                     robotsFile = site.RobotsFile;
 
-                log.Info("HERE " + robotsUri);
             }
             catch (Exception ex)
             {
                 log.Error(ex);
-            }
-            finally
-            {
-                log.Info("FINALLY " + robotsUri);
             }
             return robotsFile;
         }
