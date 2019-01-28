@@ -150,7 +150,7 @@ namespace Fetcho.Common
             // bump the host
             try
             {
-                while (!await hosts_lock.WaitAsync(120000, cancellationToken))
+                while (!await hosts_lock.WaitAsync(360000, cancellationToken))
                     log.InfoFormat("GetRecord waiting {0}", fromHost);
 
                 BumpHost(fromHost);

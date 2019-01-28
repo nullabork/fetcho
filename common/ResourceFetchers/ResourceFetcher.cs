@@ -52,7 +52,7 @@ namespace Fetcho.Common
         {
             if (uri.Scheme == Uri.UriSchemeHttp ||
                 uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate, cancellationToken);
+                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate, cancellationToken).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
             else

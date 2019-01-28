@@ -20,14 +20,14 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        public const int MaximumSequenceForLinks = 200000000;
+        public const uint MaximumSequenceForLinks = 300*1000*1000;
 
         /// <summary>
         /// 
         /// </summary>
         public const int HowOftenToReportStatusInMilliseconds = 30000;
 
-        public const bool QuotaEnabled = true;
+        public const bool QuotaEnabled = false;
 
         /// <summary>
         /// Log4Net logger
@@ -172,13 +172,13 @@ namespace Fetcho.NextLinks
 
         void AcceptLink(QueueItem item)
         {
-            log.InfoFormat("AcceptLink {0}", item.TargetUri);
+            //log.InfoFormat("AcceptLink {0}", item.TargetUri);
             OutputAcceptedLink(item);
         }
 
         void RejectLink(QueueItem item)
         {
-            log.InfoFormat("RejectLink {0}", item.TargetUri);
+            //log.InfoFormat("RejectLink {0}", item.TargetUri);
             OutputRejectedLink(item);
         }
 

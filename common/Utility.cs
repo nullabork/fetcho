@@ -55,6 +55,9 @@ namespace Fetcho.Common
         {
             var list = new List<Uri>();
 
+            if (sourceUri == null)
+                return list;
+            
             try
             {
                 string tempUrl = uriCandidate;

@@ -14,6 +14,7 @@ namespace Fetcho
         const int HowOftenToReportStatusInMilliseconds = 30000;
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int activeFetches = 0;
+        int completedFetches = 0;
         public FetchoConfiguration Configuration { get; set; }
         SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
         TextWriter requeueWriter = null;
@@ -41,7 +42,8 @@ namespace Fetcho
 
             while (u != null)
             {
-                await fetchLock.WaitAsync(cancellationToken);
+                while (!await fetchLock.WaitAsync(360000, cancellationToken))
+                    log.InfoFormat("Been waiting a while to fire up a new fetch. Active: {0}, complete: {1}", activeFetches, completedFetches);
 
                 if (!u.HasAnIssue)
                 {
@@ -56,7 +58,7 @@ namespace Fetcho
             while (true)
             {
                 await Task.Delay(HowOftenToReportStatusInMilliseconds, cancellationToken);
-                log.InfoFormat("STATUS: Active Fetches {0}", activeFetches);
+                log.InfoFormat("STATUS: Active Fetches {0}, Completed {1}", activeFetches, completedFetches);
                 if (activeFetches == 0)
                     return;
             }
@@ -96,6 +98,7 @@ namespace Fetcho
             {
                 fetchLock.Release();
                 Interlocked.Decrement(ref activeFetches);
+                Interlocked.Increment(ref completedFetches);
             }
         }
 

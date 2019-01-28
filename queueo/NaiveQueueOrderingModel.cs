@@ -17,20 +17,20 @@ namespace Fetcho.queueo
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
         static readonly object hostCountLock = new object();
-        static readonly Dictionary<string, int> HostCount = new Dictionary<string, int>();
+        static readonly Dictionary<string, uint> HostCount = new Dictionary<string, uint>();
 
-        const int MinDomainsAreEqualSeq = 10000000;
-        const int MaxDomainsAreEqualSeq = 100000000;
+        const int MinDomainsAreEqualSeq = 10*1000*1000;
+        const int MaxDomainsAreEqualSeq = 100*1000*1000;
 
-        const int MinCommonIPSeq = 10000000;
-        const int MaxCommonIPSeq = 100000000;
+        const int MinCommonIPSeq = 10*1000*1000;
+        const int MaxCommonIPSeq = 100*1000*1000;
 
         const int MinRandSeq = 0;
-        const int MaxRandSeq = 5000000;
+        const int MaxRandSeq = 5*1000*1000;
 
-        const int DoesntNeedVisiting = 750000000;
+        const int DoesntNeedVisiting = 750*1000*1000;
 
-        const int MultiHostLinkSpreadFactor = 250000;
+        const int MultiHostLinkSpreadFactor = 2*1000*1000;
 
         public async Task<object> CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
         {
@@ -52,8 +52,9 @@ namespace Fetcho.queueo
                             sequence += (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
 
                     }
-                    catch (SocketException)
+                    catch (SocketException ex)
                     {
+                        log.InfoFormat("DomainsShareCommonIPAddresses socket error - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
                         sequence = QueueItem.BadQueueItemSequenceNumber;
                     }
                 }
@@ -64,7 +65,10 @@ namespace Fetcho.queueo
 
                 unchecked
                 {
-                    sequence += (uint)HostCount[host] * (uint)MultiHostLinkSpreadFactor;
+                    if (sequence + ((uint)HostCount[host] * (uint)MultiHostLinkSpreadFactor) < sequence)
+                        sequence = uint.MaxValue;
+                    else 
+                        sequence += (uint)HostCount[host] * (uint)MultiHostLinkSpreadFactor;
                 }
 
                 HostCount[host]++;

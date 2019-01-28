@@ -17,6 +17,8 @@ namespace Fetcho.queueo
         public const int FastCacheSize = 10000;
         public const int MaxConcurrentTasks = 1000;
         SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
+        private List<QueueItem> outputBuffer = new List<QueueItem>(InitialBufferSize);
+        private readonly object outputBufferLock = new object();
 
         public QueueoConfiguration Configuration
         {
@@ -34,7 +36,6 @@ namespace Fetcho.queueo
             var cts = new CancellationTokenSource();
             var cancellationToken = cts.Token;
             var lookupCache = new FastLookupCache<Uri>(FastCacheSize); // put all the URLs into here will remove duplicates roughly
-            var list = new List<QueueItem>(InitialBufferSize);
 
             var reader = Configuration.InStream;
 
@@ -60,16 +61,11 @@ namespace Fetcho.queueo
                         };
 
                         var t = CalculateQueueSequenceNumber(queueItem, cancellationToken);
-
-                        list.Add(queueItem);
                     }
                 }
 
-                if ( list.Count >= InitialBufferSize)
-                {
-                    OutputQueueItems(list.OrderBy(x => x.Sequence));
-                    list.Clear();
-                }
+                if (outputBuffer.Count >= InitialBufferSize)
+                    OutputQueueItems();
 
                 line = reader.ReadLine();
             }
@@ -81,20 +77,24 @@ namespace Fetcho.queueo
                     break;
             }
 
-            OutputQueueItems(list.OrderBy(x => x.Sequence));
-            list.Clear();
+            OutputQueueItems();
         }
 
         async Task CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
         {
             await taskPool.WaitAsync(cancellationToken);
             await Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(item, cancellationToken);
+            lock(outputBufferLock) outputBuffer.Add(item);
             taskPool.Release();
         }
 
-        void OutputQueueItems(IEnumerable<QueueItem> items)
+        void OutputQueueItems()
         {
-            foreach (var item in items) Console.WriteLine(item);
+            lock (outputBufferLock)
+            {
+                foreach (var item in outputBuffer.OrderBy(x => x.Sequence)) Console.WriteLine(item);
+                outputBuffer.Clear();
+            }
         }
 
     }
