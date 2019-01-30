@@ -24,10 +24,10 @@ namespace common
       
       using ( var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false" ))
       {
-        db.SaveSite(site, CancellationToken.None).GetAwaiter().GetResult();
+        db.SaveSite(site).GetAwaiter().GetResult();
         
         
-        site = db.GetSite(uri, CancellationToken.None).GetAwaiter().GetResult();
+        site = db.GetSite(uri).GetAwaiter().GetResult();
         Assert.IsTrue(site != null, "Site was null");
       }
     }
@@ -35,7 +35,7 @@ namespace common
     [Test]
     public async Task RobotsTest()
     {
-      var r = await RobotsFile.GetFile(new Uri("https://www.wikipedia.org/"), CancellationToken.None);
+      var r = await RobotsFile.GetFile(new Uri("https://www.wikipedia.org/"));
     }
   }
 }

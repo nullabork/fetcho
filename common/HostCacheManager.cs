@@ -26,23 +26,23 @@ namespace Fetcho.Common
         /// <param name="fromHost"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static async Task<RobotsFile> GetRobotsFile(string fromHost, CancellationToken cancellationToken)
+        public static async Task<RobotsFile> GetRobotsFile(string fromHost)
         {
             try
             {
-                var record = await GetRecord(fromHost, cancellationToken);
+                var record = await GetRecord(fromHost);
 
                 if (record.CheckRobots) // this crazy looking double check is necessary to avoid race conditions
                 {
                     try
                     {
-                        while (!await record.UpdateWaitHandle.WaitAsync(10000, cancellationToken))
+                        while (!await record.UpdateWaitHandle.WaitAsync(10000))
                             log.InfoFormat("GetRobotsFile() waiting on {0}", fromHost);
 
                         if (record.CheckRobots)
                         {
                             record.RobotsChecked = true;
-                            record.Robots = await RobotsFile.GetFile(new Uri("http://" + fromHost), cancellationToken);
+                            record.Robots = await RobotsFile.GetFile(new Uri("http://" + fromHost));
                         }
                     }
                     catch (Exception ex)
@@ -70,18 +70,18 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="hostName"></param>
         /// <returns>True if we can fetch, false if timeout or cancelled</returns>
-        public static async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds, CancellationToken cancellationToken)
+        public static async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds)
         {
             DateTime startTime = DateTime.Now;
             bool keepWaiting = true;
             bool success = false;
-            HostCacheManagerRecord host_record = await GetRecord(hostName, cancellationToken);
+            HostCacheManagerRecord host_record = await GetRecord(hostName);
 
             while (keepWaiting)
             {
                 try
                 {
-                    while (!await host_record.FetchWaitHandle.WaitAsync(360000, cancellationToken))
+                    while (!await host_record.FetchWaitHandle.WaitAsync(360000))
                         log.InfoFormat("Been waiting a long time to update a record: {0}", host_record.Host);
 
                     DateTime n = DateTime.Now;
@@ -109,7 +109,7 @@ namespace Fetcho.Common
                     else
                     {
                         //log.InfoFormat("Waiting on {0}", hostName);
-                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds / 2, host_record.MaxFetchSpeedInMilliseconds * 2), cancellationToken);
+                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds / 2, host_record.MaxFetchSpeedInMilliseconds * 2));
                     }
                 }
             }
@@ -117,8 +117,8 @@ namespace Fetcho.Common
             return success;
         }
 
-        public static async Task WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds, CancellationToken cancellationToken) => 
-            await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds, cancellationToken);
+        public static async Task WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
+            await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds);
 
 
 
@@ -145,12 +145,12 @@ namespace Fetcho.Common
         /// <param name="fromHost"></param>
         /// <param name="fetch_robots"></param>
         /// <returns></returns>
-        static async Task<HostCacheManagerRecord> GetRecord(string fromHost, CancellationToken cancellationToken)
+        static async Task<HostCacheManagerRecord> GetRecord(string fromHost)
         {
             // bump the host
             try
             {
-                while (!await hosts_lock.WaitAsync(360000, cancellationToken))
+                while (!await hosts_lock.WaitAsync(360000))
                     log.InfoFormat("GetRecord waiting {0}", fromHost);
 
                 BumpHost(fromHost);
@@ -232,8 +232,8 @@ namespace Fetcho.Common
                     if (disposing)
                     {
                         Robots?.Dispose();
-                        UpdateWaitHandle.Dispose();
-                        FetchWaitHandle.Dispose();
+                        UpdateWaitHandle.Dispose(); // we're disposing whilst people have this accessed. Do we lock here ?
+                        FetchWaitHandle.Dispose();// we're disposing whilst people have this accessed. Do we lock here ? 
                     }
 
                     Robots = null;

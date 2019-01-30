@@ -42,17 +42,15 @@ namespace Fetcho.Common
 
         public abstract Task Fetch(Uri uri,
                                    TextWriter writeStream,
-                                   DateTime? lastFetchedDate,
-                                   CancellationToken cancellationToken);
+                                   DateTime? lastFetchedDate);
 
         public static async Task FetchFactory(Uri uri,
                                     TextWriter writeStream,
-                                    DateTime? lastFetchedDate,
-                                    CancellationToken cancellationToken)
+                                    DateTime? lastFetchedDate)
         {
             if (uri.Scheme == Uri.UriSchemeHttp ||
                 uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate, cancellationToken).ConfigureAwait(false);
+                await new HttpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
             else

@@ -34,14 +34,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public override async Task Fetch(Uri uri,
                                                  TextWriter writeStream,
-                                                 DateTime? lastFetchedDate,
-                                                 CancellationToken cancellationToken)
+                                                 DateTime? lastFetchedDate)
         {
-            if (!await HostCacheManager.WaitToFetch(uri.Host, 120000, cancellationToken))
+            if (!await HostCacheManager.WaitToFetch(uri.Host, 120000))
                 throw new TimeoutException("Waited too long to start fetching");
 
             using (var db = new Database())
-                await db.SaveWebResource(uri, DateTime.Now.AddDays(7), cancellationToken);
+                await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
 
             base.BeginRequest();
 
@@ -53,7 +52,7 @@ namespace Fetcho.Common
             {
                 var netTask = request.GetResponseAsync();
 
-                await Task.WhenAny(netTask, Task.Delay(request.Timeout, cancellationToken));
+                await Task.WhenAny(netTask, Task.Delay(request.Timeout));
                 Monitor.Enter(SyncOutput);
                 OutputRequest(request, writeStream);
                 if (netTask.Status != TaskStatus.RanToCompletion)

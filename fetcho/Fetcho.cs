@@ -36,18 +36,16 @@ namespace Fetcho
 
         async Task FetchUris()
         {
-            var cts = new CancellationTokenSource();
-            var cancellationToken = cts.Token;
             var u = ParseQueueItem(inputReader.ReadLine());
 
             while (u != null)
             {
-                while (!await fetchLock.WaitAsync(360000, cancellationToken))
+                while (!await fetchLock.WaitAsync(360000))
                     log.InfoFormat("Been waiting a while to fire up a new fetch. Active: {0}, complete: {1}", activeFetches, completedFetches);
 
                 if (!u.HasAnIssue)
                 {
-                    var t = FetchQueueItem(u, cts.Token);
+                    var t = FetchQueueItem(u);
                 }
 
                 u = ParseQueueItem(inputReader.ReadLine());
@@ -57,7 +55,7 @@ namespace Fetcho
 
             while (true)
             {
-                await Task.Delay(HowOftenToReportStatusInMilliseconds, cancellationToken);
+                await Task.Delay(HowOftenToReportStatusInMilliseconds);
                 log.InfoFormat("STATUS: Active Fetches {0}, Completed {1}", activeFetches, completedFetches);
                 if (activeFetches == 0)
                     return;
@@ -78,12 +76,12 @@ namespace Fetcho
                 return null;
             }
         }
-        async Task FetchQueueItem(QueueItem item, CancellationToken cancellationToken)
+        async Task FetchQueueItem(QueueItem item)
         {
             try
             {
                 Interlocked.Increment(ref activeFetches);
-                await ResourceFetcher.FetchFactory(item.TargetUri, Console.Out, DateTime.MinValue, cancellationToken);
+                await ResourceFetcher.FetchFactory(item.TargetUri, Console.Out, DateTime.MinValue);
             }
             catch (TimeoutException)
             {

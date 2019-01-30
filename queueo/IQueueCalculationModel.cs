@@ -11,7 +11,7 @@ namespace Fetcho.queueo
 	  /// </summary>
 	  /// <param name="item"></param>
 	  /// <returns>An async task - note the object is irrelevant the method should set the Sequence value on the QueueItem passed in</returns>
-		Task<object> CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken);
+		Task<object> CalculateQueueSequenceNumber(QueueItem item);
 	}
 }
 

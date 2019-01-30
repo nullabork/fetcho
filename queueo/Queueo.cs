@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common;
+using log4net;
 
 namespace Fetcho.queueo
 {
@@ -15,16 +16,15 @@ namespace Fetcho.queueo
     {
         public const int InitialBufferSize = 10000;
         public const int FastCacheSize = 10000;
-        public const int MaxConcurrentTasks = 1000;
-        SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
+        public const int MaxConcurrentTasks = 100;
+
+        static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
+
+        private SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
         private List<QueueItem> outputBuffer = new List<QueueItem>(InitialBufferSize);
         private readonly object outputBufferLock = new object();
 
-        public QueueoConfiguration Configuration
-        {
-            get;
-            set;
-        }
+        public QueueoConfiguration Configuration { get; set; }
 
         public Queueo(QueueoConfiguration config)
         {
@@ -33,8 +33,11 @@ namespace Fetcho.queueo
 
         public async Task Process()
         {
-            var cts = new CancellationTokenSource();
-            var cancellationToken = cts.Token;
+            QueueItem item = null;
+            Uri source = null;
+            Uri target = null;
+            Task t = null;
+
             var lookupCache = new FastLookupCache<Uri>(FastCacheSize); // put all the URLs into here will remove duplicates roughly
 
             var reader = Configuration.InStream;
@@ -47,20 +50,21 @@ namespace Fetcho.queueo
 
                 if (tokens.Length >= 2 && Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) && Uri.IsWellFormedUriString(tokens[1], UriKind.Absolute))
                 {
-                    var source = new Uri(tokens[0]);
-                    var target = new Uri(tokens[1]);
+                    source = new Uri(tokens[0]);
+                    target = new Uri(tokens[1]);
 
                     if (!lookupCache.Contains(target))
                     {
                         lookupCache.Enqueue(target);
 
-                        var queueItem = new QueueItem()
+                        item = new QueueItem()
                         {
                             SourceUri = source,
                             TargetUri = target
                         };
 
-                        var t = CalculateQueueSequenceNumber(queueItem, cancellationToken);
+                        await taskPool.WaitAsync();
+                        t = CalculateQueueSequenceNumber(item);
                     }
                 }
 
@@ -70,22 +74,36 @@ namespace Fetcho.queueo
                 line = reader.ReadLine();
             }
 
-            while ( true)
+            while (true)
             {
-                await Task.Delay(10000, cancellationToken);
+                await Task.Delay(10000);
+
                 if (taskPool.CurrentCount == MaxConcurrentTasks)
                     break;
+
+                if (outputBuffer.Count >= InitialBufferSize)
+                    OutputQueueItems();
             }
 
             OutputQueueItems();
         }
 
-        async Task CalculateQueueSequenceNumber(QueueItem item, CancellationToken cancellationToken)
+
+        async Task CalculateQueueSequenceNumber(QueueItem item)
         {
-            await taskPool.WaitAsync(cancellationToken);
-            await Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(item, cancellationToken);
-            lock(outputBufferLock) outputBuffer.Add(item);
-            taskPool.Release();
+            try
+            {
+                await Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(item);
+                lock (outputBufferLock) outputBuffer.Add(item);
+            }
+            catch( Exception ex )
+            {
+                log.Error(ex);
+            }
+            finally
+            {
+                taskPool.Release();
+            }
         }
 
         void OutputQueueItems()

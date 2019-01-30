@@ -268,7 +268,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="uri">Any URI for which you want the robots file for</param>
         /// <returns></returns>
-        public static async Task<RobotsFile> GetFile(Uri uri, CancellationToken cancellationToken)
+        public static async Task<RobotsFile> GetFile(Uri uri)
         {
             //log.Debug("Downloading robots: " + uri);
 
@@ -283,7 +283,7 @@ namespace Fetcho.Common
 
                 using (var db = new Database())
                 {
-                    site = await db.GetSite(robotsUri, cancellationToken);
+                    site = await db.GetSite(robotsUri);
                     if (site != null)
                         needsVisiting = site.RobotsNeedsVisiting;
                     else
@@ -300,11 +300,11 @@ namespace Fetcho.Common
                         return null;
                     }
 
-                    robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched, cancellationToken);
+                    robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched);
                     site.LastRobotsFetched = DateTime.Now;
                     site.RobotsFile = robotsFile;
                     using (var db = new Database())
-                        await db.SaveSite(site, cancellationToken);
+                        await db.SaveSite(site);
                 }
                 else
                     robotsFile = site.RobotsFile;
@@ -345,7 +345,7 @@ namespace Fetcho.Common
         /// <param name="robotsUri"></param>
         /// <param name="lastFetched"></param>
         /// <returns></returns>
-        static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched, CancellationToken cancellationToken)
+        static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
         {
             RobotsFile robots = null;
 
@@ -362,7 +362,7 @@ namespace Fetcho.Common
                 using (var ms = new MemoryStream())
                 using (var writer = new StreamWriter(new MemoryStream()))
                 {
-                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, lastFetched, cancellationToken);
+                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, lastFetched);
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(ms);
                 }

@@ -19,7 +19,6 @@ namespace Fetcho.queueo
 
         public void Enqueue(T item)
         {
-            HashTable.Add(item);
             if (FifoQueue.Count > MaxCapacity)
                 Dequeue();
             FifoQueue.Enqueue(item);

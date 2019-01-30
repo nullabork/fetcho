@@ -45,8 +45,10 @@ namespace Fetcho.NextLinks
         public int LinksAccepted = 0;
         public int LinksRejected = 0;
 
-        public TextWriter acceptStream;
-        public TextWriter rejectStream;
+        private readonly object acceptStreamLock = new object();
+        private TextWriter acceptStream;
+        private readonly object rejectStreamLock = new object();
+        private TextWriter rejectStream;
 
         /// <summary>
         /// Configuration of this passed in when calling it
@@ -71,9 +73,6 @@ namespace Fetcho.NextLinks
 
             try
             {
-                var cts = new CancellationTokenSource();
-                var cancellationToken = cts.Token;
-
                 acceptStream = GetAcceptStream();
                 rejectStream = GetRejectStream();
 
@@ -83,13 +82,20 @@ namespace Fetcho.NextLinks
                     {
                         string line = reader.ReadLine();
                         var item = QueueItem.Parse(line);
-                        var t = ValidateQueueItem(item, cancellationToken);
+
+                        while (!await taskPool.WaitAsync(30000))
+                        {
+                            //log.Info("Waiting to ValidateQueueItem");
+                            if (QuotaReached())
+                                break;
+                        }
+                        var t = ValidateQueueItem(item);
                     }
                 }
 
                 while (true)
                 {
-                    await Task.Delay(HowOftenToReportStatusInMilliseconds, cancellationToken);
+                    await Task.Delay(HowOftenToReportStatusInMilliseconds);
                     ReportStatus();
                     if (_activeTasks == 0)
                         return;
@@ -108,17 +114,11 @@ namespace Fetcho.NextLinks
         /// </summary>
         /// <param name="item">The queue item</param>
         /// <returns>Async task (no return value)</returns>
-        async Task ValidateQueueItem(QueueItem item, CancellationToken cancellationToken)
+        async Task ValidateQueueItem(QueueItem item)
         {
             try
             {
                 Interlocked.Increment(ref _activeTasks);
-                while (!await taskPool.WaitAsync(30000, cancellationToken))
-                {
-                    //log.Info("Waiting to ValidateQueueItem");
-                    if (QuotaReached())
-                        break;
-                }
 
                 if (item == null)
                 {
@@ -148,7 +148,7 @@ namespace Fetcho.NextLinks
                     RejectLink(item);
                 }
 
-                else if (await IsBlockedByRobots(item, cancellationToken))
+                else if (await IsBlockedByRobots(item))
                 {
                     item.BlockedByRobots = true;
                     RejectLink(item);
@@ -185,15 +185,15 @@ namespace Fetcho.NextLinks
         void OutputAcceptedLink(QueueItem item)
         {
             LinksAccepted++;
-            if (acceptStream != null)
-                acceptStream.WriteLine(item.ToString());
+            lock(acceptStreamLock)
+                acceptStream?.WriteLine(item.ToString());
         }
 
         void OutputRejectedLink(QueueItem item)
         {
             LinksRejected++;
-            if (rejectStream != null)
-                rejectStream.WriteLine(item.ToString());
+            lock(rejectStreamLock)
+                rejectStream?.WriteLine(item.ToString());
         }
 
         TextWriter GetRejectStream()
@@ -235,7 +235,7 @@ namespace Fetcho.NextLinks
         /// </summary>
         /// <param name="item"></param>
         /// <returns>bool</returns>
-        async Task<bool> IsBlockedByRobots(QueueItem item, CancellationToken cancellationToken)
+        async Task<bool> IsBlockedByRobots(QueueItem item)
         {
             bool rtn = false;
 
@@ -243,7 +243,7 @@ namespace Fetcho.NextLinks
             {
                 var watch = new Stopwatch();
                 watch.Start();
-                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host, cancellationToken);
+                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host);
                 if (r == null) rtn = false;
                 else if (r.IsDisallowed(item.TargetUri)) rtn = true;
                 watch.Stop();

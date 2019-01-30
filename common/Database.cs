@@ -56,7 +56,7 @@ namespace Fetcho.Common
         /// open a connection to the DB
         /// </summary>
         /// <returns></returns>
-        async Task Open(CancellationToken cancellationToken)
+        async Task Open()
         {
             try
             {
@@ -68,8 +68,8 @@ namespace Fetcho.Common
                     connstr.Host = Server;
                 conn = new NpgsqlConnection(connstr.ToString());
 
-                await WaitIfTooManyActiveConnections(cancellationToken);
-                await conn.OpenAsync(cancellationToken);
+                await WaitIfTooManyActiveConnections();
+                await conn.OpenAsync();
                 Server = conn.Host;
                 Port = conn.Port;
             }
@@ -83,9 +83,9 @@ namespace Fetcho.Common
         /// Will block until a DB connection is available
         /// </summary>
         /// <returns></returns>
-        async Task WaitIfTooManyActiveConnections(CancellationToken cancellationToken)
+        async Task WaitIfTooManyActiveConnections()
         {
-            while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds, cancellationToken))
+            while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds))
                 log.Info("Waiting for a database connection");
         }
 
@@ -94,11 +94,11 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="commandtext"></param>
         /// <returns></returns>
-        async Task<NpgsqlCommand> SetupCommand(string commandtext, CancellationToken cancellationToken)
+        async Task<NpgsqlCommand> SetupCommand(string commandtext)
         {
             try
             {
-                await Open(cancellationToken);
+                await Open();
 
                 NpgsqlCommand cmd = new NpgsqlCommand(commandtext)
                 {
@@ -115,7 +115,7 @@ namespace Fetcho.Common
             }
         }
 
-        public async Task<Site> GetSite(Uri anyUri, CancellationToken cancellationToken)
+        public async Task<Site> GetSite(Uri anyUri)
         {
             Site site = null;
 
@@ -126,13 +126,13 @@ namespace Fetcho.Common
                 NpgsqlCommand cmd = await SetupCommand("select hostname_hash, hostname, " +
                                                  "is_blocked, last_robots_fetched, robots_file " +
                                                  "from \"Site\" " +
-                                                 "where hostname_hash = :hostname_hash", 
-                                                 cancellationToken);
+                                                 "where hostname_hash = :hostname_hash"
+                                                 );
 
                 cmd.Parameters.AddWithValue("hostname_hash", hash.Values);
 
 
-                using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
+                using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     if (reader.Read())
                     {
@@ -155,17 +155,17 @@ namespace Fetcho.Common
 
         }
 
-        public async Task BlockSite(string hostName, CancellationToken cancellationToken)
+        public async Task BlockSite(string hostName)
         {
             NpgsqlCommand cmd = await SetupCommand("update \"Site\" set is_blocked = true " +
-                                             "where hostname_hash = :hostname_hash", cancellationToken);
+                                             "where hostname_hash = :hostname_hash");
 
             cmd.Parameters.AddWithValue("hostname_hash", MD5Hash.Compute(hostName).Values);
 
-            var c = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            var c = await cmd.ExecuteNonQueryAsync();
         }
 
-        public async Task<int> SaveSite(Site site, CancellationToken cancellationToken)
+        public async Task<int> SaveSite(Site site)
         {
             try
             {
@@ -179,7 +179,7 @@ namespace Fetcho.Common
                   "       robots_file = :robots_file " +
                   "where  hostname_hash = :hostname_hash";
 
-                NpgsqlCommand cmd = await SetupCommand(update, cancellationToken);
+                NpgsqlCommand cmd = await SetupCommand(update);
 
                 cmd.Parameters.AddWithValue("hostname_hash", site.Hash.Values);
                 cmd.Parameters.AddWithValue("hostname", site.HostName);
@@ -192,12 +192,12 @@ namespace Fetcho.Common
                 else
                     cmd.Parameters.AddWithValue("last_robots_fetched", DBNull.Value);
 
-                int count = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                int count = await cmd.ExecuteNonQueryAsync();
 
                 if (count == 0)
                 {
                     cmd.CommandText = insert;
-                    count = await cmd.ExecuteNonQueryAsync(cancellationToken);
+                    count = await cmd.ExecuteNonQueryAsync();
                 }
 
                 return count;
@@ -209,7 +209,7 @@ namespace Fetcho.Common
             }
         }
 
-        public async Task SaveWebResource(Uri uri, DateTime nextFetch, CancellationToken cancellationToken)
+        public async Task SaveWebResource(Uri uri, DateTime nextFetch)
         {
             string updateSql = "set client_encoding='UTF8'; update \"WebResource\" " +
               "set    next_fetch = :next_fetch " +
@@ -218,15 +218,15 @@ namespace Fetcho.Common
             string insertSql = "set client_encoding='UTF8'; insert into \"WebResource\" ( urihash, next_fetch ) " +
               "values                      ( :urihash, :next_fetch );";
 
-            NpgsqlCommand cmd = await SetupCommand(updateSql, cancellationToken);
+            NpgsqlCommand cmd = await SetupCommand(updateSql);
             _saveWebResourceSetParams(cmd, uri, nextFetch);
-            int count = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            int count = await cmd.ExecuteNonQueryAsync();
 
             if (count == 0) // no record to update
             {
-                cmd = await SetupCommand(insertSql, cancellationToken);
+                cmd = await SetupCommand(insertSql);
                 _saveWebResourceSetParams(cmd, uri, nextFetch);
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
+                await cmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -241,14 +241,14 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public async Task<bool> NeedsVisiting(Uri uri, CancellationToken cancellationToken)
+        public async Task<bool> NeedsVisiting(Uri uri)
         {
             // the logic here looks backward, but it deals with the case where there's no records!
-            NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();", cancellationToken);
+            NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();");
 
             cmd.Parameters.Add(new NpgsqlParameter("urihash", MD5Hash.Compute(uri).Values));
 
-            object o = await cmd.ExecuteScalarAsync(cancellationToken);
+            object o = await cmd.ExecuteScalarAsync();
 
             return ((long)o) == 0;
         }
