@@ -53,11 +53,11 @@ namespace Fetcho.Common
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", MessageId = "1#")]
         public static IEnumerable<Uri> GetLinks(Uri sourceUri, string uriCandidate)
         {
-            var list = new List<Uri>();
+            var list = new List<Uri>(5);
 
             if (sourceUri == null)
                 return list;
-            
+
             try
             {
                 string tempUrl = uriCandidate;
@@ -117,7 +117,7 @@ namespace Fetcho.Common
                     }
                 }
 
-                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute))
+                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute) && tempUrl.Contains("."))
                 {
                     var uri = new Uri(tempUrl);
                     list.Add(uri);

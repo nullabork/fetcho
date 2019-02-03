@@ -33,6 +33,8 @@ namespace Fetcho.Common
         public string Server { get; set; }
         public int Port { get; set; }
 
+        private bool IsOpen { get => (conn != null && conn.State == ConnectionState.Open);  }
+
         public Database(string server, int port)
         {
             Server = server;
@@ -60,7 +62,7 @@ namespace Fetcho.Common
         {
             try
             {
-                if (conn != null && conn.State == ConnectionState.Open) return;
+                if (IsOpen) return;
 
                 if (Port > 0)
                     connstr.Port = Port;
@@ -68,8 +70,8 @@ namespace Fetcho.Common
                     connstr.Host = Server;
                 conn = new NpgsqlConnection(connstr.ToString());
 
-                await WaitIfTooManyActiveConnections();
-                await conn.OpenAsync();
+                await WaitIfTooManyActiveConnections().ConfigureAwait(false);
+                await conn.OpenAsync().ConfigureAwait(false);
                 Server = conn.Host;
                 Port = conn.Port;
             }
@@ -85,7 +87,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         async Task WaitIfTooManyActiveConnections()
         {
-            while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds))
+            while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds).ConfigureAwait(false))
                 log.Info("Waiting for a database connection");
         }
 
@@ -98,7 +100,7 @@ namespace Fetcho.Common
         {
             try
             {
-                await Open();
+                if (!IsOpen) await Open();
 
                 NpgsqlCommand cmd = new NpgsqlCommand(commandtext)
                 {
@@ -218,15 +220,15 @@ namespace Fetcho.Common
             string insertSql = "set client_encoding='UTF8'; insert into \"WebResource\" ( urihash, next_fetch ) " +
               "values                      ( :urihash, :next_fetch );";
 
-            NpgsqlCommand cmd = await SetupCommand(updateSql);
+            NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             _saveWebResourceSetParams(cmd, uri, nextFetch);
-            int count = await cmd.ExecuteNonQueryAsync();
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (count == 0) // no record to update
             {
-                cmd = await SetupCommand(insertSql);
+                cmd = await SetupCommand(insertSql).ConfigureAwait(false);
                 _saveWebResourceSetParams(cmd, uri, nextFetch);
-                await cmd.ExecuteNonQueryAsync();
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 

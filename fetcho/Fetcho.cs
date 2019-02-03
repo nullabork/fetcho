@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Fetcho.Common;
 using log4net;
 
@@ -18,7 +19,7 @@ namespace Fetcho
         public FetchoConfiguration Configuration { get; set; }
         SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
         TextWriter requeueWriter = null;
-        TextWriter outputWriter = null;
+        XmlWriter outputWriter = null;
         TextReader inputReader = null;
 
         public Fetcho(FetchoConfiguration config)
@@ -31,7 +32,12 @@ namespace Fetcho
             requeueWriter = GetRequeueWriter();
             inputReader = GetInputReader();
             outputWriter = GetOutputWriter();
+            outputWriter.WriteStartDocument();
+            outputWriter.WriteStartElement("resources");
             await FetchUris();
+            outputWriter.WriteEndElement();
+            outputWriter.WriteEndDocument();
+            outputWriter.Flush();
         }
 
         async Task FetchUris()
@@ -43,9 +49,12 @@ namespace Fetcho
                 while (!await fetchLock.WaitAsync(360000))
                     log.InfoFormat("Been waiting a while to fire up a new fetch. Active: {0}, complete: {1}", activeFetches, completedFetches);
 
-                if (!u.HasAnIssue)
+                if (u.HasAnIssue)
+                    log.InfoFormat("QueueItem has an issue:{0}", u);
+                else
                 {
                     var t = FetchQueueItem(u);
+
                 }
 
                 u = ParseQueueItem(inputReader.ReadLine());
@@ -67,7 +76,7 @@ namespace Fetcho
             try
             {
                 if (Configuration.InputRawUrls)
-                    return new QueueItem() { TargetUri = new Uri(line) };
+                    return new QueueItem() { TargetUri = new Uri(line), Sequence = 0 };
                 else
                     return QueueItem.Parse(line);
             }
@@ -81,7 +90,7 @@ namespace Fetcho
             try
             {
                 Interlocked.Increment(ref activeFetches);
-                await ResourceFetcher.FetchFactory(item.TargetUri, Console.Out, DateTime.MinValue);
+                await ResourceFetcher.FetchFactory(item.TargetUri, outputWriter, Configuration.BlockProvider, DateTime.MinValue);
             }
             catch (TimeoutException)
             {
@@ -118,7 +127,17 @@ namespace Fetcho
             return sr;
         }
 
-        TextWriter GetOutputWriter() => Console.Out;
+        /// <summary>
+        /// Get the stream where we're writing the internet out to
+        /// </summary>
+        /// <returns></returns>
+        XmlWriter GetOutputWriter()
+        {
+            var settings = new XmlWriterSettings();
+            settings.Indent = true;
+            settings.NewLineHandling = NewLineHandling.Replace;
+            return XmlWriter.Create(Console.Out, settings);
+        }
 
         TextWriter GetRequeueWriter()
         {

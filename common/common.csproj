@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <Import Project="..\packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props" Condition="Exists('..\packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props')" />
   <PropertyGroup>
     <ProjectGuid>{42364165-FF2E-49B6-A707-D3C5181FA8F5}</ProjectGuid>
     <ProjectTypeGuids>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -11,6 +12,8 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Platform)' == 'AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -45,9 +48,6 @@
     <Reference Include="Npgsql">
       <HintPath>..\..\..\..\Desktop\npgsql-4.0.4\src\Npgsql\bin\Debug\net45\Npgsql.dll</HintPath>
     </Reference>
-    <Reference Include="NUnit.Framework">
-      <HintPath>$(SharpDevelopBinPath)\Tools\NUnit\NUnit.Framework.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core">
@@ -67,7 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Database.cs" />
-    <Compile Include="DatabaseTest.cs" />
+    <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
     <Compile Include="Entities\WebResource.cs" />
     <Compile Include="FetchoException.cs" />
@@ -75,9 +75,11 @@
     <Compile Include="FiniteStateMachineNode.cs" />
     <Compile Include="HashRange.cs" />
     <Compile Include="HostCacheManager.cs" />
+    <Compile Include="ResourceFetchers\IBlockProvider.cs" />
     <Compile Include="IndexableQueue.cs" />
     <Compile Include="LevenshteinDistance.cs" />
     <Compile Include="Md5Hash.cs" />
+    <Compile Include="ResourceFetchers\NullBlockProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueueItem.cs" />
     <Compile Include="ResourceFetchers\HttpResourceFetcher.cs" />
@@ -86,15 +88,23 @@
     <Compile Include="Settings.cs" />
     <Compile Include="TypeExtensions.cs" />
     <Compile Include="Utility.cs" />
+    <Compile Include="WebDataPacketReader.cs" />
+    <Compile Include="XmlBase64ElementStream.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <EmbeddedResource Include="app.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="test.bat">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props'))" />
+  </Target>
 </Project>

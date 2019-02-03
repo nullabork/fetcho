@@ -14,14 +14,14 @@ namespace Fetcho.queueo
     /// </summary>
     class Queueo
     {
-        public const int InitialBufferSize = 10000;
         public const int FastCacheSize = 10000;
         public const int MaxConcurrentTasks = 100;
+        public const int MaxBufferSize = 100000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
 
         private SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
-        private List<QueueItem> outputBuffer = new List<QueueItem>(InitialBufferSize);
+        private List<QueueItem> outputBuffer = new List<QueueItem>(MaxBufferSize);
         private readonly object outputBufferLock = new object();
 
         public QueueoConfiguration Configuration { get; set; }
@@ -33,9 +33,6 @@ namespace Fetcho.queueo
 
         public async Task Process()
         {
-            QueueItem item = null;
-            Uri source = null;
-            Uri target = null;
             Task t = null;
 
             var lookupCache = new FastLookupCache<Uri>(FastCacheSize); // put all the URLs into here will remove duplicates roughly
@@ -46,29 +43,16 @@ namespace Fetcho.queueo
 
             while (!String.IsNullOrWhiteSpace(line))
             {
-                string[] tokens = line.Split('\t');
+                QueueItem item = ExtractQueueItem(line);
 
-                if (tokens.Length >= 2 && Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) && Uri.IsWellFormedUriString(tokens[1], UriKind.Absolute))
+                if (item != null && !lookupCache.Contains(item.TargetUri))
                 {
-                    source = new Uri(tokens[0]);
-                    target = new Uri(tokens[1]);
-
-                    if (!lookupCache.Contains(target))
-                    {
-                        lookupCache.Enqueue(target);
-
-                        item = new QueueItem()
-                        {
-                            SourceUri = source,
-                            TargetUri = target
-                        };
-
-                        await taskPool.WaitAsync();
-                        t = CalculateQueueSequenceNumber(item);
-                    }
+                    lookupCache.Enqueue(item.TargetUri);
+                    await taskPool.WaitAsync();
+                    t = CalculateQueueSequenceNumber(item);
                 }
 
-                if (outputBuffer.Count >= InitialBufferSize)
+                if (outputBuffer.Count >= MaxBufferSize)
                     OutputQueueItems();
 
                 line = reader.ReadLine();
@@ -81,7 +65,7 @@ namespace Fetcho.queueo
                 if (taskPool.CurrentCount == MaxConcurrentTasks)
                     break;
 
-                if (outputBuffer.Count >= InitialBufferSize)
+                if (outputBuffer.Count >= MaxBufferSize)
                     OutputQueueItems();
             }
 
@@ -96,7 +80,7 @@ namespace Fetcho.queueo
                 await Configuration.QueueOrderingModel.CalculateQueueSequenceNumber(item);
                 lock (outputBufferLock) outputBuffer.Add(item);
             }
-            catch( Exception ex )
+            catch (Exception ex)
             {
                 log.Error(ex);
             }
@@ -104,6 +88,37 @@ namespace Fetcho.queueo
             {
                 taskPool.Release();
             }
+        }
+
+        QueueItem ExtractQueueItem(string line)
+        {
+            // if theres no data return null
+            if (String.IsNullOrWhiteSpace(line)) return null;
+
+            // if its a proper queue item parse it
+            var item = QueueItem.Parse(line);
+
+            // else try a version where it's not proper
+            if (item == null)
+            {
+                string[] tokens = line.Split('\t');
+
+                if (tokens.Length >= 2 && Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) && Uri.IsWellFormedUriString(tokens[1], UriKind.Absolute))
+                {
+                    var source = new Uri(tokens[0]);
+                    var target = new Uri(tokens[1]);
+
+                    item = new QueueItem()
+                    {
+                        SourceUri = source,
+                        TargetUri = target
+                    };
+                }
+            }
+
+            if (item?.TargetUri == null)
+                return null;
+            return item;
         }
 
         void OutputQueueItems()

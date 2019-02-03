@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Fetcho.Common;
+using log4net;
+using System;
 using System.IO;
 
 namespace Fetcho
@@ -8,6 +10,8 @@ namespace Fetcho
     /// </summary>
     class Extracto
     {
+        private static readonly ILog log = LogManager.GetLogger(typeof(Extracto));
+
         /// <summary>
         /// The configuration of Extracto
         /// </summary>
@@ -28,8 +32,53 @@ namespace Fetcho
         public void Process()
         {
             var dataStream = getInputStream();
-            // TODO: This needs to be smarter to guess on each file change
-            var reader = GuessLinkExtractor(dataStream);
+            var packet = new WebDataPacketReader(dataStream);
+
+            do
+            {
+                var uriReader = GuessLinkExtractor(packet);
+                OutputUris(uriReader);
+            }
+            while (!packet.EndOfFile);
+
+        }
+
+        /// <summary>
+        /// Guess which extractor to use to get links
+        /// </summary>
+        /// <param name="dataStream"></param>
+        /// <returns></returns>
+        ILinkExtractor GuessLinkExtractor(WebDataPacketReader packet)
+        {
+            while (packet.NextResource())
+            {
+                string request = packet.GetRequestString();
+
+                if (string.IsNullOrWhiteSpace(request)) throw new Exception("No good");
+
+                var uri = WebDataPacketReader.GetUriFromRequestString(request);
+                if (uri == null) continue;
+                var response = packet.GetResponseStream();
+                if (response != null)
+                    return new TextFileLinkExtractor(uri, new StreamReader(response));
+
+                // if ( response == null ) continue;
+                // var contentType = WebDataPacketReader.GetContentTypeFromRequestString(request);
+                // switch(contentType)
+                // {
+                //    case "text/": return new TextFileLinkExtractor...
+            }
+
+            return null;
+            // return HtmlFileLinkExtractor();
+            // return PdfFileLinkExtractor();
+            // return ExcelFileLinkExtractor();
+            // return CsvFileLinkExtractor();
+        }
+
+        void OutputUris(ILinkExtractor reader)
+        {
+            if (reader == null) return;
 
             Uri uri = reader.NextUri();
 
@@ -42,33 +91,16 @@ namespace Fetcho
         }
 
         /// <summary>
-        /// Guess which extractor to use to get links
-        /// </summary>
-        /// <param name="dataStream"></param>
-        /// <returns></returns>
-        ILinkExtractor GuessLinkExtractor(TextReader dataStream)
-        {
-            return new TextFileLinkExtractor(dataStream);
-            // return HtmlFileLinkExtractor();
-            // return PdfFileLinkExtractor();
-            // return ExcelFileLinkExtractor();
-            // return CsvFileLinkExtractor();
-        }
-
-        /// <summary>
         /// Open the data stream from either a specific file or STDIN
         /// </summary>
         /// <returns>A TextReader if successful</returns>
-        TextReader getInputStream()
+        Stream getInputStream()
         {
             // if there's no file argument, read from STDIN
             if (String.IsNullOrWhiteSpace(Configuration.DataSourceFilePath))
-                return Console.In;
+                return Console.OpenStandardInput();
 
-            var fs = new FileStream(Configuration.DataSourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var sr = new StreamReader(fs);
-
-            return sr;
+            return new FileStream(Configuration.DataSourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         }
     }
 }

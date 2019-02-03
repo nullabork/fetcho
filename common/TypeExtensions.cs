@@ -61,7 +61,7 @@ namespace Fetcho.Common
             return b;
         }
 
-        public static T[] PadLeft<T>(this T[] array1, T array2, int number)
+        public static T[] PadLeft<T>(this T[] array1, T paddingValue, int number)
         {
             if (array1.Length >= number)
                 return array1;
@@ -69,12 +69,12 @@ namespace Fetcho.Common
             T[] c = new T[number];
             Array.Copy(array1, 0, c, number - array1.Length, array1.Length);
             for (int i = 0; i < number - array1.Length; i++)
-                c[i] = array2;
+                c[i] = paddingValue;
 
             return c;
         }
 
-        public static T[] PadRight<T>(this T[] array1, T array2, int number)
+        public static T[] PadRight<T>(this T[] array1, T paddingValue, int number)
         {
             if (array1.Length >= number)
                 return array1;
@@ -82,9 +82,30 @@ namespace Fetcho.Common
             T[] c = new T[number];
             Array.Copy(array1, 0, c, 0, array1.Length);
             for (int i = 0; i < number - array1.Length; i++)
-                c[array1.Length + i] = array2;
+                c[array1.Length + i] = paddingValue;
 
             return c;
         }
+
+        /// <summary>
+        /// Remove X number of chars off the end of a string
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
+        public static string Chop(this string str, int numchars = 1)
+        {
+            if (numchars > str.Length)
+                throw new ArgumentException("numchars has to be less than the length of the string");
+            return str.Substring(0, str.Length - numchars);
+        }
+
+        public static string Truncate(this string str, int maxlength)
+        {
+            if (str.Length < maxlength) return str;
+            return str.Substring(0, maxlength);
+        }
     }
+
+    
 }

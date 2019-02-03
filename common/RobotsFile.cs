@@ -11,6 +11,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Fetcho.Common.entities;
 using log4net;
 
@@ -56,15 +57,15 @@ namespace Fetcho.Common
             Malformed = false;
         }
 
-        public RobotsFile(byte[] data) : this(new MemoryStream(data))
+        public RobotsFile(byte[] data) : this(XmlReader.Create(new MemoryStream(data)))
         {
         }
 
-        public RobotsFile(Stream stream) : this()
+        public RobotsFile(XmlReader reader) : this()
         {
-            using (stream)
+            using (reader)
             {
-                Process(stream);
+                Process(reader);
             }
         }
 
@@ -121,7 +122,7 @@ namespace Fetcho.Common
         /// Process the file into local memory
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        private void Process(Stream stream)
+        private void Process(XmlReader xmlreader)
         {
             string userAgent = "";
 
@@ -135,69 +136,70 @@ namespace Fetcho.Common
                                new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
                               );
 
-
-            using (var reader = new StreamReader(stream))
+            using (var packet = new WebDataPacketReader(xmlreader))
             {
-                while (!reader.EndOfStream && reader.ReadLine() != ResourceFetcher.StartOfResponseSection) continue;
-                while (!reader.EndOfStream && reader.ReadLine() == "\n") continue;
-                while (!reader.EndOfStream && reader.ReadLine() == "\n") continue;
+                var response = packet.GetResponseStream();
+                if (response == null) return; // no response
 
-                while (!reader.EndOfStream)
+                using (var reader = new StreamReader(response))
                 {
-                    string line = reader.ReadLine().ToLower().Trim();
-
-                    // skip comments
-                    if (line.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))
-                        continue;
-
-                    if (line.StartsWith("user-agent:", StringComparison.InvariantCultureIgnoreCase))
+                    while (!reader.EndOfStream)
                     {
-                        userAgent = "";
-                        if (line.Length > 11)
-                            userAgent = line.Substring(11, line.Length - 11).Trim();
+                        string line = reader.ReadLine().ToLower().Trim();
 
-                        if (userAgent == Settings.UserAgent)
-                            log.Error(this.Uri + " has a specific restriction for our user-agent");
+                        // skip comments
+                        if (line.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))
+                            continue;
 
-                        addStringToMatcher(Disallow,
-                                           userAgent,
-                                           new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
-                                          );
-                        addStringToMatcher(Allow,
-                                           userAgent,
-                                           new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
-                                          );
-                    }
-                    else
-                    {
-                        if (line.EndsWith("*", StringComparison.InvariantCultureIgnoreCase)) line = line.Substring(0, line.Length - 1); // chop it
-
-                        if (line.StartsWith("disallow:", StringComparison.InvariantCultureIgnoreCase))
+                        if (line.StartsWith("user-agent:", StringComparison.InvariantCultureIgnoreCase))
                         {
-                            var disallow_matcher = Disallow.GetState(userAgent);
-                            if (disallow_matcher.Length == 0)
-                                throw new Exception("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
+                            userAgent = "";
+                            if (line.Length > 11)
+                                userAgent = line.Substring(11, line.Length - 11).Trim();
 
-                            if (line.Length > 9)
-                                addStringToMatcher(disallow_matcher[0],
-                                                   line.Substring(9, line.Length - 9).Trim(),
-                                                   FiniteStateMachineBooleanState.Accept);
+                            if (userAgent == Settings.UserAgent)
+                                log.Error(this.Uri + " has a specific restriction for our user-agent");
+
+                            addStringToMatcher(Disallow,
+                                               userAgent,
+                                               new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
+                                              );
+                            addStringToMatcher(Allow,
+                                               userAgent,
+                                               new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
+                                              );
                         }
-                        else if (line.StartsWith("allow:", StringComparison.InvariantCultureIgnoreCase))
+                        else
                         {
-                            var allow_matcher = Allow.GetState(userAgent);
-                            if (allow_matcher.Length == 0)
-                                throw new Exception("No default allow matcher available for '" + userAgent + "' uri " + Uri);
+                            if (line.EndsWith("*", StringComparison.InvariantCultureIgnoreCase)) line = line.Substring(0, line.Length - 1); // chop it
 
-                            if (line.Length > 6)
-                                addStringToMatcher(allow_matcher[0],
-                                                   line.Substring(6, line.Length - 6).Trim(),
-                                                   FiniteStateMachineBooleanState.Accept);
-                        }
-                        else if (line.StartsWith("sitemap:", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            if (line.Length > 8)
-                                SiteMaps.Add(line.Substring(8, line.Length - 8).Trim());
+                            if (line.StartsWith("disallow:", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                var disallow_matcher = Disallow.GetState(userAgent);
+                                if (disallow_matcher.Length == 0)
+                                    throw new Exception("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
+
+                                if (line.Length > 9)
+                                    addStringToMatcher(disallow_matcher[0],
+                                                       line.Substring(9, line.Length - 9).Trim(),
+                                                       FiniteStateMachineBooleanState.Accept);
+                            }
+                            else if (line.StartsWith("allow:", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                var allow_matcher = Allow.GetState(userAgent);
+                                if (allow_matcher.Length == 0)
+                                    throw new Exception("No default allow matcher available for '" + userAgent + "' uri " + Uri);
+
+                                if (line.Length > 6)
+                                    addStringToMatcher(allow_matcher[0],
+                                                       line.Substring(6, line.Length - 6).Trim(),
+                                                       FiniteStateMachineBooleanState.Accept);
+                            }
+                            else if (line.StartsWith("sitemap:", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                if (line.Length > 8)
+                                    SiteMaps.Add(line.Substring(8, line.Length - 8).Trim());
+                            }
                         }
                     }
                 }
@@ -235,7 +237,7 @@ namespace Fetcho.Common
                     else if (matchString[i + 1] != '*')
                         skip_next = false;
                 }
-                else
+                else if ( i == matchString.Length - 1)
                     current_state = state;
 
                 if (skip_next && matchString.Length - 2 == i)
@@ -345,7 +347,7 @@ namespace Fetcho.Common
         /// <param name="robotsUri"></param>
         /// <param name="lastFetched"></param>
         /// <returns></returns>
-        static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
+        public static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
         {
             RobotsFile robots = null;
 
@@ -360,11 +362,12 @@ namespace Fetcho.Common
                 }
 
                 using (var ms = new MemoryStream())
-                using (var writer = new StreamWriter(new MemoryStream()))
+                using (var writer = XmlWriter.Create(ms))
                 {
-                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, lastFetched);
+                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, NullBlockProvider.Default, lastFetched);
                     ms.Seek(0, SeekOrigin.Begin);
-                    robots = new RobotsFile(ms);
+                    robots = new RobotsFile(XmlReader.Create(ms, new XmlReaderSettings()
+                    { ConformanceLevel = ConformanceLevel.Fragment }));
                 }
             }
             catch (Exception ex)

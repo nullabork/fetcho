@@ -9,11 +9,11 @@
 using System;
 namespace Fetcho
 {
-	public interface ILinkExtractor
-	{
-	  Uri CurrentSourceUri { get; set; }
-		Uri NextUri();
-	}
+    public interface ILinkExtractor
+    {
+        Uri CurrentSourceUri { get; set; }
+        Uri NextUri();
+    }
 }
 
 

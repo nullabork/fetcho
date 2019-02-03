@@ -6,13 +6,14 @@ set datapath=data
 set current=0
 set previous=0
 
-fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.txt
-echo %datapath%\packet-%current%.txt
+fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.xml
+echo %datapath%\packet-%current%.xml
 
 :loop
 
-  extracto %datapath%\packet-%current%.txt > %datapath%\links-%current%.txt
-  queueo %datapath%\links-%current%.txt > %datapath%\queue-%current%.txt
+  extracto %datapath%\packet-%current%.xml > %datapath%\links-%current%.txt
+  cat %datapath%\requeue-%current%.txt >> %datapath%\links-%current%.txt
+  queueo %datapath%\links-%current%.txt >> %datapath%\queue-%current%.txt
   nextlinks %datapath%\queue-%current%.txt %datapath%\rejects-%current%.txt > %datapath%\nextlinks-%current%.txt
   
   FOR /F "usebackq" %%A IN ('%datapath%\nextlinks-%current%.txt') DO set size=%%~zA
@@ -24,8 +25,8 @@ echo %datapath%\packet-%current%.txt
   set /A previous=current
   set /A current=current+1
   
-  fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.txt
-  echo %datapath%\packet-%current%.txt
+  fetcho %datapath%\nextlinks-%previous%.txt %datapath%\requeue-%current%.txt > %datapath%\packet-%current%.xml
+  echo %datapath%\packet-%current%.xml
 goto loop
 
 :borked

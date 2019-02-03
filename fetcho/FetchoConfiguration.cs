@@ -1,4 +1,6 @@
-﻿namespace Fetcho
+﻿using Fetcho.Common;
+
+namespace Fetcho
 {
     public class FetchoConfiguration
     {
@@ -13,6 +15,8 @@
         /// </summary>
         public bool InputRawUrls { get; set; }
 
+        public IBlockProvider BlockProvider { get; set; }
+
         public FetchoConfiguration(string[] args)
         {
             parse(args);
@@ -23,7 +27,7 @@
             if (args.Length > 0)
                 UriSourceFilePath = args[0];
 
-            if (args.Length > 1)
+            if (args.Length > 1 && args[1] != "--raw")
                 RequeueUrlsFilePath = args[1];
 
             InputRawUrls |= args.Length > 0 && args[0] == "--raw";

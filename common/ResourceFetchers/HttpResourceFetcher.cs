@@ -5,38 +5,36 @@
  * Time: 2:36 PM
  */
 using System;
-using System.IO;
 using System.Net;
 using System.Net.Cache;
 using System.Threading;
 
 using System.Threading.Tasks;
-using Fetcho.Common.entities;
+using System.Xml;
 using log4net;
 
 namespace Fetcho.Common
 {
+    /// <summary>
+    /// Fetches HTTP resources from the web
+    /// </summary>
     public class HttpResourceFetcher : ResourceFetcher
     {
         static readonly ILog log = LogManager.GetLogger(typeof(HttpResourceFetcher));
 
         /// <summary>
-        /// Some sites will provide this string in their headers as 'Rating:'
-        /// </summary>
-        const string AdultRatingString = "RTA-5042-1996-1400-1577-RTA";
-
-        /// <summary>
         /// Fetches a copy of a HTTP resource
         /// </summary>
         /// <param name="uri"></param>
-        /// <param name = "writeStream"></param>
+        /// <param name="writeStream"></param>
         /// <param name="lastFetchedDate">Date we last fetched the resource - helps in optimising resources</param>
         /// <returns></returns>
         public override async Task Fetch(Uri uri,
-                                                 TextWriter writeStream,
+                                                 XmlWriter writeStream,
+                                                 IBlockProvider blockProvider,
                                                  DateTime? lastFetchedDate)
         {
-            if (!await HostCacheManager.WaitToFetch(uri.Host, 120000))
+            if (!await HostCacheManager.WaitToFetch(uri.Host, 60000))
                 throw new TimeoutException("Waited too long to start fetching");
 
             using (var db = new Database())
@@ -54,16 +52,22 @@ namespace Fetcho.Common
 
                 await Task.WhenAny(netTask, Task.Delay(request.Timeout));
                 Monitor.Enter(SyncOutput);
+                OutputStartResource(writeStream);
                 OutputRequest(request, writeStream);
                 if (netTask.Status != TaskStatus.RanToCompletion)
-                    throw new TimeoutException(string.Format("Request timed out: {0}", request.RequestUri));
+                {
+                    if (netTask.Exception != null)
+                        throw netTask.Exception;
+                    else
+                        throw new TimeoutException(string.Format("Request timed out: {0}", request.RequestUri));
+                }
 
                 response = await netTask as HttpWebResponse;
 
-                if (IsBlocked(response, out string block_reason))
+                if (blockProvider.IsBlocked(request, response, out string block_reason))
                 {
-                    log.Error(string.Format("URI is blocked, {0}. {1}", block_reason, request.RequestUri));
                     response.Close();
+                    throw new Exception(string.Format("URI is blocked, {0}", block_reason));
                 }
                 else
                 {
@@ -79,41 +83,13 @@ namespace Fetcho.Common
             {
                 response?.Dispose();
                 response = null;
+                OutputEndResource(writeStream);
                 base.EndRequest();
                 if (Monitor.IsEntered(SyncOutput)) Monitor.Exit(SyncOutput);
             }
         }
 
-
-        private bool IsBlocked(HttpWebResponse response, out string block_reason)
-        {
-            block_reason = "OK";
-            bool rtn = true;
-
-            if (response.ContentLength > Settings.MaxFileDownloadLengthInBytes)
-            {
-                block_reason = "Response exceeded max length of " + Settings.MaxFileDownloadLengthInBytes;
-            }
-            else if (response.Headers["Rating"] == AdultRatingString)
-            {
-                block_reason = "Adult rated site. Not continuing with download.";
-            }
-            // block image/video/audio since we can't do anything with it
-            else if (response.ContentType.StartsWith("image/") ||
-                     response.ContentType.StartsWith("video/") ||
-                     response.ContentType.StartsWith("audio/"))
-            {
-                block_reason = "Content type '" + response.ContentType + "' is blocked from downloading";
-            }
-            else
-            {
-                rtn = false;
-            }
-
-            return rtn;
-        }
-
-        HttpWebRequest CreateRequest(Uri uri, DateTime? lastFetchedDate)
+        private HttpWebRequest CreateRequest(Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
@@ -127,7 +103,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout lowered to speed things up
-            request.Timeout = 5000;
+            request.Timeout = 10000;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;

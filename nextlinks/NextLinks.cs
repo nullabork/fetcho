@@ -20,7 +20,7 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        public const uint MaximumSequenceForLinks = 300*1000*1000;
+        public const uint MaximumSequenceForLinks = 500*1000*1000;
 
         /// <summary>
         /// 
@@ -63,10 +63,7 @@ namespace Fetcho.NextLinks
         /// Create an object with the associated configuration
         /// </summary>
         /// <param name="config"></param>
-        public NextLinks(NextLinksConfiguration config)
-        {
-            Configuration = config;
-        }
+        public NextLinks(NextLinksConfiguration config) => Configuration = config;
 
         public async Task Process()
         {
@@ -83,19 +80,19 @@ namespace Fetcho.NextLinks
                         string line = reader.ReadLine();
                         var item = QueueItem.Parse(line);
 
-                        while (!await taskPool.WaitAsync(30000))
+                        while (!await taskPool.WaitAsync(30000).ConfigureAwait(false))
                         {
                             //log.Info("Waiting to ValidateQueueItem");
                             if (QuotaReached())
                                 break;
                         }
-                        var t = ValidateQueueItem(item);
+                        var t = ValidateQueueItem(item).ConfigureAwait(false);
                     }
                 }
 
                 while (true)
                 {
-                    await Task.Delay(HowOftenToReportStatusInMilliseconds);
+                    await Task.Delay(HowOftenToReportStatusInMilliseconds).ConfigureAwait(false);
                     ReportStatus();
                     if (_activeTasks == 0)
                         return;
@@ -142,13 +139,25 @@ namespace Fetcho.NextLinks
                     RejectLink(item);
                 }
 
+                else if (CantDownloadItYet(item))
+                {
+                    item.UnsupportedUri = true;
+                    RejectLink(item);
+                }
+
+                else if (IsUriProbablyBlocked(item))
+                {
+                    item.IsProbablyBlocked = true;
+                    RejectLink(item);
+                }
+
                 else if (IsSequenceTooHigh(item))
                 {
                     item.SequenceTooHigh = true;
                     RejectLink(item);
                 }
 
-                else if (await IsBlockedByRobots(item))
+                else if (await IsBlockedByRobots(item)) // most expensive one last
                 {
                     item.BlockedByRobots = true;
                     RejectLink(item);
@@ -204,10 +213,11 @@ namespace Fetcho.NextLinks
             return new StreamWriter(Configuration.RejectedLinkFilePath, false);
         }
 
-        TextWriter GetAcceptStream()
-        {
-            return Console.Out;
-        }
+        /// <summary>
+        /// The stream that accepted links get written out to
+        /// </summary>
+        /// <returns></returns>
+        TextWriter GetAcceptStream() => Console.Out;
 
         /// <summary>
         /// Returns true if we've reached the maximum accepted links
@@ -229,6 +239,30 @@ namespace Fetcho.NextLinks
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
         bool IsSequenceTooHigh(QueueItem item) => item.Sequence > MaximumSequenceForLinks;
+
+        /// <summary>
+        /// Returns true if theres no resource fetcher for the type of URL
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool CantDownloadItYet(QueueItem item) => !ResourceFetcher.HasHandler(item.TargetUri);
+
+        /// <summary>
+        /// Detects URIs that are probably blocked before we attempt to download them
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool IsUriProbablyBlocked(QueueItem item) =>
+            item == null ||
+            item.TargetUri == null ||
+            item.TargetUri.ToString().EndsWith(".jpg") ||
+            item.TargetUri.ToString().EndsWith(".jpeg") ||
+            item.TargetUri.ToString().EndsWith(".gif") ||
+            item.TargetUri.ToString().EndsWith(".png") ||
+            item.TargetUri.ToString().EndsWith(".avi") ||
+            item.TargetUri.ToString().EndsWith(".mp4") ||
+            item.TargetUri.ToString().EndsWith(".mp3") ||
+            item.TargetUri.ToString().EndsWith(".wav");
 
         /// <summary>
         /// Returns true if the queue item is blocked by a rule in the associated robots file

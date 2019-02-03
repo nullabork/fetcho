@@ -8,6 +8,7 @@ namespace Fetcho.NextLinks
     {
         public static void Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
             var log = LogManager.GetLogger(typeof(Program));
             AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => log.Error(eventArgs.ExceptionObject);
