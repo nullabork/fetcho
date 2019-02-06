@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common;
 using log4net;
@@ -12,12 +11,12 @@ namespace Fetcho.queueo
     /// <summary>
     /// Assigns a random number to the queue item adjusts slightly for common hosts and IP addresses
     /// </summary>
-    public class NaiveQueueOrderingModel : IQueueCalculationModel
+    public class NaiveQueueOrderingModel : IQueuePriorityCalculationModel
     {
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
-        static readonly object hostCountLock = new object();
         static readonly Dictionary<string, uint> HostCount = new Dictionary<string, uint>();
+        static readonly object hostCountLock = new object();
 
         /// <summary>
         /// For memory safety this is the maximum that be in HostCount before we clear it out and start again
@@ -37,30 +36,35 @@ namespace Fetcho.queueo
 
         const uint MultiHostLinkSpreadFactor = 2 * 1000 * 1000;
 
-        public async Task<object> CalculateQueueSequenceNumber(QueueItem item)
+        /// <summary>
+        /// Start a task to calculate the priority for the queueitem
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public async Task CalculatePriority(QueueItem item)
         {
             try
             {
                 string host = item.TargetUri.Host;
-                uint sequence = (uint)rand.Next(MinRandSeq, MaxRandSeq);
+                uint priority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
 
                 if (!await NeedsVisiting(item))
-                    sequence += DoesntNeedVisiting;
+                    priority += DoesntNeedVisiting;
 
-                if (DomainsAreEqual(item))
-                    sequence += (uint)rand.Next(MinDomainsAreEqualSeq, MaxDomainsAreEqualSeq);
+                if (HostsAreEqual(item))
+                    priority += (uint)rand.Next(MinDomainsAreEqualSeq, MaxDomainsAreEqualSeq);
                 else
                 {
                     try
                     {
-                        if (await DomainsShareCommonIPAddresses(item))
-                            sequence += (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
+                        if (await HostsShareCommonIPAddresses(item))
+                            priority += (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
 
                     }
                     catch (SocketException ex)
                     {
-                        log.InfoFormat("DomainsShareCommonIPAddresses socket error - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
-                        sequence = QueueItem.BadQueueItemSequenceNumber;
+                        log.InfoFormat("HostsShareCommonIPAddresses socket error - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
+                        priority = QueueItem.BadQueueItemPriortyNumber;
                     }
                 }
 
@@ -78,22 +82,25 @@ namespace Fetcho.queueo
 
                 unchecked
                 {
-                    if (sequence + (count * MultiHostLinkSpreadFactor) < sequence)
-                        sequence = uint.MaxValue;
+                    if (priority + (count * MultiHostLinkSpreadFactor) < priority)
+                        priority = uint.MaxValue;
                     else
-                        sequence += (count * MultiHostLinkSpreadFactor);
+                        priority += (count * MultiHostLinkSpreadFactor);
                 }
 
-                item.Sequence = sequence;
+                item.Priority = priority;
             }
             catch (Exception ex)
             {
                 log.Error(ex);
             }
-            return null;
-
         }
 
+        /// <summary>
+        /// Returns true if the item needs visiting according to our recency index
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         async Task<bool> NeedsVisiting(QueueItem item)
         {
             try
@@ -114,9 +121,19 @@ namespace Fetcho.queueo
             }
         }
 
-        bool DomainsAreEqual(QueueItem item) => item.SourceUri.Host == item.TargetUri.Host;
+        /// <summary>
+        /// Returns true if the source and target hosts are equal
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool HostsAreEqual(QueueItem item) => item.SourceUri.Host == item.TargetUri.Host;
 
-        async Task<bool> DomainsShareCommonIPAddresses(QueueItem item)
+        /// <summary>
+        /// Returns true if the source and target hosts share common IPs
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        async Task<bool> HostsShareCommonIPAddresses(QueueItem item)
         {
             var t1 = Dns.GetHostAddressesAsync(item.SourceUri.Host);
             var t2 = Dns.GetHostAddressesAsync(item.TargetUri.Host);

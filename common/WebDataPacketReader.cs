@@ -1,10 +1,7 @@
 ﻿
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace Fetcho.Common
@@ -109,24 +106,29 @@ namespace Fetcho.Common
             inStream?.Dispose();
         }
 
-        private void ReadToElement(string name)
+        private void ReadToElement(params string [] names)
         {
+            if (inStream.NodeType == XmlNodeType.Element && names.Contains(inStream.Name)) return;
             if (inStream.NodeType == XmlNodeType.EndElement && inStream.Name == "resource") return;
-            while (inStream.Read() && !(inStream.NodeType == XmlNodeType.Element && inStream.Name == name))
+            while (inStream.Read() && !(inStream.NodeType == XmlNodeType.Element && names.Contains(inStream.Name)))
                 if (inStream.NodeType == XmlNodeType.EndElement && inStream.Name == "resource")
                     break;
         }
 
         public static Uri GetUriFromRequestString(string requestString)
         {
-            if (!requestString.StartsWith("Uri:")) return null;
+            const string UriPrefix = "Uri:";
+
+            if (!requestString.StartsWith(UriPrefix)) return null;
 
             int i = requestString.IndexOf("\n");
             if (i < 0) return null;
 
-            string uri = requestString.Substring(4, i - 4).Trim();
+            string uri = requestString.Substring(UriPrefix.Length, i - UriPrefix.Length).Trim();
 
             return new Uri(uri);
         }
+
+        public static bool IsException(string exceptionString) => !String.IsNullOrWhiteSpace(exceptionString);
     }
 }

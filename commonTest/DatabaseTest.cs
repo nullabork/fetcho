@@ -28,11 +28,26 @@ namespace commonTest
                 stopwatch.Start();
                 db.SaveSite(site).GetAwaiter().GetResult();
                 stopwatch.Stop();
-                Assert.IsTrue(stopwatch.ElapsedMilliseconds < 1, stopwatch.ElapsedMilliseconds.ToString());
+                //Assert.IsTrue(stopwatch.ElapsedMilliseconds < 1, stopwatch.ElapsedMilliseconds.ToString());
 
                 site = db.GetSite(uri).GetAwaiter().GetResult();
                 Assert.IsTrue(site != null, "Site was null");
             }
+
+            Random random = new Random();
+            stopwatch.Reset();
+            stopwatch.Start();
+
+            for (int i = 0; i < 5000; i++)
+            {
+                using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
+                {
+                    db.SaveWebResource(new Uri("http://" + random.Next(0, 10000000) ), DateTime.Now).GetAwaiter().GetResult();
+                }
+            }
+            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 1, stopwatch.ElapsedMilliseconds.ToString());
+
+            stopwatch.Stop();
         }
 
         [TestMethod]

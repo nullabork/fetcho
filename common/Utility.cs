@@ -1,6 +1,9 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -13,6 +16,11 @@ namespace Fetcho.Common
     {
         static readonly ILog log = LogManager.GetLogger(typeof(Utility));
 
+        /// <summary>
+        /// Get the IP Address of the host from a URI
+        /// </summary>
+        /// <param name="uri"></param>
+        /// <returns></returns>
         public static async Task<IPAddress> GetHostIPAddress(Uri uri)
         {
             IPAddress addr = IPAddress.None;
@@ -42,6 +50,120 @@ namespace Fetcho.Common
                 addr = IPAddress.None;
                 return addr;
             }
+        }
+
+        /// <summary>
+        /// Creates a new file with a name that is indexed from the filename if it already exists
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public static string CreateNewFileIndexNameIfExists(string filename)
+        {
+            if (File.Exists(filename))
+            {
+                string name = Path.GetFileNameWithoutExtension(filename);
+                string extension = Path.GetExtension(filename);
+
+                int index = 0;
+                do
+                {
+                    filename = String.Format("{0}-{1}.{2}", name, index, extension);
+                    index++;
+                }
+                while (File.Exists(filename));
+            }
+
+            File.Create(filename);
+
+            return filename;
+        }
+
+        /// <summary>
+        /// Use GZip to compress a file
+        /// </summary>
+        /// <param name="sourcePath"></param>
+        /// <param name="destPath"></param>
+        public static void GZipCompressToFilePath(string sourcePath, string destPath)
+        {
+            using (var sf = new FileStream(sourcePath, FileMode.Open))
+            {
+                using (var gzip = new GZipStream(new FileStream(destPath, FileMode.Create),
+                                                  CompressionLevel.Optimal,
+                                                  false))
+                {
+                    sf.CopyTo(gzip);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Decompress a GZip file
+        /// </summary>
+        /// <param name="sourcePath"></param>
+        /// <param name="destPath"></param>
+        public static void GZipDecompressToFilePath(string sourcePath, string destPath)
+        {
+            using (var gzip = new GZipStream(new FileStream(sourcePath, FileMode.Open), CompressionMode.Decompress, false))
+            {
+                using (var sf = new FileStream(destPath, FileMode.OpenOrCreate))
+                {
+                    gzip.CopyTo(sf);
+                }
+            }
+        }
+
+        private static readonly byte[] GZipHeaderBytes =        {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0};
+        private static readonly byte[] GZipLevel10HeaderBytes = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 0};
+
+        /// <summary>
+        /// Attempts to detect if the current file is a GZip file
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public static bool IsPossibleGZippedFile(string file)
+        {
+            using (Stream stm = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                byte[] buffer = new byte[10];
+                if (stm.Read(buffer, 0, 10) < 10)
+                    return false;
+                else
+                    return IsPossibleGZippedBytes(buffer);
+            }
+        }
+
+        /// <summary>
+        /// Detects whether the byte string passed represents a GZip file header
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns></returns>
+        public static bool IsPossibleGZippedBytes(byte[] bytes)
+        {
+            var yes = bytes.Length >= 10;
+
+            if (!yes)
+                return false;
+
+            var header = new ArraySegment<Byte>(bytes, 0, 10);
+            byte[] a = header.Array;
+
+            return a.SequenceEqual(GZipHeaderBytes) || a.SequenceEqual(GZipLevel10HeaderBytes);
+        }
+
+        /// <summary>
+        /// Given a file it will pass out a stream that reads the file decompressed whether its compressed or not
+        /// </summary>
+        /// <param name="filepath"></param>
+        /// <returns></returns>
+        public static Stream GetDecompressedStream(string filepath)
+        {
+            // in theory this should cache the file so that when we open it a second time it effectively is one call
+            if (IsPossibleGZippedFile(filepath))
+                return new GZipStream(new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read),
+                                      CompressionMode.Decompress,
+                                      false);
+            else
+                return new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
         }
 
         /// <summary>

@@ -13,7 +13,7 @@ echo %datapath%\packet-%current%.xml
 
   extracto %datapath%\packet-%current%.xml > %datapath%\links-%current%.txt
   cat %datapath%\requeue-%current%.txt >> %datapath%\links-%current%.txt
-  queueo %datapath%\links-%current%.txt >> %datapath%\queue-%current%.txt
+  queueo %datapath%\links-%current%.txt > %datapath%\queue-%current%.txt
   nextlinks %datapath%\queue-%current%.txt %datapath%\rejects-%current%.txt > %datapath%\nextlinks-%current%.txt
   
   FOR /F "usebackq" %%A IN ('%datapath%\nextlinks-%current%.txt') DO set size=%%~zA

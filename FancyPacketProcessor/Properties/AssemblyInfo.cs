@@ -1,14 +1,15 @@
-﻿using System.Reflection;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Publo")]
+[assembly: AssemblyTitle("FancyPacketProcessor")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Publo")]
+[assembly: AssemblyProduct("FancyPacketProcessor")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -19,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("6a83132d-9bc9-4e31-b90b-7de4d91ab64e")]
+[assembly: Guid("fdcb2e05-62d8-4c85-96d6-1c3ff93f1ecc")]
 
 // Version information for an assembly consists of the following four values:
 //

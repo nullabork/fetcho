@@ -1,6 +1,5 @@
 ﻿
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -27,7 +26,15 @@ namespace Fetcho.NextLinks
         /// </summary>
         public const int HowOftenToReportStatusInMilliseconds = 30000;
 
-        public const bool QuotaEnabled = false;
+        /// <summary>
+        /// Maximum links that can be output
+        /// </summary>
+        public const int MaximumLinkQuota = 60000;
+
+        /// <summary>
+        /// Enable the quota
+        /// </summary>
+        public const bool QuotaEnabled = true;
 
         /// <summary>
         /// Log4Net logger
@@ -145,6 +152,12 @@ namespace Fetcho.NextLinks
                     RejectLink(item);
                 }
 
+                else if (IsDomainInALanguageICantRead(item))
+                {
+                    item.IsBlockedByDomain = true;
+                    RejectLink(item);
+                }
+
                 else if (IsUriProbablyBlocked(item))
                 {
                     item.IsProbablyBlocked = true;
@@ -153,7 +166,7 @@ namespace Fetcho.NextLinks
 
                 else if (IsSequenceTooHigh(item))
                 {
-                    item.SequenceTooHigh = true;
+                    item.PriorityTooLow = true;
                     RejectLink(item);
                 }
 
@@ -223,7 +236,7 @@ namespace Fetcho.NextLinks
         /// Returns true if we've reached the maximum accepted links
         /// </summary>
         /// <returns></returns>
-        bool QuotaReached() => QuotaEnabled && LinksAccepted >= MaxConcurrentTasks;
+        bool QuotaReached() => QuotaEnabled && LinksAccepted >= MaximumLinkQuota;
 
         /// <summary>
         /// Returns true if the queue item is malformed and of no use to us
@@ -238,7 +251,7 @@ namespace Fetcho.NextLinks
         /// <param name="item"></param>
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
-        bool IsSequenceTooHigh(QueueItem item) => item.Sequence > MaximumSequenceForLinks;
+        bool IsSequenceTooHigh(QueueItem item) => item.Priority > MaximumSequenceForLinks;
 
         /// <summary>
         /// Returns true if theres no resource fetcher for the type of URL
@@ -255,14 +268,46 @@ namespace Fetcho.NextLinks
         bool IsUriProbablyBlocked(QueueItem item) =>
             item == null ||
             item.TargetUri == null ||
-            item.TargetUri.ToString().EndsWith(".jpg") ||
-            item.TargetUri.ToString().EndsWith(".jpeg") ||
-            item.TargetUri.ToString().EndsWith(".gif") ||
-            item.TargetUri.ToString().EndsWith(".png") ||
-            item.TargetUri.ToString().EndsWith(".avi") ||
-            item.TargetUri.ToString().EndsWith(".mp4") ||
-            item.TargetUri.ToString().EndsWith(".mp3") ||
-            item.TargetUri.ToString().EndsWith(".wav");
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".jpg") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".jpeg") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".gif") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".png") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".ico") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".svg") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".avi") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".mp4") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".mp3") ||
+            item.TargetUri.AbsolutePath.ToString().EndsWith(".wav");
+
+        /// <summary>
+        /// Block things I can't read
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool IsDomainInALanguageICantRead(QueueItem item) =>
+            item == null ||
+            item.TargetUri.Host.EndsWith(".cn") ||
+            item.TargetUri.Host.EndsWith(".jp") ||
+            item.TargetUri.Host.EndsWith(".de") ||
+            item.TargetUri.Host.EndsWith(".ru") ||
+            item.TargetUri.Host.EndsWith(".it") ||
+            item.TargetUri.Host.EndsWith(".eg") ||
+            item.TargetUri.Host.EndsWith(".ez") ||
+            item.TargetUri.Host.EndsWith(".iq") ||
+            item.TargetUri.Host.EndsWith(".sa") ||
+            item.TargetUri.Host.EndsWith(".hk") ||
+            item.TargetUri.Host.EndsWith(".dz") ||
+            item.TargetUri.Host.EndsWith(".vi") ||
+            item.TargetUri.Host.EndsWith(".dz") ||
+            item.TargetUri.Host.EndsWith(".id") ||
+            item.TargetUri.Host.EndsWith(".fr") ||
+            item.TargetUri.Host.EndsWith(".pl") ||
+            item.TargetUri.Host.EndsWith(".es") ||
+            item.TargetUri.Host.EndsWith(".mx") ||
+            item.TargetUri.Host.EndsWith(".my") ||
+            item.TargetUri.Host.EndsWith(".kr") ||
+            item.TargetUri.Host.EndsWith(".ch") ||
+            item.TargetUri.Host.EndsWith(".br");
 
         /// <summary>
         /// Returns true if the queue item is blocked by a rule in the associated robots file

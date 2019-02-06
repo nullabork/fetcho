@@ -19,11 +19,13 @@ namespace Fetcho.Common
     public class Database : IDisposable
     {
         public const int ConnectionPoolWaitTimeInMilliseconds = 120000;
+        private const int WaitTimeVarianceInMilliseconds = 250;
 
         static readonly BinaryFormatter formatter = new BinaryFormatter();
         public const int DefaultDatabasePort = 5432;
         public const int MaxConcurrentConnections = 10;
         static readonly ILog log = LogManager.GetLogger(typeof(Database));
+        static readonly Random random = new Random(DateTime.Now.Millisecond);
 
         static readonly SemaphoreSlim connPool = new SemaphoreSlim(MaxConcurrentConnections);
 
@@ -33,7 +35,7 @@ namespace Fetcho.Common
         public string Server { get; set; }
         public int Port { get; set; }
 
-        private bool IsOpen { get => (conn != null && conn.State == ConnectionState.Open);  }
+        private bool IsOpen { get => (conn != null && conn.State == ConnectionState.Open); }
 
         public Database(string server, int port)
         {
@@ -77,7 +79,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error("Open():  ", ex);
+                log.Error("Open(): {0}", ex);
             }
         }
 
@@ -87,7 +89,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         async Task WaitIfTooManyActiveConnections()
         {
-            while (!await connPool.WaitAsync(ConnectionPoolWaitTimeInMilliseconds).ConfigureAwait(false))
+            while (!await connPool.WaitAsync(GetWaitTime()).ConfigureAwait(false))
                 log.Info("Waiting for a database connection");
         }
 
@@ -112,7 +114,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error("SetupCommand():  ", ex);
+                log.Error("SetupCommand(): {0}", ex);
                 return null;
             }
         }
@@ -150,7 +152,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error("GetSite():  ", ex);
+                log.Error("GetSite(): {0}", ex);
             }
 
             return site;
@@ -206,29 +208,36 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error("SaveSite():  ", ex);
+                log.Error("SaveSite(): {0}", ex);
                 return 0;
             }
         }
 
         public async Task SaveWebResource(Uri uri, DateTime nextFetch)
         {
-            string updateSql = "set client_encoding='UTF8'; update \"WebResource\" " +
-              "set    next_fetch = :next_fetch " +
-              "where  urihash = :urihash;";
-
-            string insertSql = "set client_encoding='UTF8'; insert into \"WebResource\" ( urihash, next_fetch ) " +
-              "values                      ( :urihash, :next_fetch );";
-
-            NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
-            _saveWebResourceSetParams(cmd, uri, nextFetch);
-            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            if (count == 0) // no record to update
+            try
             {
-                cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                string updateSql = "set client_encoding='UTF8'; update \"WebResource\" " +
+                  "set    next_fetch = :next_fetch " +
+                  "where  urihash = :urihash;";
+
+                string insertSql = "set client_encoding='UTF8'; insert into \"WebResource\" ( urihash, next_fetch ) " +
+                  "values                      ( :urihash, :next_fetch );";
+
+                NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
                 _saveWebResourceSetParams(cmd, uri, nextFetch);
-                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0) // no record to update
+                {
+                    cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                    _saveWebResourceSetParams(cmd, uri, nextFetch);
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+            catch( Exception ex )
+            {
+                log.ErrorFormat("SaveWebResource(): {0}", ex);
             }
         }
 
@@ -245,14 +254,22 @@ namespace Fetcho.Common
         /// <returns></returns>
         public async Task<bool> NeedsVisiting(Uri uri)
         {
-            // the logic here looks backward, but it deals with the case where there's no records!
-            NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();");
+            try
+            {
+                // the logic here looks backward, but it deals with the case where there's no records!
+                NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();");
 
-            cmd.Parameters.Add(new NpgsqlParameter("urihash", MD5Hash.Compute(uri).Values));
+                cmd.Parameters.Add(new NpgsqlParameter("urihash", MD5Hash.Compute(uri).Values));
 
-            object o = await cmd.ExecuteScalarAsync();
+                object o = await cmd.ExecuteScalarAsync();
 
-            return ((long)o) == 0;
+                return ((long)o) == 0;
+            }
+            catch( Exception ex )
+            {
+                log.ErrorFormat("NeedsVisiting(): {0}", ex);
+                return true;
+            }
         }
 
         void SetBinaryParameter(NpgsqlCommand cmd, string parameterName, object value)
@@ -286,6 +303,15 @@ namespace Fetcho.Common
                 return formatter.Deserialize(ms) as T;
             }
         }
+
+        /// <summary>
+        /// Returns a wait time slightly varied around the timeout to avoid everything ending at once
+        /// </summary>
+        /// <returns></returns>
+        private int GetWaitTime() =>
+            random.Next(
+                ConnectionPoolWaitTimeInMilliseconds - WaitTimeVarianceInMilliseconds,
+                ConnectionPoolWaitTimeInMilliseconds + WaitTimeVarianceInMilliseconds);
 
         protected virtual void Dispose(bool disposable)
         {

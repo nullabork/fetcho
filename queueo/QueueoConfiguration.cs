@@ -10,7 +10,7 @@ namespace Fetcho.queueo
 			set;
 		}
 
-		public IQueueCalculationModel QueueOrderingModel {
+		public IQueuePriorityCalculationModel QueueOrderingModel {
 			get;
 			set;
 		}

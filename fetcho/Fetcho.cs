@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +10,7 @@ namespace Fetcho
 {
     public class Fetcho
     {
-        const int MaxConcurrentFetches = 10000;
+        const int MaxConcurrentFetches = 5000;
         const int HowOftenToReportStatusInMilliseconds = 30000;
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int activeFetches = 0;
@@ -29,15 +28,14 @@ namespace Fetcho
 
         public async Task Process()
         {
+            log.Info("Fetcho.Process() commenced");
             requeueWriter = GetRequeueWriter();
             inputReader = GetInputReader();
-            outputWriter = GetOutputWriter();
-            outputWriter.WriteStartDocument();
-            outputWriter.WriteStartElement("resources");
+
+            OpenNewOutputWriter();
             await FetchUris();
-            outputWriter.WriteEndElement();
-            outputWriter.WriteEndDocument();
-            outputWriter.Flush();
+            CloseOutputWriter();
+            log.Info("Fetcho.Process() complete");
         }
 
         async Task FetchUris()
@@ -54,7 +52,6 @@ namespace Fetcho
                 else
                 {
                     var t = FetchQueueItem(u);
-
                 }
 
                 u = ParseQueueItem(inputReader.ReadLine());
@@ -76,7 +73,7 @@ namespace Fetcho
             try
             {
                 if (Configuration.InputRawUrls)
-                    return new QueueItem() { TargetUri = new Uri(line), Sequence = 0 };
+                    return new QueueItem() { TargetUri = new Uri(line), Priority = 0 };
                 else
                     return QueueItem.Parse(line);
             }
@@ -133,10 +130,40 @@ namespace Fetcho
         /// <returns></returns>
         XmlWriter GetOutputWriter()
         {
+            TextWriter writer = null;
+
+            if (String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
+                writer = Console.Out;
+            else 
+            {
+                string filename = Utility.CreateNewFileIndexNameIfExists(Configuration.OutputDataFilePath);
+                writer = new StreamWriter(new FileStream(filename, FileMode.Open, FileAccess.Write, FileShare.Read));
+            }
+
             var settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.NewLineHandling = NewLineHandling.Replace;
-            return XmlWriter.Create(Console.Out, settings);
+            return XmlWriter.Create(writer, settings);
+        }
+
+        void OpenNewOutputWriter()
+        {
+            outputWriter = GetOutputWriter();
+            outputWriter.WriteStartDocument();
+            outputWriter.WriteStartElement("resources");
+        }
+
+        void CloseOutputWriter()
+        {
+            outputWriter.WriteEndElement();
+            outputWriter.WriteEndDocument();
+            outputWriter.Flush();
+
+            if (!String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
+            {
+                outputWriter.Close();
+                outputWriter.Dispose();
+            }
         }
 
         TextWriter GetRequeueWriter()
