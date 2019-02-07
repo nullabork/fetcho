@@ -117,7 +117,7 @@ namespace Fetcho.Common
             return success;
         }
 
-        public static async Task WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
+        public static async Task<bool> WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
             await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds);
 
 

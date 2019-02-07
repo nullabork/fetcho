@@ -1,10 +1,4 @@
-﻿/*
- * Created by SharpDevelop.
- * User: alistair
- * Date: 29/08/2015
- * Time: 2:36 PM
- */
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Cache;
 using System.Threading;
@@ -34,9 +28,6 @@ namespace Fetcho.Common
                                                  IBlockProvider blockProvider,
                                                  DateTime? lastFetchedDate)
         {
-            if (!await HostCacheManager.WaitToFetch(uri.Host, 60000))
-                throw new TimeoutException("Waited too long to start fetching");
-
             using (var db = new Database())
                 await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
 

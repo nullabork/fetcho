@@ -15,7 +15,7 @@ namespace Fetcho.queueo
     {
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
-        static readonly Dictionary<string, uint> HostCount = new Dictionary<string, uint>();
+        static readonly Dictionary<IPAddress, uint> HostCount = new Dictionary<IPAddress, uint>();
         static readonly object hostCountLock = new object();
 
         /// <summary>
@@ -26,13 +26,14 @@ namespace Fetcho.queueo
         const int MinDomainsAreEqualSeq = 10 * 1000 * 1000;
         const int MaxDomainsAreEqualSeq = 100 * 1000 * 1000;
 
-        const int MinCommonIPSeq = 10 * 1000 * 1000;
-        const int MaxCommonIPSeq = 100 * 1000 * 1000;
+        const int MinCommonIPSeq = 100 * 1000 * 1000;
+        const int MaxCommonIPSeq = 200 * 1000 * 1000;
 
         const int MinRandSeq = 0;
         const int MaxRandSeq = 5 * 1000 * 1000;
 
         const int DoesntNeedVisiting = 750 * 1000 * 1000;
+        const int NoResourceFetcherHandler = 750 * 1000 * 1000;
 
         const uint MultiHostLinkSpreadFactor = 2 * 1000 * 1000;
 
@@ -47,6 +48,13 @@ namespace Fetcho.queueo
             {
                 string host = item.TargetUri.Host;
                 uint priority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
+
+                if ( !ResourceFetcher.HasHandler(item.TargetUri))
+                {
+                    priority += NoResourceFetcherHandler;
+                }
+
+                IPAddress ipAddress = await Utility.GetHostIPAddress(item.TargetUri);
 
                 if (!await NeedsVisiting(item))
                     priority += DoesntNeedVisiting;
@@ -68,16 +76,17 @@ namespace Fetcho.queueo
                     }
                 }
 
+
                 uint count = 0;
                 lock (hostCountLock)
                 {
                     if (HostCount.Count >= MaxHostCountCache)
                         HostCount.Clear();
 
-                    if (!HostCount.ContainsKey(host))
-                        HostCount.Add(host, 0);
+                    if (!HostCount.ContainsKey(ipAddress))
+                        HostCount.Add(ipAddress, 0);
 
-                    count = HostCount[host]++;
+                    count = HostCount[ipAddress]++;
                 }
 
                 unchecked
@@ -89,6 +98,11 @@ namespace Fetcho.queueo
                 }
 
                 item.Priority = priority;
+            }
+            catch (SocketException ex)
+            {
+                log.InfoFormat("GetHostIPAddress - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
+                item.Priority = QueueItem.BadQueueItemPriortyNumber;
             }
             catch (Exception ex)
             {

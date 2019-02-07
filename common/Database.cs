@@ -102,7 +102,7 @@ namespace Fetcho.Common
         {
             try
             {
-                if (!IsOpen) await Open();
+                if (!IsOpen) await Open().ConfigureAwait(false);
 
                 NpgsqlCommand cmd = new NpgsqlCommand(commandtext)
                 {

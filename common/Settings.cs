@@ -9,10 +9,9 @@
 
         public const int HostCacheManagerMaxInMemoryDomainRecords = 10000;
         public const int MaximumFetchSpeedMilliseconds = 10000;
-        public const int RobotsCacheTimeoutMinutes = 480;
+        public const int RobotsCacheTimeoutMinutes = 60*24*28; // 4 weeks
         public const int MaxFileDownloadLengthInBytes = 16 * 1024 * 1024;
-
-
+        
         public Settings()
         {
         }

@@ -1,9 +1,4 @@
-﻿/*
- * Created by SharpDevelop.
- * User: alistair
- * Date: 29/08/2015
- * Time: 2:36 PM
- */
+﻿
 using System;
 using System.IO;
 using System.Linq;

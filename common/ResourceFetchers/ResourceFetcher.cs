@@ -43,8 +43,7 @@ namespace Fetcho.Common
         {
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
-            else if (uri.Scheme == Uri.UriSchemeHttp ||
-                uri.Scheme == Uri.UriSchemeHttps)
+            else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
                 await new HttpResourceFetcher().Fetch(uri, writeStream, blockProvider, lastFetchedDate).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
@@ -57,17 +56,9 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static bool HasHandler(Uri uri) => uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
 
-        protected void BeginRequest()
-        {
-            Interlocked.Increment(ref _activeFetches);
+        protected void BeginRequest() => Interlocked.Increment(ref _activeFetches);
 
-        }
-
-        protected void EndRequest()
-        {
-            Interlocked.Decrement(ref _activeFetches);
-
-        }
+        protected void EndRequest() => Interlocked.Decrement(ref _activeFetches);
 
         protected void OutputStartResource(XmlWriter outStream)
         {

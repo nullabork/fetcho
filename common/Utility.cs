@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 using log4net;
@@ -44,12 +45,17 @@ namespace Fetcho.Common
                     return addr;
                 }
             }
+            catch (SocketException ex)
+            {
+                log.InfoFormat("GetHostIPAddress({0}): {1}", uri, ex.Message);
+            }
             catch (Exception ex)
             {
                 log.Error(ex);
-                addr = IPAddress.None;
-                return addr;
             }
+
+            addr = IPAddress.None;
+            return addr;
         }
 
         /// <summary>
