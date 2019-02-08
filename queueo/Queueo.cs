@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Fetcho.Common;
@@ -15,7 +16,7 @@ namespace Fetcho.queueo
     {
         public const int FastCacheSize = 10000;
         public const int MaxConcurrentTasks = 100;
-        public const int MaxBufferSize = 100000;
+        public const int MaxBufferSize = 200000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
 
@@ -27,7 +28,14 @@ namespace Fetcho.queueo
         /// <summary>
         /// Used to buffer queue items for output
         /// </summary>
-        private List<QueueItem> outputBuffer = new List<QueueItem>(MaxBufferSize);
+        private QueueBuffer<IPAddress, QueueItem> buffer = new QueueBuffer<IPAddress, QueueItem>(MaxBufferSize / 50, 50);
+
+        // a limited cache that stores recent URLs to compare against for duplicates
+        // prevents running out of memory whilst roughly eliminating duplicates cheaply
+        // later stages of the process will properly limit dupes, but are more expensive
+        // ie. have we recently visited the link?
+        FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+
 
         /// <summary>
         /// Syncronise outputBuffer
@@ -38,6 +46,8 @@ namespace Fetcho.queueo
         /// Configuration set for this class
         /// </summary>
         public QueueoConfiguration Configuration { get; set; }
+
+        public int _active = 0;
 
         /// <summary>
         /// Create a Queueo with a configuration
@@ -51,69 +61,50 @@ namespace Fetcho.queueo
         /// <returns></returns>
         public async Task Process()
         {
-            // a limited cache that stores recent URLs to compare against for duplicates
-            // prevents running out of memory whilst roughly eliminating duplicates cheaply
-            // later stages of the process will properly limit dupes, but are more expensive
-            // ie. have we recently visited the link?
-            var lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+            buffer.ActionWhenQueueIsFlushed = (key, items) => OutputQueueItems(items);
 
-            var reader = Configuration.InStream;
+            // get a queue item 
+            QueueItem item = NextQueueItem();
 
-            string line = reader.ReadLine();
-
-            while (!String.IsNullOrWhiteSpace(line)) // empty line, end of stream
+            do  
             {
-                // get a queue item 
-                QueueItem item = ExtractQueueItem(line);
-
                 // if the item is OK and its not already cached
-                if (item != null && !lookupCache.Contains(item.TargetUri))
+                if (UriIsNotADuplicate(item))
                 {
                     // cache it 
-                    lookupCache.Enqueue(item.TargetUri);
+                    CacheUri(item);
 
                     // wait for access to the pool
                     await taskPool.WaitAsync();
 
-                    // create a task to calculate its sequence number (expensive)
-                    var t = CalculateQueueSequenceNumber(item);
+                    var t = AssessQueueItemForBuffer(item);
                 }
 
-                // outputBuffer shouldn't exceed MaxBufferSize - if it does dump it out and clear it
-                if (outputBuffer.Count >= MaxBufferSize)
-                    OutputQueueItems();
-
-                line = reader.ReadLine();
+                item = NextQueueItem();
             }
-
-            while (true)
-            {
-                await Task.Delay(10000);
-
-                if (taskPool.CurrentCount == MaxConcurrentTasks)
-                    break;
-
-                if (outputBuffer.Count >= MaxBufferSize)
-                    OutputQueueItems();
-            }
+            while (item != null);
 
             // dump out remainder queue items
-            OutputQueueItems();
+            EmptyBuffer();
+
+            while (_active > 0)
+                await Task.Delay(10);
+
         }
 
-        /// <summary>
-        /// Start a task to calculate the sequence number for the queue <paramref name="item"/>
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        async Task CalculateQueueSequenceNumber(QueueItem item)
+        void CacheUri(QueueItem item) => lookupCache.Enqueue(item.TargetUri);
+
+        bool UriIsNotADuplicate(QueueItem item) => item != null && !lookupCache.Contains(item.TargetUri);
+
+        async Task AssessQueueItemForBuffer(QueueItem item)
         {
             try
             {
-                await Configuration.QueueOrderingModel.CalculatePriority(item);
-                lock (outputBufferLock) outputBuffer.Add(item);
+                IPAddress addr = await Utility.GetHostIPAddress(item.TargetUri);
+
+                AddToBuffer(addr, item);
             }
-            catch (Exception ex)
+            catch( Exception ex)
             {
                 log.Error(ex);
             }
@@ -121,6 +112,16 @@ namespace Fetcho.queueo
             {
                 taskPool.Release();
             }
+        }
+
+        private void AddToBuffer(IPAddress addr, QueueItem item)
+        {
+            lock(outputBufferLock) buffer.Add(addr, item);
+        }
+
+        private void EmptyBuffer()
+        {
+            lock(outputBufferLock) buffer.FlushAllQueues();
         }
 
         /// <summary>
@@ -142,8 +143,8 @@ namespace Fetcho.queueo
                 string[] tokens = line.Split('\t');
 
                 // if the tokens are both URIs make a bogus queue item
-                if (tokens.Length >= 2 && 
-                    Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) && 
+                if (tokens.Length >= 2 &&
+                    Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) &&
                     Uri.IsWellFormedUriString(tokens[1], UriKind.Absolute))
                 {
                     var source = new Uri(tokens[0]);
@@ -162,16 +163,38 @@ namespace Fetcho.queueo
             return item;
         }
 
-        /// <summary>
-        /// Outputs the queue items and clears the <see cref="outputBuffer"/>
-        /// </summary>
-        void OutputQueueItems()
+        private QueueItem NextQueueItem()
         {
+            string line = Configuration.InStream.ReadLine();
+
+            if (String.IsNullOrWhiteSpace(line))
+                return null;
+
+            // get a queue item 
+            QueueItem item = ExtractQueueItem(line);
+
+            if (item != null)
+                return item;
+            else
+                return NextQueueItem();
+        }
+
+            /// <summary>
+            /// Outputs the queue items and clears the <see cref="outputBuffer"/>
+            /// </summary>
+            async Task OutputQueueItems(IEnumerable<QueueItem> items)
+        {
+            Interlocked.Increment(ref _active);
+
+            await Configuration.QueueOrderingModel.CalculatePriority(items);
+
             lock (outputBufferLock)
             {
-                foreach (var item in outputBuffer.OrderBy(x => x.Priority)) Console.WriteLine(item);
-                outputBuffer.Clear();
+                foreach (var item in items.OrderBy(x => x.Priority))
+                    Console.WriteLine(item);
             }
+
+            Interlocked.Decrement(ref _active);
         }
 
     }

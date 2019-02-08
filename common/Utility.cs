@@ -118,8 +118,8 @@ namespace Fetcho.Common
             }
         }
 
-        private static readonly byte[] GZipHeaderBytes =        {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0};
-        private static readonly byte[] GZipLevel10HeaderBytes = {0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 0};
+        private static readonly byte[] GZipHeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0 };
+        private static readonly byte[] GZipLevel10HeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 0 };
 
         /// <summary>
         /// Attempts to detect if the current file is a GZip file
@@ -276,7 +276,9 @@ namespace Fetcho.Common
                 if (index > 0)
                     try
                     {
-                        list.Add(new Uri(uri.ToString().Substring(index)));
+                        string tempUri = uri.ToString().Substring(index);
+                        if (Uri.IsWellFormedUriString(tempUri, UriKind.Absolute) && tempUri.Contains("."))
+                            list.Add(new Uri(tempUri));
                     }
                     catch (UriFormatException ex)
                     {

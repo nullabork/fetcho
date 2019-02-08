@@ -307,6 +307,7 @@ namespace Fetcho.NextLinks
             item.TargetUri.Host.EndsWith(".my") ||
             item.TargetUri.Host.EndsWith(".kr") ||
             item.TargetUri.Host.EndsWith(".ch") ||
+            item.TargetUri.Host.EndsWith(".ro") ||
             item.TargetUri.Host.EndsWith(".br");
 
         /// <summary>

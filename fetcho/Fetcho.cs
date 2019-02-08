@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -13,7 +15,7 @@ namespace Fetcho
     /// </summary>
     public class Fetcho
     {
-        const int MaxConcurrentFetches = 5000;
+        const int MaxConcurrentFetches = 1000;
         const int PressureReliefThreshold = (MaxConcurrentFetches * 3) / 10; // 80%
         const int HowOftenToReportStatusInMilliseconds = 30000;
         const int TaskStartupWaitTimeInMilliseconds = 360000;
@@ -42,6 +44,7 @@ namespace Fetcho
             requeueWriter = GetRequeueWriter();
             inputReader = GetInputReader();
 
+            var r = ReportStatus();
             OpenNewOutputWriter();
             await FetchUris();
             CloseOutputWriter();
@@ -50,25 +53,20 @@ namespace Fetcho
 
         private async Task FetchUris()
         {
-            var u = ParseQueueItem(inputReader.ReadLine());
+            var u = NextQueueItem();
 
             while (u != null)
             {
                 while (!await fetchLock.WaitAsync(TaskStartupWaitTimeInMilliseconds))
                     log.InfoFormat("Been waiting a while to fire up a new fetch. Active: {0}, complete: {1}", valve.TasksInValve, completedFetches);
 
-                if (u.HasAnIssue)
-                    log.InfoFormat("QueueItem has an issue:{0}", u);
-                else
-                {
-                    var t = FetchQueueItem(u);
-                }
-
-                u = ParseQueueItem(inputReader.ReadLine());
+                u = await CreateTaskToCrawlIPAddress(u);
+                await Task.Delay(1);
             }
+        }
 
-            await Task.Delay(HowOftenToReportStatusInMilliseconds);
-
+        private async Task ReportStatus()
+        {
             while (true)
             {
                 await Task.Delay(HowOftenToReportStatusInMilliseconds);
@@ -91,6 +89,74 @@ namespace Fetcho
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Get the next item off the queue
+        /// </summary>
+        /// <returns></returns>
+        private QueueItem NextQueueItem()
+        {
+            var line = inputReader.ReadLine();
+
+            if (String.IsNullOrWhiteSpace(line))
+                return null;
+
+            var item = ParseQueueItem(line);
+
+            if (item == null || item.HasAnIssue)
+            {
+                log.InfoFormat("QueueItem has an issue:{0}", item);
+                return NextQueueItem();
+            }
+            else
+                return item;
+        }
+
+        private async Task<QueueItem> CreateTaskToCrawlIPAddress(QueueItem item)
+        {
+            var addr = await Utility.GetHostIPAddress(item.TargetUri);
+            var nextaddr = addr;
+
+            var l = new List<QueueItem>(10);
+
+            while (addr == nextaddr)
+            {
+                l.Add(item);
+                item = NextQueueItem();
+                nextaddr = await Utility.GetHostIPAddress(item.TargetUri);
+            }
+
+            var t = FetchChunkOfQueueItems(addr, l);
+
+            return item;
+        }
+
+        /// <summary>
+        /// Fetch several queue items in series with a wait between each
+        /// </summary>
+        /// <param name="hostaddr"></param>
+        /// <param name="items"></param>
+        /// <returns></returns>
+        private async Task FetchChunkOfQueueItems(IPAddress hostaddr, IEnumerable<QueueItem> items)
+        {
+            try
+            {
+                foreach (var item in items)
+                {
+                    await FetchQueueItem(item);
+                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.ErrorFormat("FetchChunkOfQueueItems: {0}", ex);
+            }
+            finally
+            {
+                fetchLock.Release();
+            }
+
         }
 
         private async Task FetchQueueItem(QueueItem item)
@@ -127,10 +193,6 @@ namespace Fetcho
             catch (Exception ex)
             {
                 log.Error(ex);
-            }
-            finally
-            {
-                fetchLock.Release();
             }
         }
 
@@ -215,7 +277,7 @@ namespace Fetcho
 
             prv.WaitFunc = async (item) =>
                 await HostCacheManager.WaitToFetch(
-                        (await Utility.GetHostIPAddress( item.TargetUri)),
+                        (await Utility.GetHostIPAddress(item.TargetUri)),
                         GetRandomReliefTimeout() // randomised to spread the timeouts evenly to avoid bumps
                     );
 

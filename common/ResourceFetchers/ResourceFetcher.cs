@@ -14,7 +14,9 @@ namespace Fetcho.Common
     {
         static readonly ILog log = LogManager.GetLogger(typeof(ResourceFetcher));
 
-        public static readonly object SyncOutput = new object();
+        protected static readonly SemaphoreSlim OutputSync = new SemaphoreSlim(1);
+
+        protected static bool OutputInUse { get => OutputSync.CurrentCount == 0; }
 
         static int _activeFetches;
         public static int ActiveFetches

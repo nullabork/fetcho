@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -21,12 +22,9 @@ namespace Fetcho.queueo
         /// <summary>
         /// For memory safety this is the maximum that be in HostCount before we clear it out and start again
         /// </summary>
-        const int MaxHostCountCache = 10000; 
+        const int MaxHostCountCache = 20000;
 
-        const int MinDomainsAreEqualSeq = 10 * 1000 * 1000;
-        const int MaxDomainsAreEqualSeq = 100 * 1000 * 1000;
-
-        const int MinCommonIPSeq = 100 * 1000 * 1000;
+        const int MinCommonIPSeq = 10 * 1000 * 1000;
         const int MaxCommonIPSeq = 200 * 1000 * 1000;
 
         const int MinRandSeq = 0;
@@ -35,79 +33,62 @@ namespace Fetcho.queueo
         const int DoesntNeedVisiting = 750 * 1000 * 1000;
         const int NoResourceFetcherHandler = 750 * 1000 * 1000;
 
-        const uint MultiHostLinkSpreadFactor = 2 * 1000 * 1000;
+        const int HostItemQuotaReachedPriority = 600 * 1000 * 1000;
+
+        const uint MultiHostLinkSpreadFactor = 20 * 1000 * 1000;
+
+        const int HostItemQuota = 15;
 
         /// <summary>
         /// Start a task to calculate the priority for the queueitem
         /// </summary>
-        /// <param name="item"></param>
+        /// <param name="current"></param>
         /// <returns></returns>
-        public async Task CalculatePriority(QueueItem item)
+        public async Task CalculatePriority(IEnumerable<QueueItem> items)
         {
-            try
+            IPAddress ipaddr = IPAddress.None;
+            uint priority = 0;
+            uint basePriority = 0;
+            QueueItem f = items.First();
+
+            if (await HostsShareCommonIPAddresses(f))
+                basePriority = (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
+            else
+                basePriority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
+
+            foreach (var current in items)
             {
-                string host = item.TargetUri.Host;
-                uint priority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
-
-                if ( !ResourceFetcher.HasHandler(item.TargetUri))
+                try
                 {
-                    priority += NoResourceFetcherHandler;
-                }
+                    priority = 0;
 
-                IPAddress ipAddress = await Utility.GetHostIPAddress(item.TargetUri);
-
-                if (!await NeedsVisiting(item))
-                    priority += DoesntNeedVisiting;
-
-                if (HostsAreEqual(item))
-                    priority += (uint)rand.Next(MinDomainsAreEqualSeq, MaxDomainsAreEqualSeq);
-                else
-                {
-                    try
-                    {
-                        if (await HostsShareCommonIPAddresses(item))
-                            priority += (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
-
-                    }
-                    catch (SocketException ex)
-                    {
-                        log.InfoFormat("HostsShareCommonIPAddresses socket error - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
-                        priority = QueueItem.BadQueueItemPriortyNumber;
-                    }
-                }
-
-
-                uint count = 0;
-                lock (hostCountLock)
-                {
-                    if (HostCount.Count >= MaxHostCountCache)
-                        HostCount.Clear();
-
-                    if (!HostCount.ContainsKey(ipAddress))
-                        HostCount.Add(ipAddress, 0);
-
-                    count = HostCount[ipAddress]++;
-                }
-
-                unchecked
-                {
-                    if (priority + (count * MultiHostLinkSpreadFactor) < priority)
-                        priority = uint.MaxValue;
+                    if (!ResourceFetcher.HasHandler(current.TargetUri))
+                        priority += NoResourceFetcherHandler;
+                    else if (!await NeedsVisiting(current))
+                        priority += DoesntNeedVisiting;
                     else
-                        priority += (count * MultiHostLinkSpreadFactor);
-                }
+                    {
+                        ipaddr = await Utility.GetHostIPAddress(current.TargetUri);
 
-                item.Priority = priority;
+                        if (ipaddr == IPAddress.None)
+                            priority = QueueItem.BadQueueItemPriorityNumber;
+                        else
+                            priority = basePriority++;
+                    }
+
+                    current.Priority = priority;
+                }
+                catch (SocketException ex)
+                {
+                    log.InfoFormat("GetHostIPAddress - {0}, {1}: {2}", current.SourceUri.Host, current.TargetUri.Host, ex.Message);
+                    current.Priority = QueueItem.BadQueueItemPriorityNumber;
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
+                }
             }
-            catch (SocketException ex)
-            {
-                log.InfoFormat("GetHostIPAddress - {0}, {1}: {2}", item.SourceUri.Host, item.TargetUri.Host, ex.Message);
-                item.Priority = QueueItem.BadQueueItemPriortyNumber;
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-            }
+
         }
 
         /// <summary>
@@ -169,7 +150,6 @@ namespace Fetcho.queueo
 
             return false;
         }
-
     }
 }
 

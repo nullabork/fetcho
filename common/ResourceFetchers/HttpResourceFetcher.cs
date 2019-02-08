@@ -41,8 +41,8 @@ namespace Fetcho.Common
             {
                 var netTask = request.GetResponseAsync();
 
-                await Task.WhenAny(netTask, Task.Delay(request.Timeout));
-                Monitor.Enter(SyncOutput);
+                await Task.WhenAny(netTask, Task.Delay(request.Timeout)).ConfigureAwait(false);
+                await OutputSync.WaitAsync();
                 OutputStartResource(writeStream);
                 OutputRequest(request, writeStream);
                 if (netTask.Status != TaskStatus.RanToCompletion)
@@ -76,7 +76,7 @@ namespace Fetcho.Common
                 response = null;
                 OutputEndResource(writeStream);
                 base.EndRequest();
-                if (Monitor.IsEntered(SyncOutput)) Monitor.Exit(SyncOutput);
+                if ( OutputInUse ) OutputSync.Release();
             }
         }
 

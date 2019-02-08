@@ -89,8 +89,9 @@ namespace Fetcho.Common
         /// <returns></returns>
         async Task WaitIfTooManyActiveConnections()
         {
+            DateTime start = DateTime.Now;
             while (!await connPool.WaitAsync(GetWaitTime()).ConfigureAwait(false))
-                log.Info("Waiting for a database connection");
+                log.InfoFormat("Waiting for a database connection for {0}ms", (DateTime.Now - start).TotalMilliseconds);
         }
 
         /// <summary>

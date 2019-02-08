@@ -10,7 +10,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Represents a queue item that should not be fetched
         /// </summary>
-        public const uint BadQueueItemPriortyNumber = uint.MaxValue;
+        public const uint BadQueueItemPriorityNumber = uint.MaxValue;
 
         /// <summary>
         /// Priority to go fetch the link, lower is better
@@ -32,7 +32,7 @@ namespace Fetcho.Common
         /// </summary>
         public bool HasAnIssue
         {
-            get => Priority == BadQueueItemPriortyNumber ||
+            get => Priority == BadQueueItemPriorityNumber ||
                 BlockedByRobots ||
                 MalformedUrl ||
                 PriorityTooLow ||
@@ -81,7 +81,7 @@ namespace Fetcho.Common
 
                 string code = "";
 
-                if (Priority == BadQueueItemPriortyNumber) code += 'B';
+                if (Priority == BadQueueItemPriorityNumber) code += 'B';
                 if (MalformedUrl) code += 'M';
                 if (PriorityTooLow) code += 'H';
                 if (BlockedByRobots) code += 'R';
@@ -105,14 +105,14 @@ namespace Fetcho.Common
 
         public QueueItem()
         {
-            Priority = QueueItem.BadQueueItemPriortyNumber;
+            Priority = QueueItem.BadQueueItemPriorityNumber;
         }
 
         public override string ToString()
         {
             try
             {
-                return String.Format("{0}\t{1}\t{2}\t{3}", StateCode, Priority, SourceUri, TargetUri);
+                return String.Format("{0}\t{1}\t{2}\t{3}", StateCode, Priority, TargetUri, SourceUri);
             }
             catch(Exception)
             {
@@ -137,8 +137,8 @@ namespace Fetcho.Common
                 {
                     StateCode = tokens[0],
                     Priority = uint.Parse(tokens[1]),
-                    SourceUri = new Uri(tokens[2]),
-                    TargetUri = new Uri(tokens[3])
+                    TargetUri = new Uri(tokens[2]),
+                    SourceUri = new Uri(tokens[3])
                 };
 
                 if (item.TargetUri == null)
