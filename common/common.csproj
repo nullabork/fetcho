@@ -66,6 +66,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ContentReader\HtmlTextReader.cs" />
     <Compile Include="ContentReader\ILinkExtractor.cs" />
     <Compile Include="ContentReader\ITokenizer.cs" />
     <Compile Include="ContentReader\TextFileLinkExtractor.cs" />

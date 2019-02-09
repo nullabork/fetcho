@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Remoting;
 using System.Text;
 
 namespace Fetcho.ContentReaders
@@ -15,7 +16,7 @@ namespace Fetcho.ContentReaders
         public string QuoteOpenChars { get; set; }
         public string QuoteClosureChars { get; set; }
 
-        public StreamReader Stream { get; set; }
+        public TextReader Stream { get; set; }
         public bool LeaveOpen { get; set; }
         public bool EndOfStream { get; set; }
 
@@ -39,7 +40,7 @@ namespace Fetcho.ContentReaders
         {
         }
 
-        public WordTokenizer(StreamReader reader, bool leaveOpen = false) : this()
+        public WordTokenizer(TextReader reader, bool leaveOpen = false) : this()
         {
             Stream = reader;
             LeaveOpen = leaveOpen;
@@ -57,9 +58,6 @@ namespace Fetcho.ContentReaders
 
         public void Reset()
         {
-            var fs = this.Stream.BaseStream as FileStream;
-            if (fs != null)
-                fs.Seek(0, SeekOrigin.Begin);
         }
 
         public string NextToken()
@@ -201,10 +199,8 @@ namespace Fetcho.ContentReaders
 
             public void Reset()
             {
-                Tokenizer.Reset();
+                throw new NotImplementedException();
             }
         }
     }
-
-
 }

@@ -38,16 +38,18 @@ namespace Fetcho.Publo
             {
                 var packet = new WebDataPacketReader(stream);
 
+                int jumpTo = random.Next(0, MaxRandomValue);
+
                 try
                 {
-                    while (packet.NextResource())
+                    while (jumpTo --> 0) packet.NextResource();
+                    while (WebResources.Count < MaxWebResources)
                     {
                         var r = ProcessPacket(packet);
                         if (AddToTheList(r))
                             WebResources.Add(r);
 
-                        if (QuotaReached())
-                            break;
+                        if (!packet.NextResource()) break;
                     }
                 }
                 catch (Exception ex)
@@ -59,13 +61,11 @@ namespace Fetcho.Publo
             OutputWebResources();
         }
 
-        bool QuotaReached() => WebResources.Count == MaxWebResources;
 
-        bool AddToTheList(PubloWebResource resource) => 
-            resource != null && 
-            !resource.IsEmpty && 
-            !String.IsNullOrWhiteSpace(resource.Title) && 
-            random.Next(0, MaxRandomValue) <= MaxWebResources;
+        bool AddToTheList(PubloWebResource resource) =>
+            resource != null &&
+            !resource.IsEmpty &&
+            !String.IsNullOrWhiteSpace(resource.Title); 
 
         PubloWebResource ProcessPacket(WebDataPacketReader packet)
         {
@@ -157,7 +157,7 @@ namespace Fetcho.Publo
         {
             var file = new PubloFile()
             {
-                Created = DateTime.Now,
+                Created = DateTime.UtcNow,
                 WebResources = WebResources.ToArray()
             };
 

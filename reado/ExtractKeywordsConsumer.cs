@@ -34,7 +34,7 @@ namespace Fetcho
             Console.WriteLine(CurrentUri);
             if ( ContentType.StartsWith("text"))
             {
-                using (var tokenizer = new WordTokenizer(dataStream, true))
+                using (var tokenizer = new WordTokenizer(new HtmlTextReader(dataStream), true))
                 {
                     foreach (var word in tokenizer)
                         Console.Write(word + " ");
