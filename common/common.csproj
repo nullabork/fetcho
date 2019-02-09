@@ -67,6 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ContentReader\ILinkExtractor.cs" />
+    <Compile Include="ContentReader\ITokenizer.cs" />
     <Compile Include="ContentReader\TextFileLinkExtractor.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="PressureReliefValve.cs" />
@@ -94,6 +95,7 @@
     <Compile Include="WebDataPacketProcessor\IWebDataPacketConsumer.cs" />
     <Compile Include="WebDataPacketProcessor\WebDataPacketProcessor.cs" />
     <Compile Include="WebDataPacketReader.cs" />
+    <Compile Include="ContentReader\WordTokenizer.cs" />
     <Compile Include="XmlBase64ElementStream.cs" />
   </ItemGroup>
   <ItemGroup>

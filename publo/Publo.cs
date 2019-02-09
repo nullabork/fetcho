@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Web;
 using System.Web.Script.Serialization;
 using Fetcho.Common;
 using log4net;
@@ -130,7 +131,7 @@ namespace Fetcho.Publo
             while (++start < line.Length && line[start] != '"') // </title>
                 sb.Append(line[start]);
 
-            return sb.ToString().Trim();
+            return HttpUtility.HtmlDecode(sb.ToString().Trim());
         }
 
 
@@ -143,7 +144,7 @@ namespace Fetcho.Publo
             while (++start < line.Length && line[start] != '<') // </title>
                 sb.Append(line[start]);
 
-            return sb.ToString().Trim();
+            return HttpUtility.HtmlDecode(sb.ToString().Trim());
         }
 
         string ReadUri(string line)

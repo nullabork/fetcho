@@ -274,6 +274,7 @@ namespace Fetcho.queueo
             item.TargetUri.Host.EndsWith(".ch") ||
             item.TargetUri.Host.EndsWith(".ro") ||
             item.TargetUri.Host.EndsWith(".be") ||
+            item.TargetUri.Host.EndsWith(".se") ||
             item.TargetUri.Host.EndsWith(".br");
 
         /// <summary>

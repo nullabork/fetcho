@@ -2,16 +2,15 @@
 using Fetcho.ContentReaders;
 using System;
 using System.IO;
-using System.Linq;
 
 namespace Fetcho
 {
-    internal class ExtractLinksConsumer : IWebDataPacketConsumer
+    internal class ExtractKeywordsConsumer : IWebDataPacketConsumer
     {
         public Uri CurrentUri;
         public string ContentType;
 
-        public string Name { get => "Extract Links"; }
+        public string Name { get => "Extract Keywords"; }
         public bool ProcessesRequest { get => true; }
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
@@ -32,9 +31,17 @@ namespace Fetcho
 
         public void ProcessResponseStream(Stream dataStream)
         {
-            var extractor = new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
-            if (extractor != null)
-                OutputUris(extractor);
+            Console.WriteLine(CurrentUri);
+            if ( ContentType.StartsWith("text"))
+            {
+                using (var tokenizer = new WordTokenizer(dataStream, true))
+                {
+                    foreach (var word in tokenizer)
+                        Console.Write(word + " ");
+                }
+            }
+
+            Console.WriteLine();
         }
 
         public void NewResource()
@@ -51,29 +58,6 @@ namespace Fetcho
         public void PacketOpened()
         {
 
-        }
-
-        private ILinkExtractor GuessLinkExtractor(Stream dataStream)
-        {
-            if (ContentType.StartsWith("video/"))
-                return null;
-            else if (ContentType.StartsWith("image/"))
-                return null;
-            return new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
-        }
-
-        private void OutputUris(ILinkExtractor reader)
-        {
-            if (reader == null) return;
-
-            Uri uri = reader.NextUri();
-
-            while (uri != null)
-            {
-                Console.WriteLine("{0}\t{1}", reader.CurrentSourceUri, uri);
-
-                uri = reader.NextUri();
-            }
         }
     }
 

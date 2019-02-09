@@ -87,6 +87,7 @@
   <ItemGroup>
     <Compile Include="CountTheNumberOfResourcesConsumer.cs" />
     <Compile Include="ExceptionWebDataPacketConsumer.cs" />
+    <Compile Include="ExtractKeywordsConsumer.cs" />
     <Compile Include="ExtractLinksConsumer.cs" />
     <Compile Include="ExtractLinksThatMatchConsumer.cs" />
     <Compile Include="PacketInfoConsumer.cs" />
