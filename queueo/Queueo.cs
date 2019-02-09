@@ -15,7 +15,7 @@ namespace Fetcho.queueo
     class Queueo
     {
         public const int FastCacheSize = 10000;
-        public const int MaxConcurrentTasks = 100;
+        public const int MaxConcurrentTasks = 500;
         public const int MaxBufferSize = 200000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
@@ -273,6 +273,7 @@ namespace Fetcho.queueo
             item.TargetUri.Host.EndsWith(".kr") ||
             item.TargetUri.Host.EndsWith(".ch") ||
             item.TargetUri.Host.EndsWith(".ro") ||
+            item.TargetUri.Host.EndsWith(".be") ||
             item.TargetUri.Host.EndsWith(".br");
 
         /// <summary>

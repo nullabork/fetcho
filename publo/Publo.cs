@@ -10,16 +10,20 @@ namespace Fetcho.Publo
 {
     public class Publo
     {
+        public const long AverageSizePerPage = 140000; //bytes
         public const int MaxWebResources = 50;
 
         public PubloConfiguration Configuration { get; set; }
         public List<PubloWebResource> WebResources { get; set; }
         private Random random = new Random(DateTime.Now.Millisecond);
         private readonly static ILog log = LogManager.GetLogger(typeof(Publo));
+        private int MaxRandomValue = 0;
 
         public Publo(PubloConfiguration config)
         {
             Configuration = config;
+            MaxRandomValue = (int)(config.FileSize / AverageSizePerPage);
+            log.Info("MaxRandomValue = " + MaxRandomValue);
             WebResources = new List<PubloWebResource>();
         }
 
@@ -54,13 +58,13 @@ namespace Fetcho.Publo
             OutputWebResources();
         }
 
-        bool QuotaReached() => WebResources.Count == 50;
+        bool QuotaReached() => WebResources.Count == MaxWebResources;
 
         bool AddToTheList(PubloWebResource resource) => 
             resource != null && 
             !resource.IsEmpty && 
             !String.IsNullOrWhiteSpace(resource.Title) && 
-            random.Next(0, 1000) <= 30;
+            random.Next(0, MaxRandomValue) <= MaxWebResources;
 
         PubloWebResource ProcessPacket(WebDataPacketReader packet)
         {
@@ -97,16 +101,22 @@ namespace Fetcho.Publo
             };
 
             string line = reader.ReadLine();
-            r.Size += line.Length;
-            while (reader.Peek() > 0)
+            if (line == null)
+                return r;
+            else
             {
-                if (String.IsNullOrWhiteSpace(r.Title) && line.ToLower().Contains("<title")) r.Title = ReadTitle(line);
-                else if (String.IsNullOrWhiteSpace(r.Description) && line.ToLower().Contains("description")) r.Description = ReadDesc(line).Truncate(100);
-                line = reader.ReadLine();
-                r.Size += line.Length;
-            }
 
-            return r;
+                r.Size += line.Length;
+                while (reader.Peek() > 0)
+                {
+                    if (String.IsNullOrWhiteSpace(r.Title) && line.ToLower().Contains("<title")) r.Title = ReadTitle(line);
+                    else if (String.IsNullOrWhiteSpace(r.Description) && line.ToLower().Contains("description")) r.Description = ReadDesc(line).Truncate(100);
+                    line = reader.ReadLine();
+                    r.Size += line.Length;
+                }
+
+                return r;
+            }
         }
 
         string ReadDesc(string line)
