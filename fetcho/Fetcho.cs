@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,12 +16,12 @@ namespace Fetcho
     /// </summary>
     public class Fetcho
     {
-        const int MaxConcurrentFetches = 1000;
-        const int PressureReliefThreshold = (MaxConcurrentFetches * 3) / 10; // 80%
+        const int MaxConcurrentFetches = 2000;
+        const int PressureReliefThreshold = (MaxConcurrentFetches * 9) / 10; // 80%
         const int HowOftenToReportStatusInMilliseconds = 30000;
         const int TaskStartupWaitTimeInMilliseconds = 360000;
-        const int MinPressureReliefValveWaitTimeInMilliseconds = 10000;
-        const int MaxPressureReliefValveWaitTimeInMilliseconds = 120000;
+        const int MinPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*2;
+        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*10;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int completedFetches = 0;
@@ -120,11 +121,15 @@ namespace Fetcho
 
             var l = new List<QueueItem>(10);
 
-            while (addr == nextaddr)
+            while (addr.Equals(nextaddr))
             {
                 l.Add(item);
                 item = NextQueueItem();
-                nextaddr = await Utility.GetHostIPAddress(item.TargetUri);
+
+                if (item == null)
+                    nextaddr = IPAddress.None;
+                else 
+                    nextaddr = await Utility.GetHostIPAddress(item.TargetUri);
             }
 
             var t = FetchChunkOfQueueItems(addr, l);
@@ -145,7 +150,7 @@ namespace Fetcho
                 foreach (var item in items)
                 {
                     await FetchQueueItem(item);
-                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds);
+                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds+10);
                 }
             }
             catch (Exception ex)

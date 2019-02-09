@@ -67,6 +67,10 @@ namespace Fetcho.Common
         public bool IsProbablyBlocked { get; set; }
 
         /// <summary>
+        /// </summary>
+        public bool VisitedRecently { get; set; }
+
+        /// <summary>
         /// This item is blocked by a domain name block
         /// </summary>
         public bool IsBlockedByDomain { get; set; }
@@ -88,6 +92,7 @@ namespace Fetcho.Common
                 if (UnsupportedUri) code += 'U';
                 if (IsProbablyBlocked) code += 'P';
                 if (IsBlockedByDomain) code += 'L';
+                if (VisitedRecently) code += 'V';
 
                 return code;
             }
@@ -100,6 +105,7 @@ namespace Fetcho.Common
                 UnsupportedUri = value.Contains("U");
                 IsProbablyBlocked = value.Contains("P");
                 IsBlockedByDomain = value.Contains("L");
+                VisitedRecently = value.Contains("V");
             }
         }
 

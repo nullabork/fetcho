@@ -32,6 +32,8 @@ namespace Fetcho.queueo
 
         const int DoesntNeedVisiting = 750 * 1000 * 1000;
         const int NoResourceFetcherHandler = 750 * 1000 * 1000;
+        const int ProbablyBlocked = 1000 * 1000 * 1000;
+        const int UnreadableLanguage = 1000 * 1000 * 1000;
 
         const int HostItemQuotaReachedPriority = 600 * 1000 * 1000;
 
@@ -51,10 +53,18 @@ namespace Fetcho.queueo
             uint basePriority = 0;
             QueueItem f = items.First();
 
-            if (await HostsShareCommonIPAddresses(f))
+            try
+            {
+                if (await HostsShareCommonIPAddresses(f))
+                    basePriority = (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
+                else
+                    basePriority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
                 basePriority = (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
-            else
-                basePriority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
+            }
 
             foreach (var current in items)
             {
@@ -62,9 +72,13 @@ namespace Fetcho.queueo
                 {
                     priority = 0;
 
-                    if (!ResourceFetcher.HasHandler(current.TargetUri))
+                    if (current.UnsupportedUri)
                         priority += NoResourceFetcherHandler;
-                    else if (!await NeedsVisiting(current))
+                    else if (current.IsBlockedByDomain)
+                        priority += UnreadableLanguage;
+                    else if (current.IsProbablyBlocked)
+                        priority += ProbablyBlocked;
+                    else if (current.VisitedRecently)
                         priority += DoesntNeedVisiting;
                     else
                     {
@@ -89,31 +103,6 @@ namespace Fetcho.queueo
                 }
             }
 
-        }
-
-        /// <summary>
-        /// Returns true if the item needs visiting according to our recency index
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        async Task<bool> NeedsVisiting(QueueItem item)
-        {
-            try
-            {
-                bool rtn = false;
-
-                using (var db = new Database())
-                {
-                    rtn = await db.NeedsVisiting(item.TargetUri);
-                }
-
-                return rtn;
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-                return true;
-            }
         }
 
         /// <summary>
@@ -150,6 +139,10 @@ namespace Fetcho.queueo
 
             return false;
         }
+
+
+
+
     }
 }
 

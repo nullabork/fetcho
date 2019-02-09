@@ -59,5 +59,16 @@ namespace commonTest
             r = await RobotsFile.DownloadRobots(new Uri("https://www.bbc.com/robots.txt"), null);
             Assert.IsTrue(r.IsNotDisallowed(new Uri("https://www.bbc.com/news/world-asia-40360168")));
         }
+
+        [TestMethod]
+        public async Task VisitedTest()
+        {
+            Uri uri = new Uri("http://www.pandora.tv/theme/main/8/74");
+
+            using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
+            {
+                Assert.IsFalse(await db.NeedsVisiting(uri), "LIES");
+            }
+        }
     }
 }

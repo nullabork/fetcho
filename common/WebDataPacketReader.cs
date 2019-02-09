@@ -26,6 +26,8 @@ namespace Fetcho.Common
         /// </summary>
         private readonly XmlReader inStream;
 
+        private string currentException = "";
+
         /// <summary>
         /// A forward only packet reader
         /// </summary>
@@ -59,7 +61,13 @@ namespace Fetcho.Common
 
         public string GetResponseHeaders()
         {
-            ReadToElement("header");
+            ReadToElement("header", "exception");
+            if (inStream.Name == "exception") 
+            {
+                ReadExceptionIntoCache();
+                ReadToElement("header");
+            }
+
             if (inStream.Name != "header") return String.Empty;
 
             return inStream.ReadElementContentAsString();
@@ -71,7 +79,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public Stream GetResponseStream()
         {
-            ReadToElement("data");
+            ReadToElement("data", "exception");
+            if (inStream.Name == "exception")
+            {
+                ReadExceptionIntoCache();
+                ReadToElement("data");
+            }
+
             if (inStream.Name == "data")
                 return new XmlBase64ElementStream(inStream);
             return null;
@@ -83,6 +97,13 @@ namespace Fetcho.Common
         /// <returns>A string of all the exception text</returns>
         public string GetException()
         {
+            if (!String.IsNullOrWhiteSpace(this.currentException))
+            {
+                string ex = currentException;
+                currentException = String.Empty;
+                return ex;
+            }
+
             ReadToElement("exception");
             if (inStream.Name == "exception")
                 return inStream.ReadElementContentAsString();
@@ -106,6 +127,14 @@ namespace Fetcho.Common
             inStream?.Dispose();
         }
 
+        private void ReadExceptionIntoCache()
+        {
+            if (inStream.Name == "exception")
+                currentException = inStream.ReadElementContentAsString();
+            else
+                currentException = String.Empty;
+        }
+
         private void ReadToElement(params string [] names)
         {
             if (inStream.NodeType == XmlNodeType.Element && names.Contains(inStream.Name)) return;
@@ -115,6 +144,11 @@ namespace Fetcho.Common
                     break;
         }
 
+        /// <summary>
+        /// Extract the URI from the raw request string
+        /// </summary>
+        /// <param name="requestString"></param>
+        /// <returns></returns>
         public static Uri GetUriFromRequestString(string requestString)
         {
             const string UriPrefix = "Uri:";
@@ -129,6 +163,30 @@ namespace Fetcho.Common
             return new Uri(uri);
         }
 
+        public static string GetContentTypeFromResponseHeaders( string responseHeaders )
+        {
+            const string ContentTypePrefix = "content-type:";
+
+            string contentType = "";
+
+            int index = responseHeaders.IndexOf(ContentTypePrefix, StringComparison.InvariantCultureIgnoreCase);
+            if ( index >= 0 )
+            {
+                int endIndex = responseHeaders.IndexOf("\n", index);
+                if (endIndex > 0)
+                    contentType = responseHeaders.Substring(index + ContentTypePrefix.Length, endIndex - index - ContentTypePrefix.Length);
+                else
+                    contentType = responseHeaders.Substring(index + ContentTypePrefix.Length);
+            }
+
+            return contentType.Trim();
+        }
+
+        /// <summary>
+        /// Determines if the string passed represents an Exception
+        /// </summary>
+        /// <param name="exceptionString"></param>
+        /// <returns></returns>
         public static bool IsException(string exceptionString) => !String.IsNullOrWhiteSpace(exceptionString);
     }
 }

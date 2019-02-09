@@ -23,7 +23,7 @@ namespace Fetcho.queueo
         /// <summary>
         /// To avoid OOM exceptions this limits the max tasks running at any one time
         /// </summary>
-        private SemaphoreSlim taskPool = new SemaphoreSlim(MaxConcurrentTasks);
+        private SemaphoreSlim buildQueueTasks = new SemaphoreSlim(MaxConcurrentTasks);
 
         /// <summary>
         /// Used to buffer queue items for output
@@ -61,12 +61,15 @@ namespace Fetcho.queueo
         /// <returns></returns>
         public async Task Process()
         {
-            buffer.ActionWhenQueueIsFlushed = (key, items) => OutputQueueItems(items);
+            buffer.ActionWhenQueueIsFlushed = (key, items) =>
+            {
+                var t = OutputQueueItems(items);
+            };
 
             // get a queue item 
             QueueItem item = NextQueueItem();
 
-            do  
+            do
             {
                 // if the item is OK and its not already cached
                 if (UriIsNotADuplicate(item))
@@ -75,7 +78,7 @@ namespace Fetcho.queueo
                     CacheUri(item);
 
                     // wait for access to the pool
-                    await taskPool.WaitAsync();
+                    await buildQueueTasks.WaitAsync();
 
                     var t = AssessQueueItemForBuffer(item);
                 }
@@ -88,7 +91,10 @@ namespace Fetcho.queueo
             EmptyBuffer();
 
             while (_active > 0)
-                await Task.Delay(10);
+            {
+                await Task.Delay(1000);
+                log.InfoFormat("Waiting for output buffers to end, running {0}", _active);
+            }
 
         }
 
@@ -102,26 +108,27 @@ namespace Fetcho.queueo
             {
                 IPAddress addr = await Utility.GetHostIPAddress(item.TargetUri);
 
+                await CalculateQueueItemProperties(item);
                 AddToBuffer(addr, item);
             }
-            catch( Exception ex)
+            catch (Exception ex)
             {
                 log.Error(ex);
             }
             finally
             {
-                taskPool.Release();
+                buildQueueTasks.Release();
             }
         }
 
         private void AddToBuffer(IPAddress addr, QueueItem item)
         {
-            lock(outputBufferLock) buffer.Add(addr, item);
+            lock (outputBufferLock) buffer.Add(addr, item);
         }
 
         private void EmptyBuffer()
         {
-            lock(outputBufferLock) buffer.FlushAllQueues();
+            lock (outputBufferLock) buffer.FlushAllQueues();
         }
 
         /// <summary>
@@ -179,23 +186,120 @@ namespace Fetcho.queueo
                 return NextQueueItem();
         }
 
-            /// <summary>
-            /// Outputs the queue items and clears the <see cref="outputBuffer"/>
-            /// </summary>
-            async Task OutputQueueItems(IEnumerable<QueueItem> items)
+        /// <summary>
+        /// Outputs the queue items and clears the <see cref="outputBuffer"/>
+        /// </summary>
+        async Task OutputQueueItems(IEnumerable<QueueItem> items)
         {
-            Interlocked.Increment(ref _active);
-
-            await Configuration.QueueOrderingModel.CalculatePriority(items);
-
-            lock (outputBufferLock)
+            try
             {
-                foreach (var item in items.OrderBy(x => x.Priority))
-                    Console.WriteLine(item);
-            }
+                Interlocked.Increment(ref _active);
 
-            Interlocked.Decrement(ref _active);
+                await Configuration.QueueOrderingModel.CalculatePriority(items);
+
+                lock (outputBufferLock)
+                {
+                    foreach (var item in items.OrderBy(x => x.Priority))
+                        Console.WriteLine(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _active);
+            }
         }
+
+        /// <summary>
+        /// Fills in the properties of a queue item based on what we know
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        async Task CalculateQueueItemProperties(QueueItem item)
+        {
+            var needsVisitingTask = NeedsVisiting(item);
+            item.UnsupportedUri = CantDownloadItYet(item);
+            item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
+            item.IsProbablyBlocked = IsUriProbablyBlocked(item);
+            item.VisitedRecently = !await needsVisitingTask;
+        }
+
+        /// <summary>
+        /// Returns true if theres no resource fetcher for the type of URL
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool CantDownloadItYet(QueueItem item) => !ResourceFetcher.HasHandler(item.TargetUri);
+
+        /// <summary>
+        /// Detects URIs that are probably blocked before we attempt to download them
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns>True if the item is likely to be for an item blocked by the default block provider</returns>
+        bool IsUriProbablyBlocked(QueueItem item) =>
+            item == null ||
+            item.TargetUri == null ||
+            DefaultBlockProvider.IsProbablyBlocked(item.TargetUri);
+
+        /// <summary>
+        /// Block things I can't read
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns>True if the queue item is probably for a site I can't read the language of</returns>
+        bool IsDomainInALanguageICantRead(QueueItem item) =>
+            item == null ||
+            item.TargetUri.Host.EndsWith(".cn") ||
+            item.TargetUri.Host.EndsWith(".jp") ||
+            item.TargetUri.Host.EndsWith(".de") ||
+            item.TargetUri.Host.EndsWith(".ru") ||
+            item.TargetUri.Host.EndsWith(".it") ||
+            item.TargetUri.Host.EndsWith(".eg") ||
+            item.TargetUri.Host.EndsWith(".ez") ||
+            item.TargetUri.Host.EndsWith(".iq") ||
+            item.TargetUri.Host.EndsWith(".sa") ||
+            item.TargetUri.Host.EndsWith(".hk") ||
+            item.TargetUri.Host.EndsWith(".dz") ||
+            item.TargetUri.Host.EndsWith(".vi") ||
+            item.TargetUri.Host.EndsWith(".dz") ||
+            item.TargetUri.Host.EndsWith(".id") ||
+            item.TargetUri.Host.EndsWith(".fr") ||
+            item.TargetUri.Host.EndsWith(".pl") ||
+            item.TargetUri.Host.EndsWith(".es") ||
+            item.TargetUri.Host.EndsWith(".mx") ||
+            item.TargetUri.Host.EndsWith(".my") ||
+            item.TargetUri.Host.EndsWith(".kr") ||
+            item.TargetUri.Host.EndsWith(".ch") ||
+            item.TargetUri.Host.EndsWith(".ro") ||
+            item.TargetUri.Host.EndsWith(".br");
+
+        /// <summary>
+        /// Returns true if the item needs visiting according to our recency index
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns>True if the queue item needs visiting</returns>
+        async Task<bool> NeedsVisiting(QueueItem item)
+        {
+            try
+            {
+                bool rtn = false;
+
+                using (var db = new Database())
+                {
+                    rtn = await db.NeedsVisiting(item.TargetUri);
+                }
+
+                return rtn;
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+                return true;
+            }
+        }
+
 
     }
 }

@@ -66,6 +66,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ContentReader\ILinkExtractor.cs" />
+    <Compile Include="ContentReader\TextFileLinkExtractor.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="PressureReliefValve.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />

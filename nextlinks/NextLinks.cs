@@ -29,7 +29,7 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Maximum links that can be output
         /// </summary>
-        public const int MaximumLinkQuota = 60000;
+        public const int MaximumLinkQuota = 200000;
 
         /// <summary>
         /// Enable the quota
@@ -146,24 +146,6 @@ namespace Fetcho.NextLinks
                     RejectLink(item);
                 }
 
-                else if (CantDownloadItYet(item))
-                {
-                    item.UnsupportedUri = true;
-                    RejectLink(item);
-                }
-
-                else if (IsDomainInALanguageICantRead(item))
-                {
-                    item.IsBlockedByDomain = true;
-                    RejectLink(item);
-                }
-
-                else if (IsUriProbablyBlocked(item))
-                {
-                    item.IsProbablyBlocked = true;
-                    RejectLink(item);
-                }
-
                 else if (IsSequenceTooHigh(item))
                 {
                     item.PriorityTooLow = true;
@@ -252,63 +234,6 @@ namespace Fetcho.NextLinks
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
         bool IsSequenceTooHigh(QueueItem item) => item.Priority > MaximumSequenceForLinks;
-
-        /// <summary>
-        /// Returns true if theres no resource fetcher for the type of URL
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        bool CantDownloadItYet(QueueItem item) => !ResourceFetcher.HasHandler(item.TargetUri);
-
-        /// <summary>
-        /// Detects URIs that are probably blocked before we attempt to download them
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        bool IsUriProbablyBlocked(QueueItem item) =>
-            item == null ||
-            item.TargetUri == null ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".jpg") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".jpeg") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".gif") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".png") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".ico") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".svg") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".avi") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".mp4") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".mp3") ||
-            item.TargetUri.AbsolutePath.ToString().EndsWith(".wav");
-
-        /// <summary>
-        /// Block things I can't read
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        bool IsDomainInALanguageICantRead(QueueItem item) =>
-            item == null ||
-            item.TargetUri.Host.EndsWith(".cn") ||
-            item.TargetUri.Host.EndsWith(".jp") ||
-            item.TargetUri.Host.EndsWith(".de") ||
-            item.TargetUri.Host.EndsWith(".ru") ||
-            item.TargetUri.Host.EndsWith(".it") ||
-            item.TargetUri.Host.EndsWith(".eg") ||
-            item.TargetUri.Host.EndsWith(".ez") ||
-            item.TargetUri.Host.EndsWith(".iq") ||
-            item.TargetUri.Host.EndsWith(".sa") ||
-            item.TargetUri.Host.EndsWith(".hk") ||
-            item.TargetUri.Host.EndsWith(".dz") ||
-            item.TargetUri.Host.EndsWith(".vi") ||
-            item.TargetUri.Host.EndsWith(".dz") ||
-            item.TargetUri.Host.EndsWith(".id") ||
-            item.TargetUri.Host.EndsWith(".fr") ||
-            item.TargetUri.Host.EndsWith(".pl") ||
-            item.TargetUri.Host.EndsWith(".es") ||
-            item.TargetUri.Host.EndsWith(".mx") ||
-            item.TargetUri.Host.EndsWith(".my") ||
-            item.TargetUri.Host.EndsWith(".kr") ||
-            item.TargetUri.Host.EndsWith(".ch") ||
-            item.TargetUri.Host.EndsWith(".ro") ||
-            item.TargetUri.Host.EndsWith(".br");
 
         /// <summary>
         /// Returns true if the queue item is blocked by a rule in the associated robots file

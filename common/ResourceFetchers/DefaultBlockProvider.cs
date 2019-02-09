@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace Fetcho.Common
 {
@@ -58,5 +59,23 @@ namespace Fetcho.Common
 
             return rtn;
         }
+
+        /// <summary>
+        /// Determines if this block provider will probably block this URL
+        /// </summary>
+        /// <param name="uri"></param>
+        /// <returns></returns>
+        /// <remarks>This is a cheap version of the provider without fetching the content</remarks>
+        public static bool IsProbablyBlocked(Uri uri) => 
+            uri.AbsolutePath.ToString().EndsWith(".jpg") ||
+            uri.AbsolutePath.ToString().EndsWith(".jpeg") ||
+            uri.AbsolutePath.ToString().EndsWith(".gif") ||
+            uri.AbsolutePath.ToString().EndsWith(".png") ||
+            uri.AbsolutePath.ToString().EndsWith(".ico") ||
+            uri.AbsolutePath.ToString().EndsWith(".svg") ||
+            uri.AbsolutePath.ToString().EndsWith(".avi") ||
+            uri.AbsolutePath.ToString().EndsWith(".mp4") ||
+            uri.AbsolutePath.ToString().EndsWith(".mp3") ||
+            uri.AbsolutePath.ToString().EndsWith(".wav");
     }
 }

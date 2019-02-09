@@ -93,7 +93,7 @@ namespace Fetcho.Common
 
             foreach (string key in response.Headers)
             {
-                outstream.WriteString(string.Format("{0}: {1}", key, response.Headers[key]));
+                outstream.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
             }
             outstream.WriteEndElement(); // header
 

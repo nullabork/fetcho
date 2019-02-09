@@ -94,7 +94,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout lowered to speed things up
-            request.Timeout = 10000;
+            request.Timeout = 30000;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;
