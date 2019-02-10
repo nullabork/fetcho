@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -33,20 +34,26 @@ namespace Fetcho.Common
 
         protected bool RequestWritten { get; set; }
 
-        public abstract Task Fetch(Uri uri,
-                                   XmlWriter writeStream,
-                                   IBlockProvider blockProvider,
-                                   DateTime? lastFetchedDate);
+        public abstract Task Fetch(
+            Uri referrerUri,
+            Uri uri,
+            XmlWriter writeStream,
+            IBlockProvider blockProvider,
+            DateTime? lastFetchedDate
+            );
 
-        public static async Task FetchFactory(Uri uri,
-                                    XmlWriter writeStream,
-                                    IBlockProvider blockProvider,
-                                    DateTime? lastFetchedDate)
+        public static async Task FetchFactory(
+            Uri referrerUri,
+            Uri uri,
+            XmlWriter writeStream,
+            IBlockProvider blockProvider,
+            DateTime? lastFetchedDate
+            )
         {
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(uri, writeStream, blockProvider, lastFetchedDate).ConfigureAwait(false);
+                await new HttpResourceFetcher().Fetch(referrerUri, uri, writeStream, blockProvider, lastFetchedDate).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
         }
@@ -73,14 +80,16 @@ namespace Fetcho.Common
             outStream.Flush();
         }
 
-        protected void OutputRequest(WebRequest request, XmlWriter outstream)
+        protected void OutputRequest(WebRequest request, XmlWriter outstream, DateTime startTime)
         {
+            DateTime now = DateTime.Now;
             outstream.WriteStartElement("request");
             outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri));
-            outstream.WriteString(string.Format("ResponseTime: {0}", 0));
+            outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
+            outstream.WriteString(string.Format("Date: {0}\n", now));
             foreach (string key in request.Headers)
             {
-                outstream.WriteString(string.Format("{0}: {1}", key, request.Headers[key]));
+                outstream.WriteString(string.Format("{0}: {1}\n", key, CleanupForXml(request.Headers[key])));
             }
             outstream.WriteEndElement();
             RequestWritten = true;
@@ -125,10 +134,22 @@ namespace Fetcho.Common
             }
         }
 
-        protected void OutputException(Exception ex, XmlWriter outStream, WebRequest request)
+        protected void OutputException(Exception ex, XmlWriter outStream, WebRequest request, DateTime startTime)
         {
-            if (!RequestWritten) OutputRequest(request, outStream);
+            if (!RequestWritten) OutputRequest(request, outStream, startTime);
             outStream.WriteElementString("exception", ex.ToString());
+
+        }
+
+        private string CleanupForXml( string str )
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < str.Length; i++)
+                if (XmlConvert.IsXmlChar(str[i]))
+                    sb.Append(str[i]);
+
+            return sb.ToString();
         }
     }
 }

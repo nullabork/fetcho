@@ -3,10 +3,10 @@ using System.Runtime.Serialization;
 
 namespace Fetcho.Common
 {
-  /// <summary>
-  /// Description of FetchoException.
-  /// </summary>
-  [Serializable]
+    /// <summary>
+    /// Description of FetchoException.
+    /// </summary>
+    [Serializable]
   public class FetchoException : Exception
   {
     public FetchoException()

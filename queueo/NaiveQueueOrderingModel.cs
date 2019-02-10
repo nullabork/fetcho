@@ -68,39 +68,22 @@ namespace Fetcho.queueo
 
             foreach (var current in items)
             {
-                try
-                {
-                    priority = 0;
+                priority = 0;
 
-                    if (current.UnsupportedUri)
-                        priority += NoResourceFetcherHandler;
-                    else if (current.IsBlockedByDomain)
-                        priority += UnreadableLanguage;
-                    else if (current.IsProbablyBlocked)
-                        priority += ProbablyBlocked;
-                    else if (current.VisitedRecently)
-                        priority += DoesntNeedVisiting;
-                    else
-                    {
-                        ipaddr = await Utility.GetHostIPAddress(current.TargetUri);
+                if (current.UnsupportedUri)
+                    priority += NoResourceFetcherHandler;
+                else if (current.IsBlockedByDomain)
+                    priority += UnreadableLanguage;
+                else if (current.IsProbablyBlocked)
+                    priority += ProbablyBlocked;
+                else if (current.VisitedRecently)
+                    priority += DoesntNeedVisiting;
+                else if (current.TargetIP.Equals(IPAddress.None))
+                    priority = QueueItem.BadQueueItemPriorityNumber;
+                else
+                    priority = basePriority++;
 
-                        if (ipaddr == IPAddress.None)
-                            priority = QueueItem.BadQueueItemPriorityNumber;
-                        else
-                            priority = basePriority++;
-                    }
-
-                    current.Priority = priority;
-                }
-                catch (SocketException ex)
-                {
-                    log.InfoFormat("GetHostIPAddress - {0}, {1}: {2}", current.SourceUri.Host, current.TargetUri.Host, ex.Message);
-                    current.Priority = QueueItem.BadQueueItemPriorityNumber;
-                }
-                catch (Exception ex)
-                {
-                    log.Error(ex);
-                }
+                current.Priority = priority;
             }
 
         }
@@ -119,25 +102,34 @@ namespace Fetcho.queueo
         /// <returns></returns>
         async Task<bool> HostsShareCommonIPAddresses(QueueItem item)
         {
-            var t1 = Dns.GetHostAddressesAsync(item.SourceUri.Host);
-            var t2 = Dns.GetHostAddressesAsync(item.TargetUri.Host);
-
-            IPAddress[] sourceips = await t1;
-            IPAddress[] targetips = await t2;
-
-            // OPTIMISE?
-            for (int i = 0; i < sourceips.Length; i++)
+            try
             {
-                for (int j = 0; j < targetips.Length; j++)
+
+                var t1 = Dns.GetHostAddressesAsync(item.SourceUri.Host);
+                var t2 = Dns.GetHostAddressesAsync(item.TargetUri.Host);
+
+                IPAddress[] sourceips = await t1;
+                IPAddress[] targetips = await t2;
+
+                // OPTIMISE?
+                for (int i = 0; i < sourceips.Length; i++)
                 {
-                    if (sourceips[i].Equals(targetips[j]))
+                    for (int j = 0; j < targetips.Length; j++)
                     {
-                        return true;
+                        if (sourceips[i].Equals(targetips[j]))
+                        {
+                            return true;
+                        }
                     }
                 }
-            }
 
-            return false;
+                return false;
+            }
+            catch (SocketException ex)
+            {
+                log.Error(ex.Message);
+                return true;
+            }
         }
 
 

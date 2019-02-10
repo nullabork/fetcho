@@ -73,11 +73,8 @@ namespace Fetcho.Publo
             {
                 string request = packet.GetRequestString();
 
-                if (string.IsNullOrWhiteSpace(request)) throw new Exception("No good");
-
                 var uri = WebDataPacketReader.GetUriFromRequestString(request);
-                if (uri == null)
-                    return null;
+                if (uri == null) return null;
                 var response = packet.GetResponseStream();
                 if (response != null)
                     return ReadNextWebResource(uri, new StreamReader(response));
@@ -128,7 +125,7 @@ namespace Fetcho.Publo
             int start = line.ToLower().IndexOf(StartPoint);
             if (start == -1) return "";
             start += StartPoint.Length - 1;
-            while (++start < line.Length && line[start] != '"') // </title>
+            while (++start < line.Length && line[start] != '"') // </meta >
                 sb.Append(line[start]);
 
             return HttpUtility.HtmlDecode(sb.ToString().Trim());
@@ -178,9 +175,13 @@ namespace Fetcho.Publo
     {
         public string Hash { get; set; }
         public string Uri { get; set; }
+        public string ReferrerUri { get; set; }
         public string Description { get; set; }
         public string Title { get; set; }
         public int Size { get; set; }
+        public string[] Tags { get; set; }
+
+        public PubloWebResource() { Tags = new string[] { }; }
 
         [ScriptIgnore]
         public bool IsEmpty

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using log4net;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,8 @@ namespace Fetcho.Common
     /// <remarks>NOTE: The wait should not be infinite</remarks>
     public class PressureReliefValve<T> : IDisposable
     {
+        static readonly ILog log = LogManager.GetLogger(typeof(PressureReliefValve<T>));
+
         /// <summary>
         /// Function for the Wait action
         /// </summary>
@@ -48,7 +51,7 @@ namespace Fetcho.Common
         /// <summary>
         /// True if the waiting threshold is exceeded
         /// </summary>
-        public bool ThresholdExceeded { get => TasksWaiting > WaitingThreshold; }
+        public bool ThresholdExceeded { get => TasksWaiting >= WaitingThreshold; }
 
         public PressureReliefValve(int waitingThreshold) => WaitingThreshold = waitingThreshold;
 
@@ -66,7 +69,7 @@ namespace Fetcho.Common
                 throw new ObjectDisposedException("PressureReliefValve");
 
             Interlocked.Increment(ref _tasksWaiting);
-            while (!await WaitFunc?.Invoke(item))
+            while (!await WaitFunc.Invoke(item))
             {
                 if (disposedValue)
                     throw new ObjectDisposedException("PressureReliefValve");

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Fetcho.queueo
+namespace Fetcho.Common
 {
     /// <summary>
     /// Fixed size cache for fast lookups of some item

@@ -17,34 +17,40 @@ namespace Fetcho.Common
         static readonly ILog log = LogManager.GetLogger(typeof(HttpResourceFetcher));
 
         /// <summary>
+        /// True if we've got a write lock
+        /// </summary>
+        private bool gotWriteLock = false;
+
+        /// <summary>
         /// Fetches a copy of a HTTP resource
         /// </summary>
         /// <param name="uri"></param>
         /// <param name="writeStream"></param>
         /// <param name="lastFetchedDate">Date we last fetched the resource - helps in optimising resources</param>
         /// <returns></returns>
-        public override async Task Fetch(Uri uri,
-                                                 XmlWriter writeStream,
-                                                 IBlockProvider blockProvider,
-                                                 DateTime? lastFetchedDate)
+        public override async Task Fetch(
+            Uri referrerUri,
+            Uri uri,
+            XmlWriter writeStream,
+            IBlockProvider blockProvider,
+            DateTime? lastFetchedDate)
         {
             using (var db = new Database())
                 await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
 
             base.BeginRequest();
 
-            var request = CreateRequest(uri, lastFetchedDate);
+            var request = CreateRequest(referrerUri, uri, lastFetchedDate);
 
             HttpWebResponse response = null;
+            DateTime startTime = DateTime.Now;
+            gotWriteLock = false;
 
             try
             {
                 var netTask = request.GetResponseAsync();
 
                 await Task.WhenAny(netTask, Task.Delay(request.Timeout)).ConfigureAwait(false);
-                await OutputSync.WaitAsync();
-                OutputStartResource(writeStream);
-                OutputRequest(request, writeStream);
                 if (netTask.Status != TaskStatus.RanToCompletion)
                 {
                     if (netTask.Exception != null)
@@ -58,29 +64,33 @@ namespace Fetcho.Common
                 if (blockProvider.IsBlocked(request, response, out string block_reason))
                 {
                     response.Close();
-                    throw new Exception(string.Format("URI is blocked, {0}", block_reason));
+                    throw new FetchoResourceBlockedException(block_reason);
                 }
                 else
                 {
+                    await OutputSync.WaitAsync();
+                    gotWriteLock = true;
+                    OutputStartResource(writeStream);
+                    OutputRequest(request, writeStream, startTime);
                     OutputResponse(response, writeStream);
                 }
             }
-            catch (Exception ex)
-            {
-                log.ErrorFormat("HttpResourceFetcher failure: '{0}', {1}", request.RequestUri, ex.Message);
-                OutputException(ex, writeStream, request);
-            }
+            catch (TimeoutException ex) { await ErrorHandler(ex, writeStream, request, false, startTime); }
+            catch (AggregateException ex) { await ErrorHandler(ex.InnerException, writeStream, request, false, startTime); }
+            catch (FetchoResourceBlockedException ex) { await ErrorHandler(ex, writeStream, request, false, startTime); }
+            catch (InvalidOperationException ex) { log.ErrorFormat("Barfing because of a corrupt XML: {0}", ex); Environment.Exit(1); }
+            catch (Exception ex) { await ErrorHandler(ex, writeStream, request, true, startTime); }
             finally
             {
                 response?.Dispose();
                 response = null;
                 OutputEndResource(writeStream);
                 base.EndRequest();
-                if ( OutputInUse ) OutputSync.Release();
+                if (OutputInUse) OutputSync.Release();
             }
         }
 
-        private HttpWebRequest CreateRequest(Uri uri, DateTime? lastFetchedDate)
+        private HttpWebRequest CreateRequest(Uri referrerUri, Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
@@ -111,7 +121,47 @@ namespace Fetcho.Common
             // some sites get upset if this isn't here
             request.CookieContainer = new CookieContainer();
 
+            // fill in the referrer if its set
+            TrySetReferrer(request, referrerUri);
+
             return request;
+        }
+
+        private void TrySetReferrer( HttpWebRequest request, Uri uri)
+        {
+            try
+            {
+                if (uri != null)
+                    request.Referer = uri.ToString();
+            }
+            catch( Exception ex)
+            {
+                log.ErrorFormat("Failed to set Referrer: {0}, {1}", uri, ex);
+            }
+        }
+
+        private async Task ErrorHandler( Exception ex, XmlWriter writer, HttpWebRequest request, bool verbose, DateTime startTime)
+        {
+            const string format = "'{0}': {1}";
+
+            if (verbose)
+                log.ErrorFormat(format, request.RequestUri, ex);
+            else
+                log.ErrorFormat(format, request.RequestUri, ex.Message);
+
+            // In memorandum:
+            // The line here was originally if ( !OutputInUse) await OutputSync.WaitAsync();
+            // OutputInUse was defined as "OutputSync.CurrentCount == 0"
+            // This contains a very subtle race condition it took about 300-400gb of
+            // downloading before it finally reared its ugly head and corrupted the 
+            // Xml file.
+
+            if (!OutputInUse) await OutputSync.WaitAsync();
+            //if ( !gotWriteLock) await OutputSync.WaitAsync(); // super subtle race condition here
+            gotWriteLock = true;
+            OutputStartResource(writer);
+            OutputRequest(request, writer, startTime);
+            OutputException(ex, writer, request, startTime);
         }
     }
 }

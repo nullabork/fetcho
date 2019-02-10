@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -17,21 +18,25 @@ namespace Fetcho
     public class Fetcho
     {
         const int MaxConcurrentFetches = 2000;
-        const int PressureReliefThreshold = (MaxConcurrentFetches * 9) / 10; // 80%
+        const int PressureReliefThreshold = MaxConcurrentFetches * 5 / 10; // if it totally fills up it'll chuck some out
         const int HowOftenToReportStatusInMilliseconds = 30000;
         const int TaskStartupWaitTimeInMilliseconds = 360000;
         const int MinPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*2;
-        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*10;
+        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*12;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int completedFetches = 0;
+        int waitingForFetchTimeout = 0;
         public FetchoConfiguration Configuration { get; set; }
         SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
+        readonly object requeueWriterLock = new object();
         TextWriter requeueWriter = null;
         XmlWriter outputWriter = null;
         TextReader inputReader = null;
         PressureReliefValve<QueueItem> valve = null;
         Random random = new Random(DateTime.Now.Millisecond);
+        Stopwatch spoolingTimeWatch = new Stopwatch();
+        TimeSpan lastSpoolingTime;
 
         public Fetcho(FetchoConfiguration config)
         {
@@ -41,37 +46,46 @@ namespace Fetcho
 
         public async Task Process()
         {
-            log.Info("Fetcho.Process() commenced");
-            requeueWriter = GetRequeueWriter();
-            inputReader = GetInputReader();
-
-            var r = ReportStatus();
-            OpenNewOutputWriter();
-            await FetchUris();
-            CloseOutputWriter();
-            log.Info("Fetcho.Process() complete");
-        }
-
-        private async Task FetchUris()
-        {
-            var u = NextQueueItem();
-
-            while (u != null)
+            try
             {
-                while (!await fetchLock.WaitAsync(TaskStartupWaitTimeInMilliseconds))
-                    log.InfoFormat("Been waiting a while to fire up a new fetch. Active: {0}, complete: {1}", valve.TasksInValve, completedFetches);
+                log.Info("Fetcho.Process() commenced");
+                requeueWriter = GetRequeueWriter();
+                inputReader = GetInputReader();
 
-                u = await CreateTaskToCrawlIPAddress(u);
-                await Task.Delay(1);
+                var r = ReportStatus();
+                OpenNewOutputWriter();
+
+                var u = NextQueueItem();
+
+                while (u != null)
+                {
+                    spoolingTimeWatch.Start();
+                    while (!await fetchLock.WaitAsync(TaskStartupWaitTimeInMilliseconds))
+                        LogStatus("Waiting for a fetchLock");
+
+                    u = await CreateTaskToCrawlIPAddress(u);
+                    spoolingTimeWatch.Stop();
+                    lastSpoolingTime = spoolingTimeWatch.Elapsed;
+                    spoolingTimeWatch.Reset();
+                }
+
+                CloseOutputWriter();
+                log.Info("Fetcho.Process() complete");
+            }
+            catch(Exception ex)
+            {
+                log.Error(ex);
             }
         }
+
 
         private async Task ReportStatus()
         {
             while (true)
             {
                 await Task.Delay(HowOftenToReportStatusInMilliseconds);
-                log.InfoFormat("STATUS: Active Fetches {0}, Completed {1}", valve.TasksInValve, completedFetches);
+                LogStatus("STATUS UPDATE");
+
                 if (valve.TasksInValve <= 0)
                     return;
             }
@@ -96,8 +110,9 @@ namespace Fetcho
         /// Get the next item off the queue
         /// </summary>
         /// <returns></returns>
-        private QueueItem NextQueueItem()
+        private QueueItem NextQueueItem(int retriesLeft = 10)
         {
+            if (retriesLeft == 0) return null;
             var line = inputReader.ReadLine();
 
             if (String.IsNullOrWhiteSpace(line))
@@ -108,7 +123,7 @@ namespace Fetcho
             if (item == null || item.HasAnIssue)
             {
                 log.InfoFormat("QueueItem has an issue:{0}", item);
-                return NextQueueItem();
+                return NextQueueItem(--retriesLeft);
             }
             else
                 return item;
@@ -116,7 +131,7 @@ namespace Fetcho
 
         private async Task<QueueItem> CreateTaskToCrawlIPAddress(QueueItem item)
         {
-            var addr = await Utility.GetHostIPAddress(item.TargetUri);
+            var addr = await GetQueueItemTargetIP(item);
             var nextaddr = addr;
 
             var l = new List<QueueItem>(10);
@@ -129,7 +144,7 @@ namespace Fetcho
                 if (item == null)
                     nextaddr = IPAddress.None;
                 else 
-                    nextaddr = await Utility.GetHostIPAddress(item.TargetUri);
+                    nextaddr = await GetQueueItemTargetIP(item);
             }
 
             var t = FetchChunkOfQueueItems(addr, l);
@@ -150,7 +165,9 @@ namespace Fetcho
                 foreach (var item in items)
                 {
                     await FetchQueueItem(item);
+                    Interlocked.Increment(ref waitingForFetchTimeout);
                     await Task.Delay(Settings.MaximumFetchSpeedMilliseconds+10);
+                    Interlocked.Decrement(ref waitingForFetchTimeout);
                 }
             }
             catch (Exception ex)
@@ -170,7 +187,7 @@ namespace Fetcho
             {
                 if (!await valve.WaitToEnter(item))
                 {
-                    log.InfoFormat("Waited too long to be able to fetch {0}", item.TargetUri);
+//                    LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
                     OutputItemForRequeuing(item);
                 }
                 else
@@ -178,6 +195,7 @@ namespace Fetcho
                     try
                     {
                         await ResourceFetcher.FetchFactory(
+                            item.SourceUri,
                             item.TargetUri,
                             outputWriter,
                             Configuration.BlockProvider,
@@ -190,8 +208,8 @@ namespace Fetcho
                     }
                     finally
                     {
-                        valve.Exit(item);
                         Interlocked.Increment(ref completedFetches);
+                        valve.Exit(item);
                     }
                 }
             }
@@ -205,7 +223,10 @@ namespace Fetcho
         /// Output the item for requeuing
         /// </summary>
         /// <param name="item"></param>
-        private void OutputItemForRequeuing(QueueItem item) => requeueWriter?.WriteLine(item);
+        private void OutputItemForRequeuing(QueueItem item)
+        {
+            lock (requeueWriterLock) requeueWriter?.WriteLine(item);
+        }
 
         /// <summary>
         /// Open the data stream from either a specific file or STDIN
@@ -250,11 +271,17 @@ namespace Fetcho
             outputWriter = GetOutputWriter();
             outputWriter.WriteStartDocument();
             outputWriter.WriteStartElement("resources");
+            outputWriter.WriteStartElement("startTime");
+            outputWriter.WriteValue(DateTime.UtcNow);
+            outputWriter.WriteEndElement();
         }
 
         private void CloseOutputWriter()
         {
+            outputWriter.WriteStartElement("endTime");
+            outputWriter.WriteValue(DateTime.UtcNow);
             outputWriter.WriteEndElement();
+            outputWriter.WriteEndElement(); // resources
             outputWriter.WriteEndDocument();
             outputWriter.Flush();
 
@@ -282,7 +309,7 @@ namespace Fetcho
 
             prv.WaitFunc = async (item) =>
                 await HostCacheManager.WaitToFetch(
-                        (await Utility.GetHostIPAddress(item.TargetUri)),
+                        await GetQueueItemTargetIP(item),
                         GetRandomReliefTimeout() // randomised to spread the timeouts evenly to avoid bumps
                     );
 
@@ -298,6 +325,20 @@ namespace Fetcho
                 MinPressureReliefValveWaitTimeInMilliseconds,
                 MaxPressureReliefValveWaitTimeInMilliseconds
                 );
+
+        private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) => 
+            !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
+
+        private void LogStatus(string status) => 
+            log.InfoFormat("{0}: Active Fetches {1}, Completed {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Spooling time {5}, Active Chunks {6}",
+                status,
+                    valve.TasksInValve,
+                    completedFetches,
+                    valve.TasksWaiting,
+                    waitingForFetchTimeout,
+                    lastSpoolingTime,
+                    MaxConcurrentFetches - fetchLock.CurrentCount);
+
     }
 }
 

@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -14,12 +15,12 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Init all lists to this
         /// </summary>
-        public const int MaxConcurrentTasks = 30000;
+        public const int MaxConcurrentTasks = 10000;
 
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        public const uint MaximumSequenceForLinks = 500*1000*1000;
+        public const uint MaximumPriorityValueForLinks = 500 * 1000 * 1000;
 
         /// <summary>
         /// 
@@ -29,7 +30,14 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Maximum links that can be output
         /// </summary>
-        public const int MaximumLinkQuota = 200000;
+        public const int MaximumLinkQuota = 400000;
+
+        /// <summary>
+        /// Number of items that can be in a chunk
+        /// </summary>
+        public const int MaximumChunkSize = 50;
+
+        public const int MaxConcurrentFetches = 2000;
 
         /// <summary>
         /// Enable the quota
@@ -82,18 +90,35 @@ namespace Fetcho.NextLinks
 
                 using (var reader = GetInputStream())
                 {
+
+                    var l = new List<QueueItem>();
+
+                    QueueItem lastItem = null;
                     while (reader.Peek() >= 0)
                     {
+                        // run through the queue items and group them into chunks by IP
+                        // process those chunks collectively and throw out the entire 
+                        // chunk if the IP has been seen recently
                         string line = reader.ReadLine();
                         var item = QueueItem.Parse(line);
 
-                        while (!await taskPool.WaitAsync(30000).ConfigureAwait(false))
+                        if ( lastItem == null || !lastItem.TargetIP.Equals(item.TargetIP))
                         {
-                            //log.Info("Waiting to ValidateQueueItem");
-                            if (QuotaReached())
-                                break;
+                            var t = ValidateQueueItems(l.ToArray()).ConfigureAwait(false);
+
+                            while (!await taskPool.WaitAsync(30000).ConfigureAwait(false))
+                            {
+                                //log.Info("Waiting to ValidateQueueItem");
+                                if (QuotaReached())
+                                    break;
+                            }
+
+                            l = new List<QueueItem>(); 
                         }
-                        var t = ValidateQueueItem(item).ConfigureAwait(false);
+
+                        l.Add(item);
+
+                        lastItem = item;
                     }
                 }
 
@@ -118,50 +143,78 @@ namespace Fetcho.NextLinks
         /// </summary>
         /// <param name="item">The queue item</param>
         /// <returns>Async task (no return value)</returns>
-        async Task ValidateQueueItem(QueueItem item)
+        async Task ValidateQueueItems(QueueItem[] items)
         {
+            if (items == null || items.Length == 0) return;
+
+            var accepted = new List<QueueItem>();
+            var rejected = new List<QueueItem>();
+
             try
             {
                 Interlocked.Increment(ref _activeTasks);
 
-                if (item == null)
+                QueueItem firstItem = items[0];
+                for (int i = 0; i < items.Length; i++)
                 {
-                    // item has an issue
+                    QueueItem item = items[i];
 
+                    if (item == null)
+                    {
+                        // item has an issue
+
+                    }
+
+                    else if (QuotaReached())
+                    {
+                        rejected.Add(item);
+                    }
+
+                    else if (item.HasAnIssue)
+                    {
+                        rejected.Add(item);
+                    }
+
+                    else if (IsMalformedQueueItem(item))
+                    {
+                        item.MalformedUrl = true;
+                        rejected.Add(item);
+                    }
+
+                    else if (IsPriorityTooLow(item))
+                    {
+                        item.PriorityTooLow = true;
+                        rejected.Add(item);
+                    }
+
+                    // make it so one chunk isn't too big
+                    else if (IsChunkSequenceTooHigh(item))
+                    {
+                        rejected.Add(item);
+                    }
+
+                    // if seen IP recently
+                    else if (HasIPBeenSeenRecently(item))
+                    {
+                        rejected.Add(item);
+                    }
+
+                    else if (await IsBlockedByRobots(item)) // most expensive one last
+                    {
+                        item.BlockedByRobots = true;
+                        rejected.Add(item);
+                    }
+
+                    else
+                    {
+                        accepted.Add(item);
+                    }
                 }
 
-                else if (QuotaReached())
-                {
-                    RejectLink(item);
-                }
+                CacheRecentIPAddress(firstItem);
+                AcceptLinks(accepted);
+                RejectLinks(rejected);
 
-                else if (item.HasAnIssue)
-                {
-                    RejectLink(item);
-                }
-
-                else if (IsMalformedQueueItem(item))
-                {
-                    item.MalformedUrl = true;
-                    RejectLink(item);
-                }
-
-                else if (IsSequenceTooHigh(item))
-                {
-                    item.PriorityTooLow = true;
-                    RejectLink(item);
-                }
-
-                else if (await IsBlockedByRobots(item)) // most expensive one last
-                {
-                    item.BlockedByRobots = true;
-                    RejectLink(item);
-                }
-
-                else
-                {
-                    AcceptLink(item);
-                }
             }
             catch (Exception ex)
             {
@@ -174,30 +227,33 @@ namespace Fetcho.NextLinks
             }
         }
 
-        void AcceptLink(QueueItem item)
+        void AcceptLinks(IEnumerable<QueueItem> items) => OutputAcceptedLinks(items);
+
+        void RejectLinks(IEnumerable<QueueItem> items) => OutputRejectedLinks(items);
+
+        void OutputAcceptedLinks(IEnumerable<QueueItem> items)
         {
-            //log.InfoFormat("AcceptLink {0}", item.TargetUri);
-            OutputAcceptedLink(item);
+            lock (acceptStreamLock)
+            {
+                foreach( var item in items )
+                {
+                    LinksAccepted++;
+                    acceptStream?.WriteLine(item.ToString());
+                }
+
+            }
         }
 
-        void RejectLink(QueueItem item)
+        void OutputRejectedLinks(IEnumerable<QueueItem> items)
         {
-            //log.InfoFormat("RejectLink {0}", item.TargetUri);
-            OutputRejectedLink(item);
-        }
-
-        void OutputAcceptedLink(QueueItem item)
-        {
-            LinksAccepted++;
-            lock(acceptStreamLock)
-                acceptStream?.WriteLine(item.ToString());
-        }
-
-        void OutputRejectedLink(QueueItem item)
-        {
-            LinksRejected++;
-            lock(rejectStreamLock)
-                rejectStream?.WriteLine(item.ToString());
+            lock (rejectStreamLock)
+            {
+                foreach( var item in items )
+                {
+                    LinksRejected++;
+                    rejectStream?.WriteLine(item.ToString());
+                }
+            }
         }
 
         TextWriter GetRejectStream()
@@ -233,7 +289,24 @@ namespace Fetcho.NextLinks
         /// <param name="item"></param>
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
-        bool IsSequenceTooHigh(QueueItem item) => item.Priority > MaximumSequenceForLinks;
+        bool IsPriorityTooLow(QueueItem item) => item.Priority > MaximumPriorityValueForLinks;
+
+        /// <summary>
+        /// Throw out items when the queue gets too large
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > MaximumChunkSize;
+        
+        FastLookupCache<string> recentips = new FastLookupCache<string>(MaxConcurrentFetches);
+
+        bool HasIPBeenSeenRecently(QueueItem item) => recentips.Contains(item.TargetIP.ToString());
+        
+        void CacheRecentIPAddress(QueueItem item)
+        {
+            if (!recentips.Contains(item.TargetIP.ToString()))
+                recentips.Enqueue(item.TargetIP.ToString());
+        }
 
         /// <summary>
         /// Returns true if the queue item is blocked by a rule in the associated robots file

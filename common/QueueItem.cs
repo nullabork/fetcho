@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 
 namespace Fetcho.Common
 {
@@ -21,6 +22,11 @@ namespace Fetcho.Common
         /// Where does the link point to
         /// </summary>
         public Uri TargetUri { get; set; }
+
+        /// <summary>
+        /// IPAddress of the target
+        /// </summary>
+        public IPAddress TargetIP { get; set; }
 
         /// <summary>
         /// What page pointed from it?
@@ -76,6 +82,11 @@ namespace Fetcho.Common
         public bool IsBlockedByDomain { get; set; }
 
         /// <summary>
+        /// Chunk sequence
+        /// </summary>
+        public int ChunkSequence { get; set; }
+
+        /// <summary>
         /// Combined statecode for the flags
         /// </summary>
         public string StateCode
@@ -118,7 +129,7 @@ namespace Fetcho.Common
         {
             try
             {
-                return String.Format("{0}\t{1}\t{2}\t{3}", StateCode, Priority, TargetUri, SourceUri);
+                return String.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", StateCode, Priority, TargetUri, SourceUri, TargetIP, ChunkSequence);
             }
             catch(Exception)
             {
@@ -133,18 +144,25 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static QueueItem Parse(string line)
         {
+            IPAddress targetAddr = IPAddress.None;
+            int chunkSequence = 0;
+
             try
             {
                 string[] tokens = line.Split('\t');
 
-                if (tokens.Length < 4) return null;
+                if (tokens.Length < 5) return null;
+                if ( tokens.Length >= 5 ) IPAddress.TryParse(tokens[4], out targetAddr);
+                if ( tokens.Length >= 6 ) int.TryParse(tokens[5], out chunkSequence);
 
                 QueueItem item = new QueueItem()
                 {
                     StateCode = tokens[0],
                     Priority = uint.Parse(tokens[1]),
                     TargetUri = new Uri(tokens[2]),
-                    SourceUri = new Uri(tokens[3])
+                    SourceUri = new Uri(tokens[3]),
+                    TargetIP = targetAddr,
+                    ChunkSequence = chunkSequence
                 };
 
                 if (item.TargetUri == null)

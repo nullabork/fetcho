@@ -153,6 +153,7 @@ namespace Fetcho.Common
         {
             const string UriPrefix = "Uri:";
 
+            if (String.IsNullOrWhiteSpace(requestString)) return null;
             if (!requestString.StartsWith(UriPrefix)) return null;
 
             int i = requestString.IndexOf("\n");

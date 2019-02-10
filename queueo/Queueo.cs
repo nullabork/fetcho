@@ -106,10 +106,8 @@ namespace Fetcho.queueo
         {
             try
             {
-                IPAddress addr = await Utility.GetHostIPAddress(item.TargetUri);
-
                 await CalculateQueueItemProperties(item);
-                AddToBuffer(addr, item);
+                AddToBuffer(item);
             }
             catch (Exception ex)
             {
@@ -121,9 +119,9 @@ namespace Fetcho.queueo
             }
         }
 
-        private void AddToBuffer(IPAddress addr, QueueItem item)
+        private void AddToBuffer(QueueItem item)
         {
-            lock (outputBufferLock) buffer.Add(addr, item);
+            lock (outputBufferLock) buffer.Add(item.TargetIP, item);
         }
 
         private void EmptyBuffer()
@@ -170,8 +168,9 @@ namespace Fetcho.queueo
             return item;
         }
 
-        private QueueItem NextQueueItem()
+        private QueueItem NextQueueItem(int retriesLeft = 10000)
         {
+            if (retriesLeft == 0) return null;
             string line = Configuration.InStream.ReadLine();
 
             if (String.IsNullOrWhiteSpace(line))
@@ -183,8 +182,11 @@ namespace Fetcho.queueo
             if (item != null)
                 return item;
             else
-                return NextQueueItem();
+                return NextQueueItem(--retriesLeft);
         }
+
+
+        private QueueItem lastItem = null;
 
         /// <summary>
         /// Outputs the queue items and clears the <see cref="outputBuffer"/>
@@ -199,8 +201,14 @@ namespace Fetcho.queueo
 
                 lock (outputBufferLock)
                 {
+                    int i = -1; 
                     foreach (var item in items.OrderBy(x => x.Priority))
+                    {
+                        if ( i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
+                        item.ChunkSequence = i++;
                         Console.WriteLine(item);
+                        lastItem = item;
+                    }
                 }
             }
             catch (Exception ex)
@@ -221,10 +229,13 @@ namespace Fetcho.queueo
         async Task CalculateQueueItemProperties(QueueItem item)
         {
             var needsVisitingTask = NeedsVisiting(item);
+            var addr = Utility.GetHostIPAddress(item.TargetUri);
+
             item.UnsupportedUri = CantDownloadItYet(item);
             item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
             item.IsProbablyBlocked = IsUriProbablyBlocked(item);
             item.VisitedRecently = !await needsVisitingTask;
+            item.TargetIP = await addr;
         }
 
         /// <summary>

@@ -45,9 +45,9 @@ namespace Fetcho.Common
                     return addr;
                 }
             }
-            catch (SocketException ex)
+            catch (SocketException )
             {
-                log.InfoFormat("GetHostIPAddress({0}): {1}", uri, ex.Message);
+                // ignore it, host lookup probs
             }
             catch (Exception ex)
             {

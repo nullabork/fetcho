@@ -58,7 +58,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FastLookupCache.cs" />
     <Compile Include="IQueueCalculationModel.cs" />
     <Compile Include="NaiveQueueOrderingModel.cs" />
     <Compile Include="Program.cs" />

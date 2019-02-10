@@ -358,7 +358,7 @@ namespace Fetcho.Common
                 using (var ms = new MemoryStream())
                 using (var writer = XmlWriter.Create(ms))
                 {
-                    await (new HttpResourceFetcher()).Fetch(robotsUri, writer, NullBlockProvider.Default, lastFetched);
+                    await (new HttpResourceFetcher()).Fetch(null, robotsUri, writer, NullBlockProvider.Default, lastFetched);
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(XmlReader.Create(ms, new XmlReaderSettings()
                     { ConformanceLevel = ConformanceLevel.Fragment }));

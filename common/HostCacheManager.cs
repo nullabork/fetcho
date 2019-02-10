@@ -51,7 +51,7 @@ namespace Fetcho.Common
                     }
                     finally
                     {
-                        record.UpdateWaitHandle.Release();
+                        record.UpdateWaitHandle?.Release();
                     }
                 }
 
@@ -109,7 +109,7 @@ namespace Fetcho.Common
                     else
                     {
                         //log.InfoFormat("Waiting on {0}", hostName);
-                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds / 2, host_record.MaxFetchSpeedInMilliseconds * 2));
+                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds * 7 / 8, host_record.MaxFetchSpeedInMilliseconds * 2));
                     }
                 }
             }
