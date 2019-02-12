@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -15,22 +14,27 @@ namespace Fetcho.Common
     {
         static readonly ILog log = LogManager.GetLogger(typeof(ResourceFetcher));
 
+        /// <summary>
+        /// Used for syncronising the writing to the file
+        /// </summary>
         protected static readonly SemaphoreSlim OutputSync = new SemaphoreSlim(1);
 
+        /// <summary>
+        /// Does a thread have control of the file
+        /// </summary>
         protected static bool OutputInUse { get => OutputSync.CurrentCount == 0; }
 
+        /// <summary>
+        /// Number of active downloads
+        /// </summary>
+        public static int ActiveFetches { get => _activeFetches; set => _activeFetches = value; }
         static int _activeFetches;
-        public static int ActiveFetches
-        {
-            get
-            {
-                return _activeFetches;
-            }
-            set
-            {
-                _activeFetches = value;
-            }
-        }
+
+        /// <summary>
+        /// Number of 'threads' waiting to write to the file
+        /// </summary>
+        public static int WaitingToWrite { get => _waitingToWrite; set => _waitingToWrite = value; }
+        static int _waitingToWrite;
 
         protected bool ResourceWritten { get; set; }
 
@@ -44,6 +48,15 @@ namespace Fetcho.Common
             DateTime? lastFetchedDate
             );
 
+        /// <summary>
+        /// For any URI fires up a fetcher to get it
+        /// </summary>
+        /// <param name="referrerUri"></param>
+        /// <param name="uri"></param>
+        /// <param name="writeStream"></param>
+        /// <param name="blockProvider"></param>
+        /// <param name="lastFetchedDate"></param>
+        /// <returns></returns>
         public static async Task FetchFactory(
             Uri referrerUri,
             Uri uri,
@@ -91,7 +104,8 @@ namespace Fetcho.Common
             outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri.ToString().CleanupForXml()));
             outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
             outstream.WriteString(string.Format("Date: {0}\n", now));
-            foreach (string key in request.Headers)
+            // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
+            foreach (string key in request.Headers.AllKeys) 
             {
                 outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
             }
@@ -99,7 +113,7 @@ namespace Fetcho.Common
             RequestWritten = true;
         }
 
-        protected void OutputResponse(WebResponse response, XmlWriter outstream)
+        protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outstream)
         {
             outstream.WriteStartElement("response");
             outstream.WriteStartElement("header");
@@ -113,25 +127,10 @@ namespace Fetcho.Common
             try
             {
                 outstream.WriteStartElement("data");
-
-                using (var stream = response.GetResponseStream())
-                {
-                    long totalBytes = 0;
-                    byte[] buffer = new byte[1024];
-                    int l = 0;
-                    do
-                    {
-                        l = stream.Read(buffer, 0, 1024);
-                        outstream.WriteBase64(buffer, 0, l);
-                        totalBytes += l;
-                        if (totalBytes > Settings.MaxFileDownloadLengthInBytes)
-                            throw new FetchoResourceBlockedException("Exceeded maximum bytes " + Settings.MaxFileDownloadLengthInBytes);
-                    }
-                    while (l > 0);
-                }
+                outstream.WriteBase64(buffer, 0, bytesRead);
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw;
             }
@@ -139,13 +138,18 @@ namespace Fetcho.Common
             {
                 outstream.WriteEndElement(); // data
                 outstream.WriteEndElement(); // response
+                response.Close();
             }
         }
 
         protected void OutputException(Exception ex, XmlWriter outStream, WebRequest request, DateTime startTime)
         {
-            outStream.WriteElementString("exception", ex?.ToString());
+            if (ex == null) return;
+            outStream.WriteElementString("exception", ex.ToString().CleanupForXml());
         }
+
+        protected void IncWaitingToWrite() => Interlocked.Increment(ref _waitingToWrite);
+        protected void DecWaitingToWrite() => Interlocked.Decrement(ref _waitingToWrite);
 
     }
 }

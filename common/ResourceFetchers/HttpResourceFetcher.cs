@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Cache;
-using System.Threading;
 
 using System.Threading.Tasks;
 using System.Xml;
@@ -30,20 +29,32 @@ namespace Fetcho.Common
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate)
         {
-            using (var db = new Database())
-                await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
 
-            base.BeginRequest();
-
-            var request = CreateRequest(referrerUri, uri, lastFetchedDate);
+            // the process is 
+            // 1. update the DB to say we're fetching
+            // 2. create a request
+            // 3. wait for the response
+            // 4. download the response into memory buffers
+            // 5. aquire a write lock
+            // 6. write to the XML
+            // 7. clean up
 
             HttpWebResponse response = null;
+            HttpWebRequest request = null;
             DateTime startTime = DateTime.Now;
             Exception exception = null;
             bool wroteOk = false;
 
+            base.BeginRequest();
+
+
             try
             {
+                using (var db = new Database())
+                    await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
+
+                request = CreateRequest(referrerUri, uri, lastFetchedDate);
+
                 var netTask = request.GetResponseAsync();
 
                 await Task.WhenAny(netTask, Task.Delay(request.Timeout)).ConfigureAwait(false);
@@ -64,22 +75,7 @@ namespace Fetcho.Common
                 }
                 else
                 {
-                    await OutputSync.WaitAsync();
-                    try
-                    {
-                        OutputStartResource(writeStream);
-                        OutputRequest(request, writeStream, startTime);
-                        OutputResponse(response, writeStream);
-                    }
-                    catch (Exception ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
-                    finally
-                    {
-                        OutputException(exception, writeStream, request, startTime);
-                        OutputEndResource(writeStream);
-                        base.EndRequest();
-                        OutputSync.Release();
-                        wroteOk = true;
-                    }
+                    await WriteOutResponse(writeStream, request, response, startTime);
                 }
             }
             catch (TimeoutException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
@@ -95,26 +91,77 @@ namespace Fetcho.Common
             catch (Exception ex) { ErrorHandler(ex, writeStream, request, true, startTime); exception = ex; }
             finally
             {
-                //try
-                //{
-                //    if (!wroteOk)
-                //    {
-                //        await OutputSync.WaitAsync();
-                //        OutputStartResource(writeStream);
-                //        OutputRequest(request, writeStream, startTime);
-                //        OutputException(exception, writeStream, request, startTime);
-                //        OutputEndResource(writeStream);
-                //        base.EndRequest();
-                //        OutputSync.Release();
-                //    }
-                //}
-                //catch( Exception ex)
-                //{
-                //    log.Error(ex);
-                //}
+                try
+                {
+                    if (!wroteOk)
+                    {
+                        await OutputSync.WaitAsync();
+                        OutputStartResource(writeStream);
+                        OutputRequest(request, writeStream, startTime);
+                        OutputException(exception, writeStream, request, startTime);
+                        OutputEndResource(writeStream);
+                        base.EndRequest();
+                        OutputSync.Release();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.ErrorFormat("Barfing because we got an error in the error handling code: {0}", ex);
+                    Environment.Exit(1);
+                }
                 response?.Dispose();
                 response = null;
             }
+        }
+
+        /// <summary>
+        /// </summary>
+        /// <param name="writeStream"></param>
+        /// <param name="request"></param>
+        /// <param name="response"></param>
+        /// <param name="startTime"></param>
+        /// <returns></returns>
+        private async Task<bool> WriteOutResponse(XmlWriter writeStream, HttpWebRequest request, HttpWebResponse response, DateTime startTime)
+        {
+            Exception exception = null;
+            bool wroteOk = false;
+
+            // this has a potential to cause memory issues if theres lots of waiting
+            byte[] buffer = new byte[Settings.MaxFileDownloadLengthInBytes]; 
+            int bytesread = 0;
+
+            // Read as much into memory as possible
+            try
+            {
+                using (var readStream = response.GetResponseStream())
+                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length);
+            }
+            catch(Exception ex)
+            {
+                log.Error(ex);
+            }
+
+            try
+            {
+                // once we've got plenty of bytes go find a lock
+                IncWaitingToWrite();
+                await OutputSync.WaitAsync().ConfigureAwait(false);
+                DecWaitingToWrite();
+
+                OutputStartResource(writeStream);
+                OutputRequest(request, writeStream, startTime);
+                OutputResponse(response, buffer, bytesread, writeStream);
+            }
+            catch (Exception ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+            finally
+            {
+                OutputException(exception, writeStream, request, startTime);
+                OutputEndResource(writeStream);
+                base.EndRequest();
+                OutputSync.Release();
+                wroteOk = true;
+            }
+            return wroteOk;
         }
 
         private HttpWebRequest CreateRequest(Uri referrerUri, Uri uri, DateTime? lastFetchedDate)
@@ -130,7 +177,7 @@ namespace Fetcho.Common
               DecompressionMethods.GZip |
               DecompressionMethods.Deflate;
 
-            // timeout lowered to speed things up
+            // timeout is not honoured by the framework in async mode, but is implemented manually by this code
             request.Timeout = 30000;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon

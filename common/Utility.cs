@@ -6,9 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
 using log4net;
 
 namespace Fetcho.Common
@@ -17,6 +15,7 @@ namespace Fetcho.Common
     public static class Utility
     {
         static readonly ILog log = LogManager.GetLogger(typeof(Utility));
+        static Random random = new Random(DateTime.Now.Millisecond);
 
         /// <summary>
         /// Get the IP Address of the host from a URI
@@ -305,9 +304,7 @@ namespace Fetcho.Common
             return list;
         }
 
-
-
-
+        public static string GetRandomHashString() => MD5Hash.Compute(random.Next(int.MinValue, int.MaxValue)).ToString();
 
     }
 }

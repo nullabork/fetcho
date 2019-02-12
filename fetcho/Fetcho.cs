@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,8 +20,8 @@ namespace Fetcho
         const int PressureReliefThreshold = MaxConcurrentFetches * 5 / 10; // if it totally fills up it'll chuck some out
         const int HowOftenToReportStatusInMilliseconds = 30000;
         const int TaskStartupWaitTimeInMilliseconds = 360000;
-        const int MinPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*2;
-        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds*12;
+        const int MinPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds * 2;
+        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds * 12;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int completedFetches = 0;
@@ -48,6 +47,7 @@ namespace Fetcho
         {
             try
             {
+                RunPreStartChecks();
                 log.Info("Fetcho.Process() commenced");
                 requeueWriter = GetRequeueWriter();
                 inputReader = GetInputReader();
@@ -76,7 +76,7 @@ namespace Fetcho
                 CloseOutputWriter();
                 log.Info("Fetcho.Process() complete");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 log.Error(ex);
             }
@@ -147,7 +147,7 @@ namespace Fetcho
 
                 if (item == null)
                     nextaddr = IPAddress.None;
-                else 
+                else
                     nextaddr = await GetQueueItemTargetIP(item);
             }
 
@@ -170,7 +170,7 @@ namespace Fetcho
                 {
                     await FetchQueueItem(item);
                     Interlocked.Increment(ref waitingForFetchTimeout);
-                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds+10);
+                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds + 10);
                     Interlocked.Decrement(ref waitingForFetchTimeout);
                 }
             }
@@ -191,7 +191,7 @@ namespace Fetcho
             {
                 if (!await valve.WaitToEnter(item))
                 {
-//                    LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
+                    //                    LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
                     OutputItemForRequeuing(item);
                 }
                 else
@@ -296,6 +296,15 @@ namespace Fetcho
             }
         }
 
+        private void RunPreStartChecks()
+        {
+            // not sure why it thinks this - probably comparing ints rather than longs
+            if (Settings.MaxFileDownloadLengthInBytes * (long)MaxConcurrentFetches > (long)4096 * 1024 * 1024)
+#pragma warning disable CS0162 // Unreachable code detected
+                log.WarnFormat("MaxConcurrentFetches * MaxFileDownloadLengthInBytes is greater than 4GB. For safety this should not be this big");
+#pragma warning restore CS0162 // Unreachable code detected
+        }
+
         private TextWriter GetRequeueWriter()
         {
             if (String.IsNullOrEmpty(Configuration.RequeueUrlsFilePath))
@@ -330,16 +339,17 @@ namespace Fetcho
                 MaxPressureReliefValveWaitTimeInMilliseconds
                 );
 
-        private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) => 
+        private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
             !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
 
-        private void LogStatus(string status) => 
-            log.InfoFormat("{0}: Active Fetches {1}, Completed {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Spooling time {5}, Active Chunks {6}",
+        private void LogStatus(string status) =>
+            log.InfoFormat("{0}: Active Fetches {1}, Completed {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Waiting to Write: {5}, Spooling time {6}, Active Chunks {7}",
                 status,
                     valve.TasksInValve,
                     completedFetches,
                     valve.TasksWaiting,
                     waitingForFetchTimeout,
+                    ResourceFetcher.WaitingToWrite,
                     lastSpoolingTime,
                     MaxConcurrentFetches - fetchLock.CurrentCount);
 

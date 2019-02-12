@@ -1,8 +1,5 @@
 ﻿using log4net;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,7 +14,7 @@ namespace Fetcho.Common
         static readonly ILog log = LogManager.GetLogger(typeof(PressureReliefValve<T>));
 
         /// <summary>
-        /// Function for the Wait action
+        /// Function for the Wait action - note the wait should not be infinite
         /// </summary>
         public Func<T, Task<bool>> WaitFunc { get; set; }
 

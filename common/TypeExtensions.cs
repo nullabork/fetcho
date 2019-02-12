@@ -102,12 +102,23 @@ namespace Fetcho.Common
             return str.Substring(0, str.Length - numchars);
         }
 
+        /// <summary>
+        /// Ensure a string always only comes to maxlength
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="maxlength"></param>
+        /// <returns></returns>
         public static string Truncate(this string str, int maxlength)
         {
             if (str.Length < maxlength) return str;
             return str.Substring(0, maxlength);
         }
 
+        /// <summary>
+        /// Strip non-XML chars from the provided string
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         public static string CleanupForXml(this string str)
         {
             StringBuilder sb = new StringBuilder();

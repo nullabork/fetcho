@@ -2,7 +2,6 @@
 using Fetcho.ContentReaders;
 using System;
 using System.IO;
-using System.Linq;
 
 namespace Fetcho
 {
