@@ -6,8 +6,9 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
-
+using System.Xml;
 using log4net;
 
 namespace Fetcho.Common
@@ -181,6 +182,7 @@ namespace Fetcho.Common
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", MessageId = "1#")]
         public static IEnumerable<Uri> GetLinks(Uri sourceUri, string uriCandidate)
         {
+            const int MaxUriLength = 2043; // IIS limit seems to be the shortest. Lets be serious, if anyone uses anything longer than this...
             var list = new List<Uri>(5);
 
             if (sourceUri == null)
@@ -189,6 +191,10 @@ namespace Fetcho.Common
             try
             {
                 string tempUrl = uriCandidate;
+
+                // too long 
+                if (tempUrl.Length > MaxUriLength)
+                    return list;
 
                 // can't follow a JS link
                 if (tempUrl.StartsWith("javascript:"))
@@ -200,6 +206,10 @@ namespace Fetcho.Common
 
                 // drop file links they go no where
                 if (tempUrl.StartsWith("file:", StringComparison.InvariantCultureIgnoreCase))
+                    return list;
+
+                // data URIs have to be chucked
+                if (tempUrl.StartsWith("data:", StringComparison.InvariantCultureIgnoreCase))
                     return list;
 
                 // can't follow an internal anchor
@@ -245,7 +255,11 @@ namespace Fetcho.Common
                     }
                 }
 
-                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute) && tempUrl.Contains("."))
+                tempUrl = tempUrl.CleanupForXml();
+
+                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute) && 
+                    tempUrl.Contains(".") && 
+                    tempUrl.Length < MaxUriLength)
                 {
                     var uri = new Uri(tempUrl);
                     list.Add(uri);
@@ -290,6 +304,9 @@ namespace Fetcho.Common
 
             return list;
         }
+
+
+
 
 
     }

@@ -32,6 +32,8 @@ namespace Fetcho.Common
             }
         }
 
+        protected bool ResourceWritten { get; set; }
+
         protected bool RequestWritten { get; set; }
 
         public abstract Task Fetch(
@@ -72,24 +74,26 @@ namespace Fetcho.Common
         protected void OutputStartResource(XmlWriter outStream)
         {
             outStream.WriteStartElement("resource");
+            ResourceWritten = true;
         }
 
         protected void OutputEndResource(XmlWriter outStream)
         {
             outStream.WriteEndElement();
             outStream.Flush();
+            ResourceWritten = false;
         }
 
         protected void OutputRequest(WebRequest request, XmlWriter outstream, DateTime startTime)
         {
             DateTime now = DateTime.Now;
             outstream.WriteStartElement("request");
-            outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri));
+            outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri.ToString().CleanupForXml()));
             outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
             outstream.WriteString(string.Format("Date: {0}\n", now));
             foreach (string key in request.Headers)
             {
-                outstream.WriteString(string.Format("{0}: {1}\n", key, CleanupForXml(request.Headers[key])));
+                outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
             }
             outstream.WriteEndElement();
             RequestWritten = true;
@@ -112,12 +116,16 @@ namespace Fetcho.Common
 
                 using (var stream = response.GetResponseStream())
                 {
+                    long totalBytes = 0;
                     byte[] buffer = new byte[1024];
                     int l = 0;
                     do
                     {
                         l = stream.Read(buffer, 0, 1024);
                         outstream.WriteBase64(buffer, 0, l);
+                        totalBytes += l;
+                        if (totalBytes > Settings.MaxFileDownloadLengthInBytes)
+                            throw new FetchoResourceBlockedException("Exceeded maximum bytes " + Settings.MaxFileDownloadLengthInBytes);
                     }
                     while (l > 0);
                 }
@@ -136,20 +144,8 @@ namespace Fetcho.Common
 
         protected void OutputException(Exception ex, XmlWriter outStream, WebRequest request, DateTime startTime)
         {
-            if (!RequestWritten) OutputRequest(request, outStream, startTime);
-            outStream.WriteElementString("exception", ex.ToString());
-
+            outStream.WriteElementString("exception", ex?.ToString());
         }
 
-        private string CleanupForXml( string str )
-        {
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < str.Length; i++)
-                if (XmlConvert.IsXmlChar(str[i]))
-                    sb.Append(str[i]);
-
-            return sb.ToString();
-        }
     }
 }

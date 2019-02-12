@@ -69,6 +69,10 @@ namespace Fetcho
                     spoolingTimeWatch.Reset();
                 }
 
+                // wait for all the tasks to finish before shutting down
+                while (fetchLock.CurrentCount < MaxConcurrentFetches)
+                    await Task.Delay(1000);
+
                 CloseOutputWriter();
                 log.Info("Fetcho.Process() complete");
             }

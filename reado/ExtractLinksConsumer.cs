@@ -55,11 +55,10 @@ namespace Fetcho
 
         private ILinkExtractor GuessLinkExtractor(Stream dataStream)
         {
-            if (ContentType.StartsWith("video/"))
+            if (ContentType.StartsWith("text/"))
+                return new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
+            else 
                 return null;
-            else if (ContentType.StartsWith("image/"))
-                return null;
-            return new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
         }
 
         private void OutputUris(ILinkExtractor reader)

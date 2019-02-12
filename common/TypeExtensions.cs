@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text;
+using System.Xml;
 
 namespace Fetcho.Common
 {
@@ -104,6 +106,17 @@ namespace Fetcho.Common
         {
             if (str.Length < maxlength) return str;
             return str.Substring(0, maxlength);
+        }
+
+        public static string CleanupForXml(this string str)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = 0; i < str.Length; i++)
+                if (XmlConvert.IsXmlChar(str[i]))
+                    sb.Append(str[i]);
+
+            return sb.ToString();
         }
     }
 

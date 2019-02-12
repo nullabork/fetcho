@@ -17,11 +17,6 @@ namespace Fetcho.Common
         static readonly ILog log = LogManager.GetLogger(typeof(HttpResourceFetcher));
 
         /// <summary>
-        /// True if we've got a write lock
-        /// </summary>
-        private bool gotWriteLock = false;
-
-        /// <summary>
         /// Fetches a copy of a HTTP resource
         /// </summary>
         /// <param name="uri"></param>
@@ -44,7 +39,8 @@ namespace Fetcho.Common
 
             HttpWebResponse response = null;
             DateTime startTime = DateTime.Now;
-            gotWriteLock = false;
+            Exception exception = null;
+            bool wroteOk = false;
 
             try
             {
@@ -69,24 +65,55 @@ namespace Fetcho.Common
                 else
                 {
                     await OutputSync.WaitAsync();
-                    gotWriteLock = true;
-                    OutputStartResource(writeStream);
-                    OutputRequest(request, writeStream, startTime);
-                    OutputResponse(response, writeStream);
+                    try
+                    {
+                        OutputStartResource(writeStream);
+                        OutputRequest(request, writeStream, startTime);
+                        OutputResponse(response, writeStream);
+                    }
+                    catch (Exception ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+                    finally
+                    {
+                        OutputException(exception, writeStream, request, startTime);
+                        OutputEndResource(writeStream);
+                        base.EndRequest();
+                        OutputSync.Release();
+                        wroteOk = true;
+                    }
                 }
             }
-            catch (TimeoutException ex) { await ErrorHandler(ex, writeStream, request, false, startTime); }
-            catch (AggregateException ex) { await ErrorHandler(ex.InnerException, writeStream, request, false, startTime); }
-            catch (FetchoResourceBlockedException ex) { await ErrorHandler(ex, writeStream, request, false, startTime); }
-            catch (InvalidOperationException ex) { log.ErrorFormat("Barfing because of a corrupt XML: {0}", ex); Environment.Exit(1); }
-            catch (Exception ex) { await ErrorHandler(ex, writeStream, request, true, startTime); }
+            catch (TimeoutException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+            catch (AggregateException ex) { ErrorHandler(ex.InnerException, writeStream, request, false, startTime); exception = ex; }
+            catch (FetchoResourceBlockedException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+            catch (WebException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+            catch (InvalidOperationException ex)
+            {
+                log.ErrorFormat("Barfing because of a corrupt XML: {0}", ex);
+                log.InfoFormat("WriteState: {0}", writeStream.WriteState);
+                Environment.Exit(1);
+            }
+            catch (Exception ex) { ErrorHandler(ex, writeStream, request, true, startTime); exception = ex; }
             finally
             {
+                //try
+                //{
+                //    if (!wroteOk)
+                //    {
+                //        await OutputSync.WaitAsync();
+                //        OutputStartResource(writeStream);
+                //        OutputRequest(request, writeStream, startTime);
+                //        OutputException(exception, writeStream, request, startTime);
+                //        OutputEndResource(writeStream);
+                //        base.EndRequest();
+                //        OutputSync.Release();
+                //    }
+                //}
+                //catch( Exception ex)
+                //{
+                //    log.Error(ex);
+                //}
                 response?.Dispose();
                 response = null;
-                OutputEndResource(writeStream);
-                base.EndRequest();
-                if (OutputInUse) OutputSync.Release();
             }
         }
 
@@ -127,20 +154,20 @@ namespace Fetcho.Common
             return request;
         }
 
-        private void TrySetReferrer( HttpWebRequest request, Uri uri)
+        private void TrySetReferrer(HttpWebRequest request, Uri uri)
         {
             try
             {
                 if (uri != null)
                     request.Referer = uri.ToString();
             }
-            catch( Exception ex)
+            catch (Exception ex)
             {
                 log.ErrorFormat("Failed to set Referrer: {0}, {1}", uri, ex);
             }
         }
 
-        private async Task ErrorHandler( Exception ex, XmlWriter writer, HttpWebRequest request, bool verbose, DateTime startTime)
+        private void ErrorHandler(Exception ex, XmlWriter writer, HttpWebRequest request, bool verbose, DateTime startTime)
         {
             const string format = "'{0}': {1}";
 
@@ -155,13 +182,6 @@ namespace Fetcho.Common
             // This contains a very subtle race condition it took about 300-400gb of
             // downloading before it finally reared its ugly head and corrupted the 
             // Xml file.
-
-            if (!OutputInUse) await OutputSync.WaitAsync();
-            //if ( !gotWriteLock) await OutputSync.WaitAsync(); // super subtle race condition here
-            gotWriteLock = true;
-            OutputStartResource(writer);
-            OutputRequest(request, writer, startTime);
-            OutputException(ex, writer, request, startTime);
         }
     }
 }
