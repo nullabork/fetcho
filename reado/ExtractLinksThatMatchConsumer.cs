@@ -1,17 +1,30 @@
 ﻿using Fetcho.Common;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Fetcho
 {
+    /// <summary>
+    /// Used to find links that match specific queries
+    /// </summary>
     internal class ExtractLinksThatMatchConsumer : IWebDataPacketConsumer
     {
+        public FilterCollection IncludeFilters { get; }
+
         public Uri CurrentUri;
 
         public string Name { get => "Extract Links that match"; }
         public bool ProcessesRequest { get => true; }
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
+
+        public ExtractLinksThatMatchConsumer(params string [] args)
+        {
+            IncludeFilters = new FilterCollection();
+            foreach( string arg in args )
+                IncludeFilters.Add(TextMatchFilter.Parse(arg));
+        }
 
         public void ProcessException(string exception)
         {
@@ -31,7 +44,7 @@ namespace Fetcho
 
                 while (!reader.EndOfStream)
                 {
-                    if (line.ToLower().Contains("tesla"))
+                    if (IncludeFilters.AllMatch(line))
                     {
                         Console.WriteLine("{0}", CurrentUri);
                         return;

@@ -5,7 +5,7 @@ using System.Xml;
 namespace Fetcho.Common
 {
     /// <summary>
-    /// Description of TypeExtensions.
+    /// Extension methods for various types
     /// </summary>
     public static class TypeExtensions
     {
@@ -63,6 +63,14 @@ namespace Fetcho.Common
             return b;
         }
 
+        /// <summary>
+        /// Left pad the array to make it match the number of items required
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="array1"></param>
+        /// <param name="paddingValue"></param>
+        /// <param name="number"></param>
+        /// <returns></returns>
         public static T[] PadLeft<T>(this T[] array1, T paddingValue, int number)
         {
             if (array1.Length >= number)
@@ -76,6 +84,14 @@ namespace Fetcho.Common
             return c;
         }
 
+        /// <summary>
+        /// Pad the array to make it match the number of items required
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="array1"></param>
+        /// <param name="paddingValue"></param>
+        /// <param name="number"></param>
+        /// <returns></returns>
         public static T[] PadRight<T>(this T[] array1, T paddingValue, int number)
         {
             if (array1.Length >= number)

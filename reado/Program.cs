@@ -8,36 +8,58 @@ namespace Fetcho
 {
     class Program
     {
+        /// <summary>
+        /// Reads packets and runs custom classes on them
+        /// </summary>
+        /// <remarks>
+        /// 
+        /// USAGE:
+        ///   reado [processor] [path] [args...]
+        ///   reado --help
+        ///   
+        /// EXAMPLE:
+        ///   reado ExtractLinksConsumer packet-53.xml
+        ///   reado ExtractLinksThatMatchConsumer packet-2.xml australia news
+        ///
+        /// </remarks>
+        /// <param name="args"></param>
         static void Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            log4net.Config.XmlConfigurator.Configure();
+
             // args1 = Packet Procssor
             // args2 = Packet Path
 
-            if (args[0] == "--help")
+            if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();
-            else
+            else 
             {
                 string packetProcessorString = args[0];
                 string packetPath = args[1];
 
-                var reado = new ReadoProcessor();
-                reado.Processor.Consumer = GetWebDataPacketProcessor(packetProcessorString);
-
-                if (!File.Exists(packetPath))
-                    throw new FileNotFoundException(packetPath);
-
+                var reado = CreateReadoProcessor(packetProcessorString, args);
                 reado.Process(packetPath);
             }
         }
 
-        static IWebDataPacketConsumer GetWebDataPacketProcessor(string typeName)
+        static ReadoProcessor CreateReadoProcessor(string processorType, string [] args)
+        {
+            var reado = new ReadoProcessor();
+            reado.Processor.Consumer = GetWebDataPacketProcessor(processorType, GetConsumerArgs(args));
+            return reado;
+        }
+
+        static IEnumerable<string> GetConsumerArgs(string[] args) => new ArraySegment<string>(args, 2, args.Length - 2);
+
+        static IWebDataPacketConsumer GetWebDataPacketProcessor(string typeName, IEnumerable<string> args)
         {
             var type = GetWebDataPacketConsumerTypes().FirstOrDefault(x => x.Name == typeName);
 
             if (type == null)
                 throw new Exception("Can't find type with name " + typeName);
 
-            return type.GetConstructor(new Type[] { }).Invoke(null) as IWebDataPacketConsumer;
+            return Activator.CreateInstance(type, args.ToArray()) as IWebDataPacketConsumer;
         }
 
         static IEnumerable<Type> GetWebDataPacketConsumerTypes()
@@ -49,7 +71,7 @@ namespace Fetcho
 
         static void OutputHelp()
         {
-            Console.WriteLine("reado [processor] [packet path]");
+            Console.WriteLine("reado [processor] [packet path] [args...]");
             Console.WriteLine("reado --help");
             Console.WriteLine();
             Console.WriteLine("Processors available:");
@@ -62,25 +84,6 @@ namespace Fetcho
 
             foreach (var type in types)
                 Console.WriteLine("{0}", type.Name);
-        }
-    }
-
-    public class ReadoProcessor
-    {
-        public WebDataPacketProcessor Processor { get;  }
-
-        public ReadoProcessor()
-        {
-            Processor = new WebDataPacketProcessor();
-        }
-
-        public void Process(string filepath)
-        {
-            using (var fs = new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                var packet = new WebDataPacketReader(fs);
-                Processor.Process(packet);
-            }
         }
     }
 }

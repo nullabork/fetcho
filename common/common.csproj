@@ -76,6 +76,10 @@
     <Compile Include="FastLookupCache.cs" />
     <Compile Include="FetchoResourceBlockedException.cs" />
     <Compile Include="PressureReliefValve.cs" />
+    <Compile Include="Query\FilterCollection.cs" />
+    <Compile Include="Query\IFilter.cs" />
+    <Compile Include="Query\MatchAction.cs" />
+    <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
     <Compile Include="Entities\WebResource.cs" />

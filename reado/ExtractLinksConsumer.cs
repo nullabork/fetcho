@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common;
 using Fetcho.ContentReaders;
+using log4net;
 using System;
 using System.IO;
 
@@ -7,6 +8,8 @@ namespace Fetcho
 {
     internal class ExtractLinksConsumer : IWebDataPacketConsumer
     {
+        static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksConsumer));
+
         public Uri CurrentUri;
         public string ContentType;
 
@@ -54,10 +57,13 @@ namespace Fetcho
 
         private ILinkExtractor GuessLinkExtractor(Stream dataStream)
         {
-            if (ContentType.StartsWith("text/"))
+            if (ContentType.StartsWith("text", StringComparison.InvariantCultureIgnoreCase))
                 return new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
-            else 
+            else
+            {
+                log.InfoFormat("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
                 return null;
+            }
         }
 
         private void OutputUris(ILinkExtractor reader)
