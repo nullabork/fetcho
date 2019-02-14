@@ -25,7 +25,7 @@ namespace Fetcho.Common
             {
                 try
                 {
-                    if ( Consumer.ProcessesRequest )
+                    if (Consumer.ProcessesRequest)
                     {
                         string requestString = packet.GetRequestString();
                         Consumer.ProcessRequest(requestString);

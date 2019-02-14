@@ -10,6 +10,7 @@ using log4net;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Data.Common;
+using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
@@ -236,7 +237,7 @@ namespace Fetcho.Common
                     await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
-            catch( Exception ex )
+            catch (Exception ex)
             {
                 log.ErrorFormat("SaveWebResource(): {0}", ex);
             }
@@ -266,11 +267,150 @@ namespace Fetcho.Common
 
                 return ((long)o) == 0;
             }
-            catch( Exception ex )
+            catch (Exception ex)
             {
                 log.ErrorFormat("NeedsVisiting(): {0}", ex);
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Determines if an access key can access a specific workspace
+        /// </summary>
+        /// <param name="guid"></param>
+        /// <returns></returns>
+        public async Task<bool> HasWorkspaceAccess(Guid guid, string accesskey)
+        {
+            try
+            {
+                string sql =
+                    "select workspace_id " +
+                    "from   \"Workspace\" w " +
+                    "       inner join \"WorkspaceAccessKey\" wak on wak.workspace_id = w.workspace_id " +
+                    "where  w.workspace_id = :workspace_id " +
+                    "       and wak.access_key = :access_key;";
+
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", guid));
+                cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accesskey));
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) > 0;
+            }
+            catch (Exception ex)
+            {
+                log.ErrorFormat("GetWorkspace(): {0}", ex);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get a workspace record by it's GUID
+        /// </summary>
+        /// <param name="guid"></param>
+        /// <returns></returns>
+        public async Task<Workspace> GetWorkspace(Guid guid)
+        {
+            Workspace workspace = null;
+
+            try
+            {
+                string sql =
+                    "select workspace_id, name, description, is_active, created " +
+                    "from   \"Workspace\" " +
+                    "where  workspace_id = :workspace_id;";
+
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", guid));
+
+                using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (reader.Read())
+                    {
+                        workspace = new Workspace
+                        {
+                            WorkspaceId = reader.GetGuid(0),
+                            Name = reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? String.Empty : reader.GetFieldValue<string>(2),
+                            IsActive = reader.GetBoolean(3),
+                            Created = reader.GetDateTime(4)
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.ErrorFormat("GetWorkspace(): {0}", ex);
+            }
+
+            return workspace;
+        }
+
+        public async Task SaveWorkspace(Workspace workspace)
+        {
+            try
+            {
+                string updateSql = "set client_encoding='UTF8'; update \"Workspace\" " +
+                  "set    name = :name, " +
+                  "       description = :description, " +
+                  "       is_active = :is_active " +
+                  "where  workspace_id = :workspace_id;";
+
+                string insertSql = "set client_encoding='UTF8'; insert into \"Workspace\" ( workspace_id, name, description, is_active, created ) " +
+                  "values ( :workspace_id, :name, :description, :is_active, :created );";
+
+                NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
+                _saveWorkspaceSetParams(cmd, workspace);
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0) // no record to update
+                {
+                    cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                    _saveWorkspaceSetParams(cmd, workspace);
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.ErrorFormat("SaveWorkspace(): {0}", ex);
+            }
+
+        }
+
+        /// <summary>
+        /// Get a workspace record by it's GUID
+        /// </summary>
+        /// <param name="guid"></param>
+        /// <returns></returns>
+        public async Task DeleteWorkspace(Guid guid)
+        {
+
+            try
+            {
+                string sql =
+                    "delete  " +
+                    "from   \"Workspace\" " +
+                    "where  workspace_id = :workspace_id;";
+
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", guid));
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0)
+                    throw new Exception("No record was deleted");
+            }
+            catch (Exception ex)
+            {
+                log.ErrorFormat("GetWorkspace(): {0}", ex);
+            }
+        }
+
+        private void _saveWorkspaceSetParams(NpgsqlCommand cmd, Workspace workspace)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspace.WorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", workspace.Name));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("description", workspace.Description));
+            cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", workspace.IsActive));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", workspace.Created));
         }
 
         void SetBinaryParameter(NpgsqlCommand cmd, string parameterName, object value)

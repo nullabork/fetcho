@@ -118,6 +118,15 @@ namespace Fetcho.Common
             return str.Substring(0, str.Length - numchars);
         }
 
+        public static int MaxConstraint(this int i, int maxValue) => i > maxValue ? maxValue : i;  
+        public static int MinConstraint(this int i, int minValue) => i < minValue ? minValue : i;
+
+        public static long MaxConstraint(this long l, long max) => l > max ? max : l;
+        public static long MinConstraint(this long l, long min) => l < min ? min : l;
+
+        public static long RangeConstraint(this long l, long min, long max) => l < min ? min : l > max ? max : l;
+        public static int  RangeConstraint(this int l,  int min,  int max) => l < min ? min : l > max ? max : l;
+
         /// <summary>
         /// Ensure a string always only comes to maxlength
         /// </summary>

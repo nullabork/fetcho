@@ -17,6 +17,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "commonTest", "commonTest\co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "reado", "reado\reado.csproj", "{7BAA38B9-FF7B-4BE4-95E1-9A494F0BBB85}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FetchoAPI", "FetchoAPI\FetchoAPI.csproj", "{FADAACF9-C952-40BA-B0B7-BBF0A4F5E899}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FetchoAPI.Test", "FetchoAPI.Test\FetchoAPI.Test.csproj", "{D5A3D3BC-87CC-4D29-82D8-9BCC3982C300}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +55,14 @@ Global
 		{7BAA38B9-FF7B-4BE4-95E1-9A494F0BBB85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7BAA38B9-FF7B-4BE4-95E1-9A494F0BBB85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7BAA38B9-FF7B-4BE4-95E1-9A494F0BBB85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FADAACF9-C952-40BA-B0B7-BBF0A4F5E899}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FADAACF9-C952-40BA-B0B7-BBF0A4F5E899}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FADAACF9-C952-40BA-B0B7-BBF0A4F5E899}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FADAACF9-C952-40BA-B0B7-BBF0A4F5E899}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A3D3BC-87CC-4D29-82D8-9BCC3982C300}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A3D3BC-87CC-4D29-82D8-9BCC3982C300}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A3D3BC-87CC-4D29-82D8-9BCC3982C300}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A3D3BC-87CC-4D29-82D8-9BCC3982C300}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

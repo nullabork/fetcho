@@ -34,7 +34,8 @@ namespace Fetcho
 
         public void ProcessResponseStream(Stream dataStream)
         {
-            var extractor = new TextFileLinkExtractor(CurrentUri, new StreamReader(dataStream));
+            if (dataStream == null) return;
+            var extractor = GuessLinkExtractor(dataStream);
             if (extractor != null)
                 OutputUris(extractor);
         }

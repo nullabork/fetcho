@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Fetcho.Common
+namespace Fetcho.Common.Entities
 {
     /// <summary>
     /// A conceptual object that contains all the queries, filters, results and information for a specific search
@@ -68,11 +68,25 @@ namespace Fetcho.Common
             {
                 WorkspaceId = Guid.NewGuid(),
                 Name = name,
-                Created = DateTime.Now
+                Created = DateTime.UtcNow
             };
             w.AccessKeys.Add(WorkspaceAccessKey.Create(true));
 
             return w;
+        }
+
+        /// <summary>
+        /// Validate a workspace object
+        /// </summary>
+        /// <param name="workspace"></param>
+        public static void Validate(Workspace workspace)
+        {
+            if (String.IsNullOrWhiteSpace(workspace.Name))
+                throw new ArgumentException("Name not set");
+            if (workspace.WorkspaceId == Guid.Empty)
+                throw new ArgumentException("WorkspaceId is not set");
+            if (workspace.Created == DateTime.MinValue)
+                throw new ArgumentException("Created is not set");
         }
     }
 }

@@ -1,7 +1,8 @@
 ﻿using System;
 
-namespace Fetcho.Common
+namespace Fetcho.Common.Entities
 {
+
     public class WorkspaceAccessKey
     {
         public string AccessKey { get; set; }
@@ -12,11 +13,14 @@ namespace Fetcho.Common
 
         public bool IsActive { get; set; }
 
+        public bool IsRevoked { get; set; }
+
         public DateTime Created { get; set; }
 
         public WorkspaceAccessKey()
         {
             IsActive = true;
+            IsRevoked = false;
             Expiry = DateTime.MaxValue;
             Created = DateTime.Now;
         }
