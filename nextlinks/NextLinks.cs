@@ -20,7 +20,7 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        public const uint MaximumPriorityValueForLinks = 500 * 1000 * 1000;
+        public const uint MaximumPriorityValueForLinks = 750 * 1000 * 1000;
 
         /// <summary>
         /// 

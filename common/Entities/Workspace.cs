@@ -24,6 +24,8 @@ namespace Fetcho.Common.Entities
         /// </summary>
         public string Description { get; set; }
 
+        public string QueryText { get; set; }
+
         /// <summary>
         /// Date this workspace was created
         /// </summary>
@@ -68,6 +70,8 @@ namespace Fetcho.Common.Entities
             {
                 WorkspaceId = Guid.NewGuid(),
                 Name = name,
+                Description = "",
+                QueryText = "",
                 Created = DateTime.UtcNow
             };
             w.AccessKeys.Add(WorkspaceAccessKey.Create(true));

@@ -32,7 +32,7 @@ namespace Fetcho.Common
         /// A forward only packet reader
         /// </summary>
         /// <param name="inStream"></param>
-        public WebDataPacketReader(Stream inStream) : this(XmlReader.Create(inStream))
+        public WebDataPacketReader(Stream inStream) : this(CreateDefaultXmlReader(inStream))
         {
 
         }
@@ -142,6 +142,13 @@ namespace Fetcho.Common
             while (inStream.Read() && !(inStream.NodeType == XmlNodeType.Element && names.Contains(inStream.Name)))
                 if (inStream.NodeType == XmlNodeType.EndElement && inStream.Name == "resource")
                     break;
+        }
+
+        private static XmlReader CreateDefaultXmlReader(Stream inStream)
+        {
+            var settings = new XmlReaderSettings();
+            settings.ConformanceLevel = ConformanceLevel.Fragment;
+            return XmlReader.Create(inStream, settings);
         }
 
         /// <summary>
