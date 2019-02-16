@@ -12,16 +12,16 @@ Useful concepts to understand it:
 
 ## Models
 
-AccessKey - An indirect way to access the internal resources of the database
-Workspace - A group of a query, results and other configuration for a persistent search
-WorkspaceResult - Individual items searched for
+AccessKey - An indirect way to access the internal resources of the database  
+Workspace - A group of a query, results and other configuration for a persistent search  
+WorkspaceResult - Individual items searched for  
 
 ## End Points
 
-Use accesskeys if you're building a user facing tool
+Use accesskeys if you're building a user facing tool  
 Use workspaces if you're building a server facing tool
 
-* /api/v1/accesskeys - access all the data by an AccessKey
+* /api/v1/accesskeys - access all the data by an AccessKey  
 * /api/v1/workspaces - access all the data for a Workspace
 
 ### AccessKeys
