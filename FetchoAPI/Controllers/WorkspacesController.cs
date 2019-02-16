@@ -12,7 +12,6 @@ namespace Fetcho.FetchoAPI.Controllers
 
     public class WorkspacesController : ApiController
     {
-
         [Route("api/v1/accesskeys/{accesskey}")]
         [HttpGet()]
         public async Task<IEnumerable<WorkspaceAccessKey>> Get(string accesskey)
@@ -54,7 +53,7 @@ namespace Fetcho.FetchoAPI.Controllers
         public async Task Post(string accesskey, [FromBody]Workspace workspace)
         {
             Workspace.Validate(workspace);
-//            ThrowIfAccessKeyNotEqualWorkspace(accesskey, workspace);
+            //            ThrowIfAccessKeyNotEqualWorkspace(accesskey, workspace);
 
             using (var db = new Database())
             {
@@ -106,9 +105,18 @@ namespace Fetcho.FetchoAPI.Controllers
         [HttpGet()]
         public async Task<IEnumerable<WorkspaceResult>> GetResultsByAccessKey(string accesskey, Guid accessKeyId, long minSequence = 0, int count = 30)
         {
-            Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+            try
+            {
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
 
-            return GetResultsByWorkspace(guid, minSequence, count);
+                return await GetResultsByWorkspace(guid, minSequence, count);
+            }
+            catch( Exception ex)
+            {
+                Utility.LogException(ex);
+            }
+
+            return null;
         }
 
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results")]
@@ -118,7 +126,7 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
 
-            PostResultsByWorkspace(guid, results);
+            await PostResultsByWorkspace(guid, results);
         }
 
         /// <summary>
@@ -130,17 +138,24 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpGet()]
-        public IEnumerable<WorkspaceResult> GetResultsByWorkspace(Guid guid, long minSequence = 0, int count = 30)
+        public async Task<IEnumerable<WorkspaceResult>> GetResultsByWorkspace(Guid guid, long minSequence = 0, int count = 30)
         {
-            count = count.RangeConstraint(1, 50);
-            minSequence = minSequence.MinConstraint(0);
+            try
+            {
+                count = count.RangeConstraint(1, 50);
+                minSequence = minSequence.MinConstraint(0);
 
-            // IEnumerable<WorkspaceResult> results = null;
-            // using ( var db = new Database() )
-            //   results = db.GetWorkspaceResults(guid, minSequence, count);
-            // return results;
+                IEnumerable<WorkspaceResult> results = null;
+                using (var db = new Database())
+                    results = await db.GetWorkspaceResults(guid, minSequence, count);
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+            }
 
-            return new WorkspaceResult[] { };
+            return null;
         }
 
         /// <summary>
@@ -151,10 +166,17 @@ namespace Fetcho.FetchoAPI.Controllers
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpPost()]
         [HttpPut()]
-        public void PostResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task PostResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
         {
-            // using ( var db = new Database())
-            //   db.AddWorkspaceResults(guid, results);
+            try
+            {
+                using (var db = new Database())
+                    await db.AddWorkspaceResults(guid, results);
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+            }
         }
 
         /// <summary>

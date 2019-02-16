@@ -43,7 +43,7 @@ namespace Fetcho
         public void NewResource()
         {
             CurrentUri = null;
-            ContentType = null; 
+            ContentType = null;
         }
 
         public void PacketClosed()
@@ -60,23 +60,23 @@ namespace Fetcho
 
         private ILinkExtractor GuessLinkExtractor(Stream dataStream)
         {
-            using (var ms = new MemoryStream())
+            var ms = new MemoryStream();
+            dataStream.CopyTo(ms);
+            ms.Seek(0, SeekOrigin.Begin);
+
+            if (ContentType.IsUnknownOrNull(ContentType))
+                ContentType = ContentType.Guess(ms);
+
+            ms.Seek(0, SeekOrigin.Begin);
+
+            if (ContentType.IsUnknownOrNull(ContentType) || ContentType.MediaType == "text")
+                return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
+            else
             {
-                dataStream.CopyTo(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-
-                if (ContentType.IsUnknownOrNull(ContentType))
-                    ContentType = ContentType.Guess(ms);
-
-                ms.Seek(0, SeekOrigin.Begin);
-
-                if (ContentType.IsUnknownOrNull(ContentType) || ContentType.MediaType == "text")
-                    return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
-                else
-                {
-                    log.InfoFormat("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
-                    return null;
-                }
+                ms.Dispose();
+                ms = null;
+                log.InfoFormat("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
+                return null;
             }
         }
 

@@ -22,6 +22,7 @@ namespace Fetcho.Common
 
         public ContentType(string contentType)
         {
+            if (String.IsNullOrWhiteSpace(contentType)) contentType = String.Empty;
             Raw = contentType;
             Parse(contentType);
         }
@@ -69,6 +70,18 @@ namespace Fetcho.Common
             return sb.ToString();
         }
 
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (obj as ContentType == null) return false;
+            return this.Equals(this, obj as ContentType);
+        }
+
+        public override int GetHashCode()
+        {
+            return GetHashCode(this);
+        }
+
         public bool Equals(ContentType x, ContentType y)
         {
             return x.Raw == y.Raw;
@@ -84,6 +97,10 @@ namespace Fetcho.Common
             return x.Raw.CompareTo(y);
         }
 
+        public static bool operator ==(ContentType lhs, ContentType rhs) => lhs.Equals(rhs);
+
+        public static bool operator !=(ContentType lhs, ContentType rhs) => !lhs.Equals(rhs);
+
         public override string ToString()
         {
             if (String.IsNullOrWhiteSpace(Raw)) return String.Empty;
@@ -97,7 +114,10 @@ namespace Fetcho.Common
 
         public static readonly ContentType Unknown = new ContentType(String.Empty);
 
-        public static bool IsUnknownOrNull(ContentType contentType) => contentType == null || contentType == ContentType.Unknown || contentType.IsBlank;
+        public static bool IsUnknownOrNull(ContentType contentType) => 
+            contentType == null || 
+            contentType == ContentType.Unknown ||
+            contentType.IsBlank;
 
         [DllImport(@"urlmon.dll",
                        CharSet = CharSet.Unicode,
@@ -139,11 +159,10 @@ namespace Fetcho.Common
 
         public static ContentType Guess(byte[] bytes)
         {
-            if (!Environment.Is64BitProcess)
-            {
-                Console.WriteLine("DetectContentTypeFromBytes(): This is not a 64 bit process. This method isnt compatible with 32bit systems.");
-                Environment.Exit(1);
-            }
+            //if (!Environment.Is64BitProcess)
+            //    throw new Exception("DetectContentTypeFromBytes(): This is not a 64 bit process. This method isnt compatible with 32bit systems.");
+
+            if (bytes == null) return ContentType.Unknown;
 
             byte[] buffer = null;
 
@@ -156,7 +175,7 @@ namespace Fetcho.Common
                 buffer = bytes;
 
             System.IntPtr mimetypePtr = IntPtr.Zero;
-            string mime = "";
+            string mime = String.Empty;
 
             try
             {

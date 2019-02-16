@@ -308,5 +308,7 @@ namespace Fetcho.Common
 
         public static void LogException(Exception ex) => log.Error(ex);
 
+        public static void LogInfo(string format, params object[] args) => log.InfoFormat(format, args);
+
     }
 }

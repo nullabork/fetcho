@@ -8,7 +8,7 @@
     <ProjectGuid>{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>commonTest</RootNamespace>
+    <RootNamespace>Fetcho.Common.Tests</RootNamespace>
     <AssemblyName>commonTest</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -30,6 +30,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -51,6 +52,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ContentTypeTest.cs" />
     <Compile Include="DatabaseTest.cs" />
     <Compile Include="HtmlTextReaderTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

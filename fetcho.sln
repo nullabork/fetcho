@@ -11,9 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "common", "common\common.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nextlinks", "nextlinks\nextlinks.csproj", "{DD794C10-F915-4751-A931-4D5343ED6EDC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "publo", "publo\publo.csproj", "{6A83132D-9BC9-4E31-B90B-7DE4D91AB64E}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "commonTest", "commonTest\commonTest.csproj", "{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.Tests", "commonTest\Common.Tests.csproj", "{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "reado", "reado\reado.csproj", "{7BAA38B9-FF7B-4BE4-95E1-9A494F0BBB85}"
 EndProject
@@ -43,10 +41,6 @@ Global
 		{DD794C10-F915-4751-A931-4D5343ED6EDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD794C10-F915-4751-A931-4D5343ED6EDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD794C10-F915-4751-A931-4D5343ED6EDC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6A83132D-9BC9-4E31-B90B-7DE4D91AB64E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6A83132D-9BC9-4E31-B90B-7DE4D91AB64E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6A83132D-9BC9-4E31-B90B-7DE4D91AB64E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6A83132D-9BC9-4E31-B90B-7DE4D91AB64E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B9C99EB-95A7-49BA-A664-4E22D6387B1B}.Release|Any CPU.ActiveCfg = Release|Any CPU

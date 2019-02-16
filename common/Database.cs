@@ -367,7 +367,7 @@ namespace Fetcho.Common
             string updateSql = "set client_encoding='UTF8'; update \"Workspace\" " +
               "set    name = :name, " +
               "       description = :description, " +
-              "       query_text = :query_text, " + 
+              "       query_text = :query_text, " +
               "       is_active = :is_active " +
               "where  workspace_id = :workspace_id;";
 
@@ -425,7 +425,7 @@ namespace Fetcho.Common
             var l = new List<WorkspaceAccessKey>();
 
 
-            string sql = 
+            string sql =
                 "select access_key_id, workspace_id, access_key, is_active, is_owner, is_revoked, created, expiry " +
                 "from   \"WorkspaceAccessKeys\" " +
                 "where  workspace_id = :workspace_id;";
@@ -527,6 +527,85 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_revoked", wak.IsRevoked));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", wak.Created));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("expiry", wak.Expiry));
+        }
+
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long minSequence, int count)
+        {
+            var l = new List<WorkspaceResult>();
+            byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
+
+            string sql =
+            "select hash, uri, referrer, title, description, created, sequence " +
+            "from   \"WorkspaceResult\" " +
+            "where  workspace_id = :workspace_id and" +
+            "       sequence > :min_sequence " +
+            "limit  " + count + ";";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("min_sequence", minSequence));
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                while (reader.Read())
+                {
+                    reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
+
+                    l.Add(new WorkspaceResult()
+                    {
+                        Hash = new MD5Hash(buffer).ToString(),
+                        Uri = reader.GetString(1),
+                        ReferrerUri = reader.GetString(2),
+                        Title = reader.GetString(3),
+                        Description = reader.GetString(4),
+                        Created = reader.GetDateTime(5),
+                        Sequence = reader.GetInt64(6)
+                    });
+                }
+            }
+
+            return l;
+        }
+
+        public async Task AddWorkspaceResults(Guid workspaceId, IEnumerable<WorkspaceResult> results)
+        {
+            string updateSql = "set client_encoding='UTF8'; update \"WorkspaceResult\" " +
+              "set    uri = :uri, " +
+              "       referrer = :referrer, " +
+              "       title = :title, " +
+              "       description = :description, " +
+              "       created = :created, " +
+              "       sequence = :sequence " +
+              "where  hash = :hash and " +
+              "       workspace_id = :workspace_id;";
+
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id) " +
+              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id);";
+
+            foreach (var result in results)
+            {
+                NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
+                _addWorkspaceResultsSetParams(cmd, workspaceId, result);
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0) // no record to update
+                {
+                    cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                    _addWorkspaceResultsSetParams(cmd, workspaceId, result);
+                    await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private void _addWorkspaceResultsSetParams(NpgsqlCommand cmd, Guid workspaceId, WorkspaceResult result)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("hash", new MD5Hash(result.Hash).Values));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("uri", result.Uri));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("referrer", result.ReferrerUri));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("title", result.Title));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("description", result.Description));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
         }
 
         void SetBinaryParameter(NpgsqlCommand cmd, string parameterName, object value)

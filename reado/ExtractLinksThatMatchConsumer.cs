@@ -1,6 +1,10 @@
 ﻿using Fetcho.Common;
+using Fetcho.Common.Entities;
+using Fetcho.FetchoAPI.Controllers;
 using System;
 using System.IO;
+using System.Text;
+using System.Web;
 
 namespace Fetcho
 {
@@ -18,10 +22,18 @@ namespace Fetcho
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
 
-        public ExtractLinksThatMatchConsumer(params string [] args)
+        Random random = new Random(DateTime.Now.Millisecond);
+        int jumpTo = 0;
+        int count = 30;
+        WorkspacesController controller = null; 
+
+        public ExtractLinksThatMatchConsumer(params string[] args)
         {
+            jumpTo = random.Next(0, 50000);
+            Utility.LogInfo("JumpTo: {0}", jumpTo);
+            controller = new WorkspacesController();
             IncludeFilters = new FilterCollection();
-            foreach( string arg in args )
+            foreach (string arg in args)
                 IncludeFilters.Add(TextMatchFilter.Parse(arg));
         }
 
@@ -35,22 +47,23 @@ namespace Fetcho
         {
         }
 
-        public void ProcessResponseStream(Stream dataStream)
+        public async void ProcessResponseStream(Stream dataStream)
         {
-            using (var reader = new StreamReader(dataStream))
+            try
             {
-                string line = reader.ReadLine();
+                if (dataStream == null) return;
+                if (jumpTo-- > 0) return;
+                if (count <= 0) return;
 
-                while (!reader.EndOfStream)
-                {
-                    if (IncludeFilters.AllMatch(line))
-                    {
-                        Console.WriteLine("{0}", CurrentUri);
-                        return;
-                    }
-
-                    line = reader.ReadLine();
-                }
+                Guid workspaceId = new Guid("f5201ff7-ea59-4e00-87b9-af4a0a9c8e2e");
+                var result = ReadNextWebResource(new StreamReader(dataStream));
+                if (!AddToTheList(result)) return;
+                await controller.PostResultsByWorkspace(workspaceId, new WorkspaceResult[] { result });
+                count--;
+            }
+            catch( Exception ex)
+            {
+                Utility.LogException(ex);
             }
         }
 
@@ -69,6 +82,75 @@ namespace Fetcho
 
         }
         public void ReadingException(Exception ex) { }
+
+        bool AddToTheList(WorkspaceResult result) =>
+            result != null &&
+            !String.IsNullOrWhiteSpace(result.Title);
+
+        WorkspaceResult ReadNextWebResource(TextReader reader)
+        {
+            var r = new WorkspaceResult
+            {
+                Hash = MD5Hash.Compute(CurrentUri).ToString(),
+                ReferrerUri = "",
+                Uri = CurrentUri.ToString(),
+                Title = "",
+                Description = "",
+                Created = DateTime.Now,
+                Size = 0
+            };
+
+            string line = reader.ReadLine();
+            if (line == null)
+                return r;
+            else
+            {
+
+                r.Size += line.Length;
+                while (reader.Peek() > 0)
+                {
+                    if (String.IsNullOrWhiteSpace(r.Title) && line.ToLower().Contains("<title")) r.Title = ReadTitle(line);
+                    else if (String.IsNullOrWhiteSpace(r.Description) && line.ToLower().Contains("description")) r.Description = ReadDesc(line).Truncate(100);
+                    line = reader.ReadLine();
+                    r.Size += line.Length;
+                }
+
+                return r;
+            }
+        }
+
+        string ReadDesc(string line)
+        {
+            const string StartPoint = "content=\"";
+            var sb = new StringBuilder();
+
+            int start = line.ToLower().IndexOf(StartPoint);
+            if (start == -1) return "";
+            start += StartPoint.Length - 1;
+            while (++start < line.Length && line[start] != '"') // </meta >
+                sb.Append(line[start]);
+
+            return HttpUtility.HtmlDecode(sb.ToString().Trim());
+        }
+
+
+        string ReadTitle(string line)
+        {
+            var sb = new StringBuilder();
+
+            int start = line.ToLower().IndexOf("<title");
+            while (++start < line.Length && line[start] != '>') ;
+            while (++start < line.Length && line[start] != '<') // </title>
+                sb.Append(line[start]);
+
+            return HttpUtility.HtmlDecode(sb.ToString().Trim());
+        }
+
+        string ReadUri(string line)
+        {
+            if (line.Length < 5) return "";
+            return line.Substring(5).Trim();
+        }
     }
 
 
