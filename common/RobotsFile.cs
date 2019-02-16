@@ -288,8 +288,6 @@ namespace Fetcho.Common
 
                 if (needsVisiting)
                 {
-                    log.InfoFormat("Robots {0} needs visiting", robotsUri);
-
                     if (site != null && site.IsBlocked)
                     {
                         log.Error("Can't get robots file as site is blocked by policy: " + robotsUri);
@@ -356,12 +354,11 @@ namespace Fetcho.Common
                 }
 
                 using (var ms = new MemoryStream())
-                using (var writer = XmlWriter.Create(ms))
+                using (var writer = CreateXmlWriter(ms))
                 {
                     await (new HttpResourceFetcher()).Fetch(null, robotsUri, writer, NullBlockProvider.Default, lastFetched);
                     ms.Seek(0, SeekOrigin.Begin);
-                    robots = new RobotsFile(XmlReader.Create(ms, new XmlReaderSettings()
-                    { ConformanceLevel = ConformanceLevel.Fragment }));
+                    robots = new RobotsFile(CreateXmlReader(ms));
                 }
             }
             catch (Exception ex)
@@ -372,6 +369,10 @@ namespace Fetcho.Common
 
             return robots;
         }
+
+        private static XmlWriter CreateXmlWriter(Stream stream) => XmlWriter.Create(stream, new XmlWriterSettings() { ConformanceLevel = ConformanceLevel.Fragment });
+
+        private static XmlReader CreateXmlReader(Stream stream) => XmlReader.Create(stream, new XmlReaderSettings() { ConformanceLevel = ConformanceLevel.Fragment });
 
         /// <summary>
         /// Dispose the robots file

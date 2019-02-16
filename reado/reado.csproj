@@ -98,7 +98,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CountTheNumberOfResourcesConsumer.cs" />
     <Compile Include="ExceptionWebDataPacketConsumer.cs" />
     <Compile Include="ExtractKeywordsConsumer.cs" />
     <Compile Include="ExtractLinksConsumer.cs" />

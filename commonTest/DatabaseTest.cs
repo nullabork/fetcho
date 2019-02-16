@@ -6,7 +6,7 @@ using Fetcho.Common;
 using Fetcho.Common.entities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace commonTest
+namespace Fetcho.Common.Tests
 {
     [TestClass]
     public class DatabaseTest
@@ -63,11 +63,17 @@ namespace commonTest
         [TestMethod]
         public async Task VisitedTest()
         {
-            Uri uri = new Uri("http://www.pandora.tv/theme/main/8/74");
+            Uri pandora = new Uri("http://www.pandora.tv/theme/main/8/74");
+            Uri drupal = new Uri("http://drupal.org/");
+            Uri archaeo = new Uri("https://www.archaeological.org/about/eupdate");
+            Uri nonexist = new Uri("https://blahblabhlahblahb");
 
             using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
             {
-                Assert.IsFalse(await db.NeedsVisiting(uri), "LIES");
+                Assert.IsTrue(await db.NeedsVisiting(nonexist), nonexist.ToString());
+                Assert.IsFalse(await db.NeedsVisiting(pandora), pandora.ToString());
+                Assert.IsFalse(await db.NeedsVisiting(drupal), drupal.ToString());
+                Assert.IsFalse(await db.NeedsVisiting(archaeo), archaeo.ToString());
             }
         }
     }

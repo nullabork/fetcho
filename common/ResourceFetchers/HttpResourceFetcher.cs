@@ -48,11 +48,10 @@ namespace Fetcho.Common
 
             base.BeginRequest();
 
-
             try
             {
                 using (var db = new Database())
-                    await db.SaveWebResource(uri, DateTime.Now.AddDays(7));
+                    await db.SaveWebResource(uri, DateTime.Now.AddDays(Settings.PageCacheExpiryInDays));
 
                 request = CreateRequest(referrerUri, uri, lastFetchedDate);
 

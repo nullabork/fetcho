@@ -20,7 +20,7 @@ namespace Fetcho.NextLinks
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        public const uint MaximumPriorityValueForLinks = 750 * 1000 * 1000;
+        public const uint MaximumPriorityValueForLinks = 740 * 1000 * 1000;
 
         /// <summary>
         /// 
@@ -319,13 +319,9 @@ namespace Fetcho.NextLinks
 
             try
             {
-                var watch = new Stopwatch();
-                watch.Start();
                 var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host);
                 if (r == null) rtn = false;
                 else if (r.IsDisallowed(item.TargetUri)) rtn = true;
-                watch.Stop();
-                if (watch.ElapsedMilliseconds > 1000) log.InfoFormat("IsBlockedByRobots took {0}ms", watch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
