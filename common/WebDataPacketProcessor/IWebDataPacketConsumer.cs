@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Fetcho.Common
 {
@@ -23,6 +24,12 @@ namespace Fetcho.Common
         void ProcessResponseHeaders(string responseHeaders);
         void ProcessResponseStream(Stream dataStream);
         void ProcessException(string exception);
+
+        /// <summary>
+        /// If something goes wrong reading the file
+        /// </summary>
+        /// <param name="ex"></param>
+        void ReadingException(Exception ex);
 
         /// <summary>
         /// Once the file is complete

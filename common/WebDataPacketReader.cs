@@ -171,7 +171,7 @@ namespace Fetcho.Common
             return new Uri(uri);
         }
 
-        public static string GetContentTypeFromResponseHeaders( string responseHeaders )
+        public static ContentType GetContentTypeFromResponseHeaders( string responseHeaders )
         {
             const string ContentTypePrefix = "content-type:";
 
@@ -187,7 +187,7 @@ namespace Fetcho.Common
                     contentType = responseHeaders.Substring(index + ContentTypePrefix.Length);
             }
 
-            return contentType.Trim();
+            return new ContentType(contentType.Trim());
         }
 
         /// <summary>

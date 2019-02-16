@@ -39,14 +39,10 @@ namespace Fetcho
             CurrentUri = null;
         }
 
-        public void PacketClosed()
-        {
+        public void PacketClosed() { }
 
-        }
+        public void PacketOpened() { }
 
-        public void PacketOpened()
-        {
-
-        }
+        public void ReadingException(Exception ex) { }
     }
 }

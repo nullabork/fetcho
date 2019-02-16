@@ -39,5 +39,7 @@ namespace Fetcho
         {
 
         }
+
+        public void ReadingException(Exception ex) { }
     }
 }

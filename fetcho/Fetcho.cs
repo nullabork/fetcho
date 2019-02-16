@@ -191,7 +191,7 @@ namespace Fetcho
             {
                 if (!await valve.WaitToEnter(item))
                 {
-                    //                    LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
+                    LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
                     OutputItemForRequeuing(item);
                 }
                 else
@@ -260,7 +260,7 @@ namespace Fetcho
                 writer = Console.Out;
             else
             {
-                string filename = Utility.CreateNewFileIndexNameIfExists(Configuration.OutputDataFilePath);
+                string filename = Utility.CreateNewFileOrIndexNameIfExists(Configuration.OutputDataFilePath);
                 writer = new StreamWriter(new FileStream(filename, FileMode.Open, FileAccess.Write, FileShare.Read));
             }
 

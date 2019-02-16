@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Cache;
-
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using log4net;
@@ -39,6 +39,7 @@ namespace Fetcho.Common
             // 6. write to the XML
             // 7. clean up
 
+            CancellationTokenSource cts = new CancellationTokenSource();
             HttpWebResponse response = null;
             HttpWebRequest request = null;
             DateTime startTime = DateTime.Now;
@@ -75,7 +76,16 @@ namespace Fetcho.Common
                 }
                 else
                 {
-                    await WriteOutResponse(writeStream, request, response, startTime);
+                    bool firstTime = true;
+                    var rspw = WriteOutResponse(writeStream, request, response, startTime, cts.Token);
+
+                    while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
+                    {
+                        if (!firstTime) cts.Cancel(); // sometimes they block forever, I haven't figured this out. 
+                        var wait = Task.Delay(Settings.ResponseReadTimeoutInMilliseconds);
+                        await Task.WhenAny(wait, rspw);
+                        firstTime = false;
+                    }
                 }
             }
             catch (TimeoutException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
@@ -111,6 +121,8 @@ namespace Fetcho.Common
                 }
                 response?.Dispose();
                 response = null;
+                cts?.Dispose();
+                cts = null;
             }
         }
 
@@ -121,7 +133,13 @@ namespace Fetcho.Common
         /// <param name="response"></param>
         /// <param name="startTime"></param>
         /// <returns></returns>
-        private async Task<bool> WriteOutResponse(XmlWriter writeStream, HttpWebRequest request, HttpWebResponse response, DateTime startTime)
+        private async Task<bool> WriteOutResponse(
+            XmlWriter writeStream, 
+            HttpWebRequest request, 
+            HttpWebResponse response, 
+            DateTime startTime, 
+            CancellationToken cancellationToken
+            )
         {
             Exception exception = null;
             bool wroteOk = false;
@@ -134,7 +152,7 @@ namespace Fetcho.Common
             try
             {
                 using (var readStream = response.GetResponseStream())
-                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length);
+                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
             }
             catch(Exception ex)
             {

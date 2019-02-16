@@ -8,7 +8,7 @@ namespace Fetcho
     internal class ExtractKeywordsConsumer : IWebDataPacketConsumer
     {
         public Uri CurrentUri;
-        public string ContentType;
+        public ContentType ContentType;
 
         public string Name { get => "Extract Keywords"; }
         public bool ProcessesRequest { get => true; }
@@ -32,7 +32,7 @@ namespace Fetcho
         public void ProcessResponseStream(Stream dataStream)
         {
             Console.WriteLine(CurrentUri);
-            if ( ContentType.StartsWith("text"))
+            if ( ContentType.MediaType == "text")
             {
                 using (var tokenizer = new WordTokenizer(new HtmlTextReader(dataStream), true))
                 {
@@ -47,18 +47,14 @@ namespace Fetcho
         public void NewResource()
         {
             CurrentUri = null;
-            ContentType = String.Empty;
+            ContentType = null;
         }
 
-        public void PacketClosed()
-        {
+        public void PacketClosed() { }
 
-        }
+        public void PacketOpened() { }
 
-        public void PacketOpened()
-        {
-
-        }
+        public void ReadingException(Exception ex) { }
     }
 
 }

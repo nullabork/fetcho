@@ -70,6 +70,7 @@
     <Compile Include="ContentReader\ILinkExtractor.cs" />
     <Compile Include="ContentReader\ITokenizer.cs" />
     <Compile Include="ContentReader\TextFileLinkExtractor.cs" />
+    <Compile Include="ContentType.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessKey.cs" />

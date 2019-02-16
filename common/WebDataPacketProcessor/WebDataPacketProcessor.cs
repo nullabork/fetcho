@@ -21,41 +21,50 @@ namespace Fetcho.Common
         public void Process(WebDataPacketReader packet)
         {
             Consumer.PacketOpened();
-            do
+
+            try
             {
-                try
+
+                do
                 {
-                    if (Consumer.ProcessesRequest)
+                    try
                     {
-                        string requestString = packet.GetRequestString();
-                        Consumer.ProcessRequest(requestString);
+                        if (Consumer.ProcessesRequest)
+                        {
+                            string requestString = packet.GetRequestString();
+                            Consumer.ProcessRequest(requestString);
+                        }
+
+                        if (Consumer.ProcessesResponse)
+                        {
+                            string responseHeaders = packet.GetResponseHeaders();
+                            Consumer.ProcessResponseHeaders(responseHeaders);
+
+                            var response = packet.GetResponseStream();
+                            Consumer.ProcessResponseStream(response);
+                        }
+
+                        if (Consumer.ProcessesException)
+                        {
+                            string exception = packet.GetException();
+                            Consumer.ProcessException(exception);
+                        }
+
+                        Consumer.NewResource();
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error(ex);
                     }
 
-                    if (Consumer.ProcessesResponse)
-                    {
-                        string responseHeaders = packet.GetResponseHeaders();
-                        Consumer.ProcessResponseHeaders(responseHeaders);
-
-                        var response = packet.GetResponseStream();
-                        Consumer.ProcessResponseStream(response);
-                    }
-
-                    if (Consumer.ProcessesException)
-                    {
-                        string exception = packet.GetException();
-                        Consumer.ProcessException(exception);
-                    }
-
-                    Consumer.NewResource();
+                    ResourcesProcessedCount++;
                 }
-                catch (Exception ex)
-                {
-                    log.Error(ex);
-                }
-
-                ResourcesProcessedCount++;
+                while (packet.NextResource());
             }
-            while (packet.NextResource());
+            catch (Exception ex)
+            {
+                Consumer.ReadingException(ex);
+            }
             Consumer.PacketClosed();
         }
     }

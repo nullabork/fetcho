@@ -63,7 +63,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="filename"></param>
         /// <returns></returns>
-        public static string CreateNewFileIndexNameIfExists(string filename)
+        public static string CreateNewFileOrIndexNameIfExists(string filename)
         {
             if (File.Exists(filename))
             {
@@ -305,6 +305,8 @@ namespace Fetcho.Common
         }
 
         public static string GetRandomHashString() => MD5Hash.Compute(random.Next(int.MinValue, int.MaxValue)).ToString();
+
+        public static void LogException(Exception ex) => log.Error(ex);
 
     }
 }

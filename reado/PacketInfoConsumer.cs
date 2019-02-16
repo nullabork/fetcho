@@ -10,7 +10,7 @@ namespace Fetcho
     internal class PacketInfoConsumer : IWebDataPacketConsumer
     {
         public Uri CurrentUri;
-        public string ContentType;
+        public ContentType ContentType;
 
         public string Name { get => "PacketInfoConsumer"; }
         public bool ProcessesRequest { get => true; }
@@ -19,6 +19,9 @@ namespace Fetcho
 
         public int ExceptionCount = 0;
         public int ResourceCount = 0;
+
+        public bool PacketIsMalformed = false;
+        public Exception MalformedException = null;
 
         public ulong CountOfDataBytes = 0;
         public ulong CountOfHeaderBytes = 0;
@@ -63,8 +66,8 @@ namespace Fetcho
 
             var domain = domainParser.Get(CurrentUri.Host);
 
-            Increment(TLDCounts, domain.TLD);
-            Increment(HostCounts, CurrentUri.Host);
+            Increment(TLDCounts, domain == null ? "(blank)" : domain.TLD);
+            Increment(HostCounts, CurrentUri?.Host);
 
             ResourceCount++;
             CountOfRequestBytes += (ulong)request.Length;
@@ -75,11 +78,20 @@ namespace Fetcho
             CountOfHeaderBytes += (ulong)responseHeaders.Length;
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
-            Increment(ContentTypes, ContentType);
         }
 
         public void ProcessResponseStream(Stream dataStream)
         {
+            bool guess = false;
+            if (dataStream != null && ContentType.IsUnknownOrNull(ContentType))
+            {
+                guess = true;
+                ContentType = ContentType.Guess(dataStream);
+            }
+
+            string key = String.Format("{0}{1}", guess ? "(GUESS) " : "", (ContentType ?? ContentType.Unknown).ToString());
+
+            Increment(ContentTypes, key);
         }
 
         public void NewResource()
@@ -97,7 +109,13 @@ namespace Fetcho
 
         }
 
-        private void Increment(Dictionary<string, int> dict, string k, int value = 1)
+        public void ReadingException(Exception ex)
+        {
+            PacketIsMalformed = true;
+            MalformedException = ex;
+        }
+
+        private void Increment<T>(Dictionary<T, int> dict, T k, int value = 1)
         {
             if (!dict.ContainsKey(k))
                 dict.Add(k, 0);
@@ -136,6 +154,13 @@ namespace Fetcho
             OutputDictionary(TLDCounts, "TLDs", ResourceCount / 100);
             OutputDictionary(ContentTypes, "Content Types", ResourceCount / 100);
             OutputDictionary(HostCounts, "Hosts", ResourceCount / 100);
+
+            if (PacketIsMalformed)
+            {
+                Console.WriteLine("***PACKET IS MALFORMED***");
+                Console.WriteLine("\tDetails: {0}", MalformedException.Message);
+            }
+
         }
 
         void OutputDictionary(Dictionary<string, int> dict, string header, int threshold)
@@ -146,7 +171,7 @@ namespace Fetcho
                     Console.WriteLine(
                         "\t{0}\t{1}", 
                         kvp.Value, 
-                        String.IsNullOrWhiteSpace(kvp.Key) ? "(Blank)" : kvp.Key);
+                        String.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
             Console.WriteLine("\t...");
             Console.WriteLine("\t{0}\tTotal", dict.Count);
             Console.WriteLine();
