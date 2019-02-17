@@ -1,15 +1,15 @@
-﻿using log4net;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
+using HeyRed.Mime;
 
 namespace Fetcho.Common
 {
     public class ContentType : IEqualityComparer<ContentType>, IComparer<ContentType>
     {
+        public const string ApplicationXEmpty = "application/x-empty";
+
         public string Raw { get; private set; }
 
         public string MediaType { get; private set; }
@@ -114,37 +114,21 @@ namespace Fetcho.Common
 
         public static readonly ContentType Unknown = new ContentType(String.Empty);
 
+        public static readonly ContentType Empty = new ContentType(ApplicationXEmpty);
+
         public static bool IsUnknownOrNull(ContentType contentType) => 
             contentType == null || 
             contentType == ContentType.Unknown ||
             contentType.IsBlank;
 
-        [DllImport(@"urlmon.dll",
-                       CharSet = CharSet.Unicode,
-                       ExactSpelling = true,
-                       SetLastError = false)]
-        private extern static int FindMimeFromData(
-              IntPtr pBC,
-              [MarshalAs(UnmanagedType.LPWStr)] string pwzUrl,
-              [MarshalAs(UnmanagedType.LPArray,
-                 ArraySubType=UnmanagedType.I1,
-                 SizeParamIndex=3)]
-              byte[] pBuffer,
-              int cbSize,
-              [MarshalAs(UnmanagedType.LPWStr)] string pwzMimeProposed,
-              int dwMimeFlags,
-              out System.IntPtr ppwzMimeOut,
-              int dwReserverd
-             );
-
         public const int BytesRequiredForGuessing = 256;
 
-        public static ContentType Guess(string filename)
+        public static ContentType Guess(string fileName)
         {
-            if (!File.Exists(filename))
-                throw new FileNotFoundException(filename + " not found");
+            if (!File.Exists(fileName))
+                throw new FileNotFoundException(fileName + " not found");
 
-            using (FileStream fs = new FileStream(filename, FileMode.Open))
+            using (FileStream fs = new FileStream(fileName, FileMode.Open))
             {
                 return Guess(fs);
             }
@@ -157,42 +141,11 @@ namespace Fetcho.Common
             return Guess(buffer);
         }
 
-        public static ContentType Guess(byte[] bytes)
+        public static ContentType Guess(byte[] value)
         {
-            //if (!Environment.Is64BitProcess)
-            //    throw new Exception("DetectContentTypeFromBytes(): This is not a 64 bit process. This method isnt compatible with 32bit systems.");
+            if (value == null) return ContentType.Unknown;
 
-            if (bytes == null) return ContentType.Unknown;
-
-            byte[] buffer = null;
-
-            if (bytes.Length > BytesRequiredForGuessing)
-            {
-                buffer = new byte[BytesRequiredForGuessing];
-                Array.Copy(bytes, buffer, BytesRequiredForGuessing);
-            }
-            else
-                buffer = bytes;
-
-            System.IntPtr mimetypePtr = IntPtr.Zero;
-            string mime = String.Empty;
-
-            try
-            {
-                FindMimeFromData(IntPtr.Zero, null, buffer, buffer.Length, null, 0, out mimetypePtr, 0);
-                mime = Marshal.PtrToStringUni(mimetypePtr);
-            }
-            catch (Exception ex)
-            {
-                Utility.LogException(ex);
-                mime = String.Empty;
-            }
-            finally
-            {
-                Marshal.FreeCoTaskMem(mimetypePtr);
-            }
-
-            return new ContentType(mime);
+            return new ContentType(MimeGuesser.GuessMimeType(value));
         }
     }
 

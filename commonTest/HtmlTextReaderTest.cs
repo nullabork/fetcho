@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Text;
 
-namespace commonTest
+namespace Fetcho.Common.Tests
 {
     [TestClass]
     public class HtmlTextReaderTest

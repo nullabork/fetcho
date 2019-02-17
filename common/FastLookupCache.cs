@@ -24,6 +24,11 @@ namespace Fetcho.Common
         public int MaxCapacity { get; set; }
 
         /// <summary>
+        /// Count of the number of items in the cache
+        /// </summary>
+        public int Count { get => HashTable.Count; }
+
+        /// <summary>
         /// Create a fastlookup cache
         /// </summary>
         /// <param name="maxCapacity"></param>
@@ -49,7 +54,7 @@ namespace Fetcho.Common
         public T Enqueue(T item)
         {
             T olditem = default(T);
-            if (FifoQueue.Count > MaxCapacity)
+            if (FifoQueue.Count >= MaxCapacity)
                 olditem = Dequeue();
             FifoQueue.Enqueue(item);
             HashTable.Add(item);

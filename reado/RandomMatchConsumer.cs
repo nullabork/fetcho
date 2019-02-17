@@ -11,10 +11,8 @@ namespace Fetcho
     /// <summary>
     /// Used to find links that match specific queries
     /// </summary>
-    internal class ExtractLinksThatMatchConsumer : IWebDataPacketConsumer
+    internal class RandomMatchConsumer : IWebDataPacketConsumer
     {
-        public FilterCollection IncludeFilters { get; }
-
         public Uri CurrentUri;
 
         public string Name { get => "Extract Links that match"; }
@@ -22,19 +20,16 @@ namespace Fetcho
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
 
-        Random random = new Random(DateTime.Now.Millisecond);
         int jumpTo = 0;
         int count = 30;
-        WorkspacesController controller = null; 
+        WorkspacesController controller = null;
+        Random random = new Random(DateTime.Now.Millisecond);
 
-        public ExtractLinksThatMatchConsumer(params string[] args)
+        public RandomMatchConsumer(params string[] args)
         {
             jumpTo = random.Next(0, 50000);
             Utility.LogInfo("JumpTo: {0}", jumpTo);
             controller = new WorkspacesController();
-            IncludeFilters = new FilterCollection();
-            foreach (string arg in args)
-                IncludeFilters.Add(TextMatchFilter.Parse(arg));
         }
 
         public void ProcessException(string exception)

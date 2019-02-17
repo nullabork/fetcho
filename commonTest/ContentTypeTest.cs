@@ -48,11 +48,10 @@ namespace Fetcho.Common.Tests
             byte[] htmlbytes = System.Text.Encoding.ASCII.GetBytes("<!DOCTYPE html > <html prefix=\"og: http://ogp.me/ns#\"> <head> <title>Best String to Hex Converter Online to Convert Text to Hex.</title> <meta http-equiv=\"content-language\" content=\"en-US\"> <meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" /> <link href=\"/img/cb.png\" rel=\"icon\" /> <meta property=\"fb:app_id\" content=\"\" /> <meta property=\"og:url\" content=\"https://codebeautify.org/string-hex-converter\" /> <meta name=\"description\" content=\"Convert String to Hex (Text to Hex) Online and Save and Share. String to Hexadecimal\" />");
 
             Assert.IsTrue(ContentType.Guess((byte[])null) == ContentType.Unknown);
+            Assert.IsTrue(ContentType.Unknown.Raw == String.Empty);
 
             var ct = ContentType.Guess(new byte[] { });
-            Assert.IsTrue(ct.Raw == String.Empty);
-            Assert.IsTrue(ContentType.Unknown.Raw == String.Empty);
-            Assert.IsTrue(ct.Raw == ContentType.Unknown.Raw, "'{0}'", ct);
+            Assert.IsTrue(ct == ContentType.Empty, ct.Raw);
 
             var texthtml = ContentType.Guess(htmlbytes);
             Assert.IsTrue(texthtml.MediaType == "text");

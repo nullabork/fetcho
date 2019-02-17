@@ -39,7 +39,7 @@ namespace Fetcho.Common.Entities
         /// <summary>
         /// list of revokable keys that can access this workspace
         /// </summary>
-        public List<WorkspaceAccessKey> AccessKeys { get; set; }
+        public List<WorkspaceAccessKey> AccessKeys { get;  }
 
         public Workspace()
         {
@@ -72,6 +72,7 @@ namespace Fetcho.Common.Entities
                 Name = name,
                 Description = "",
                 QueryText = "",
+                IsActive = true,
                 Created = DateTime.UtcNow
             };
             w.AccessKeys.Add(WorkspaceAccessKey.Create(true));
@@ -85,7 +86,7 @@ namespace Fetcho.Common.Entities
         /// <param name="workspace"></param>
         public static void Validate(Workspace workspace)
         {
-            if (String.IsNullOrWhiteSpace(workspace.Name))
+            if (String.IsNullOrWhiteSpace(workspace?.Name))
                 throw new ArgumentException("Name not set");
             if (workspace.WorkspaceId == Guid.Empty)
                 throw new ArgumentException("WorkspaceId is not set");

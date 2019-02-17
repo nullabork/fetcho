@@ -72,13 +72,17 @@ namespace Fetcho
                 // wait for all the tasks to finish before shutting down
                 while (fetchLock.CurrentCount < MaxConcurrentFetches)
                     await Task.Delay(1000);
-
-                CloseOutputWriter();
-                log.Info("Fetcho.Process() complete");
             }
             catch (Exception ex)
             {
                 log.Error(ex);
+            }
+            finally
+            {
+
+                CloseOutputWriter();
+                CloseRequeueWriter();
+                log.Info("Fetcho.Process() complete");
             }
         }
 
@@ -294,6 +298,13 @@ namespace Fetcho
                 outputWriter.Close();
                 outputWriter.Dispose();
             }
+        }
+
+        private void CloseRequeueWriter()
+        {
+            requeueWriter.Close();
+            requeueWriter.Dispose();
+            requeueWriter = null;
         }
 
         private void RunPreStartChecks()

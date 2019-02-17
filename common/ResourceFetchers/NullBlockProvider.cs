@@ -22,6 +22,6 @@ namespace Fetcho.Common
         /// <summary>
         /// A single version of this class
         /// </summary>
-        public static NullBlockProvider Default = new NullBlockProvider();
+        public static readonly NullBlockProvider Default = new NullBlockProvider();
     }
 }

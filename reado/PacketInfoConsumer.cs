@@ -17,6 +17,8 @@ namespace Fetcho
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => true; }
 
+        public bool Summarise { get; set; }
+
         public int ExceptionCount = 0;
         public int ResourceCount = 0;
 
@@ -27,21 +29,19 @@ namespace Fetcho
         public ulong CountOfHeaderBytes = 0;
         public ulong CountOfRequestBytes = 0;
 
-        public int Exception401Count = 0;
-        public int Exception403Count = 0;
-        public int Exception404Count = 0;
-        public int Exception405Count = 0;
-        public int Exception429Count = 0;
-        public int ExceptionTimeoutCount = 0;
-        public int ExceptionUnsureCount = 0;
-
-        public int BlockedCount = 0;
-
         public Dictionary<string, int> ContentTypes = new Dictionary<string, int>();
         public Dictionary<string, int> TLDCounts = new Dictionary<string, int>();
         public Dictionary<string, int> HostCounts = new Dictionary<string, int>();
+        public Dictionary<string, int> ExceptionCounts = new Dictionary<string, int>();
 
         private DomainParser domainParser = new DomainParser(new WebTldRuleProvider());
+
+        public PacketInfoConsumer(params string[] args)
+        {
+            Summarise = true;
+            if (args.Any(x => x == "--all"))
+                Summarise = false;
+        }
 
         public void ProcessException(string exception)
         {
@@ -49,14 +49,9 @@ namespace Fetcho
             {
                 ExceptionCount++;
 
-                if (exception.Contains("(401)")) Exception401Count++;
-                else if (exception.Contains("(403)")) Exception403Count++;
-                else if (exception.Contains("(404)")) Exception404Count++;
-                else if (exception.Contains("(405)")) Exception405Count++;
-                else if (exception.Contains("(429)")) Exception429Count++;
-                else if (exception.StartsWith("System.TimeoutException")) ExceptionTimeoutCount++;
-                else if (exception.Contains(" blocked ")) BlockedCount++;
-                else ExceptionUnsureCount++;
+                var classification = ExceptionClassifier.Classify(exception);
+
+                Increment(ExceptionCounts, classification.ToString());
             }
         }
 
@@ -138,19 +133,7 @@ namespace Fetcho
             Console.WriteLine("\tData:     \t{0} bytes", CountOfDataBytes);
             Console.WriteLine();
 
-            Console.WriteLine("Exceptions");
-            Console.WriteLine("\t401:    \t{0}", Exception401Count);
-            Console.WriteLine("\t403:    \t{0}", Exception403Count);
-            Console.WriteLine("\t404:    \t{0}", Exception404Count);
-            Console.WriteLine("\t405:    \t{0}", Exception405Count);
-            Console.WriteLine("\t429:    \t{0}", Exception429Count);
-            Console.WriteLine("\tBlocked:\t{0}", BlockedCount);
-            Console.WriteLine("\tTimeout:\t{0}", ExceptionTimeoutCount);
-            Console.WriteLine("\tUnsure: \t{0}", ExceptionUnsureCount);
-            Console.WriteLine("\tTotal:  \t{0}", ExceptionCount);
-
-            Console.WriteLine();
-
+            OutputDictionary(ExceptionCounts, "Exceptions", 0);
             OutputDictionary(TLDCounts, "TLDs", ResourceCount / 100);
             OutputDictionary(ContentTypes, "Content Types", ResourceCount / 100);
             OutputDictionary(HostCounts, "Hosts", ResourceCount / 100);
@@ -167,12 +150,13 @@ namespace Fetcho
         {
             Console.WriteLine(header);
             foreach (var kvp in dict.OrderByDescending(x => x.Value))
-                if (kvp.Value > threshold)
+                if (kvp.Value > threshold || !Summarise)
                     Console.WriteLine(
                         "\t{0}\t{1}", 
                         kvp.Value, 
                         String.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
-            Console.WriteLine("\t...");
+            if ( Summarise)
+                Console.WriteLine("\t...");
             Console.WriteLine("\t{0}\tTotal", dict.Count);
             Console.WriteLine();
         }

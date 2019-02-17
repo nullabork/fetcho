@@ -10,8 +10,8 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="request"></param>
         /// <param name="resource"></param>
-        /// <param name="block_reason"></param>
+        /// <param name="blockReason"></param>
         /// <returns></returns>
-        bool IsBlocked(WebRequest request, WebResponse resource, out string block_reason);
+        bool IsBlocked(WebRequest request, WebResponse resource, out string blockReason);
     }
 }

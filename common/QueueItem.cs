@@ -169,7 +169,7 @@ namespace Fetcho.Common
                     return null;
                 return item;
             }
-            catch( Exception ex )
+            catch( Exception )
             {
                 return null;
             }

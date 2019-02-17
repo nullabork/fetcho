@@ -10,13 +10,13 @@ namespace Fetcho.Common
     /// <remarks>Note it doesn't dispose the underlying stream</remarks>
     public class XmlBase64ElementStream : Stream
     {
-        private XmlReader xmlreader;
+        private XmlReader xmlReader;
 
-        public XmlBase64ElementStream(XmlReader xmlreader)
+        public XmlBase64ElementStream(XmlReader xmlReader)
         {
-            this.xmlreader = xmlreader;
-            if (this.xmlreader.NodeType != XmlNodeType.Element)
-                throw new Exception("Needs to be on the Element node. On " + this.xmlreader.NodeType);
+            this.xmlReader = xmlReader;
+            if (this.xmlReader.NodeType != XmlNodeType.Element)
+                throw new Exception("Needs to be on the Element node. On " + this.xmlReader.NodeType);
         }
 
         public override bool CanRead => true;
@@ -36,9 +36,9 @@ namespace Fetcho.Common
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (xmlreader.NodeType != XmlNodeType.Element && xmlreader.NodeType != XmlNodeType.Text)
+            if (xmlReader.NodeType != XmlNodeType.Element && xmlReader.NodeType != XmlNodeType.Text)
                 return 0;
-            return xmlreader.ReadElementContentAsBase64(buffer, offset, count);
+            return xmlReader.ReadElementContentAsBase64(buffer, offset, count);
         }
 
         public override long Seek(long offset, SeekOrigin origin)

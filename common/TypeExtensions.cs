@@ -118,39 +118,47 @@ namespace Fetcho.Common
             return str.Substring(0, str.Length - numchars);
         }
 
-        public static int MaxConstraint(this int i, int maxValue) => i > maxValue ? maxValue : i;  
-        public static int MinConstraint(this int i, int minValue) => i < minValue ? minValue : i;
+        public static int MaxConstraint(this int val, int maxValue) => val > maxValue ? maxValue : val;  
+        public static int MinConstraint(this int val, int minValue) => val < minValue ? minValue : val;
+        public static int RangeConstraint(this int val, int min, int max) => val < min ? min : val > max ? max : val;
 
-        public static long MaxConstraint(this long l, long max) => l > max ? max : l;
-        public static long MinConstraint(this long l, long min) => l < min ? min : l;
+        public static long MaxConstraint(this long val, long max) => val > max ? max : val;
+        public static long MinConstraint(this long val, long min) => val < min ? min : val;
+        public static long RangeConstraint(this long val, long min, long max) => val < min ? min : val > max ? max : val;
 
-        public static long RangeConstraint(this long l, long min, long max) => l < min ? min : l > max ? max : l;
-        public static int  RangeConstraint(this int l,  int min,  int max) => l < min ? min : l > max ? max : l;
+        public static double MaxConstraint(this double val, double max) => val > max ? max : val;
+        public static double MinConstraint(this double val, double min) => val < min ? min : val;
+        public static double RangeConstraint(this double val, double min, double max) => val < min ? min : val > max ? max : val;
+
+        public static decimal MaxConstraint(this decimal val, decimal max) => val > max ? max : val;
+        public static decimal MinConstraint(this decimal val, decimal min) => val < min ? min : val;
+        public static decimal RangeConstraint(this decimal val, decimal min, decimal max) => val < min ? min : val > max ? max : val;
+
 
         /// <summary>
         /// Ensure a string always only comes to maxlength
         /// </summary>
-        /// <param name="str"></param>
+        /// <param name="value"></param>
         /// <param name="maxlength"></param>
         /// <returns></returns>
-        public static string Truncate(this string str, int maxlength)
+        public static string Truncate(this string value, int maxlength)
         {
-            if (str.Length < maxlength) return str;
-            return str.Substring(0, maxlength);
+            if (value.Length < maxlength) return value;
+            return value.Substring(0, maxlength);
         }
 
         /// <summary>
         /// Strip non-XML chars from the provided string
         /// </summary>
-        /// <param name="str"></param>
+        /// <param name="value"></param>
         /// <returns></returns>
-        public static string CleanupForXml(this string str)
+        public static string CleanupForXml(this string value)
         {
             StringBuilder sb = new StringBuilder();
 
-            for (int i = 0; i < str.Length; i++)
-                if (XmlConvert.IsXmlChar(str[i]))
-                    sb.Append(str[i]);
+            for (int i = 0; i < value.Length; i++)
+                if (XmlConvert.IsXmlChar(value[i]))
+                    sb.Append(value[i]);
 
             return sb.ToString();
         }

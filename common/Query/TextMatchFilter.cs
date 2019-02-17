@@ -1,15 +1,12 @@
-﻿namespace Fetcho.Common
+﻿using System;
+
+namespace Fetcho.Common
 {
     /// <summary>
     /// Simple text match filter to include results
     /// </summary>
     public class TextMatchFilter : IFilter
     {
-        /// <summary>
-        /// What to do when matching?
-        /// </summary>
-        public MatchAction MatchAction { get; set; }
-
         /// <summary>
         /// Text to match
         /// </summary>
@@ -24,11 +21,9 @@
         /// Constructor
         /// </summary>
         /// <param name="searchText"></param>
-        /// <param name="matchAction"></param>
-        public TextMatchFilter(string searchText, MatchAction matchAction)
+        public TextMatchFilter(string searchText)
         {
             SearchText = searchText;
-            MatchAction = matchAction;
         }
 
         /// <summary>
@@ -41,25 +36,21 @@
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public bool IsMatch(string fragment) => fragment.ToLower().Contains(SearchText.ToLower());
+        public bool IsMatch(Uri uri, string fragment) => fragment.ToLower().Contains(SearchText.ToLower());
 
         /// <summary>
         /// Parse some text into a TextMatchFilter
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static IFilter Parse(string queryText) => new TextMatchFilter(queryText, MatchAction.Include);
+        public static IFilter Parse(string queryText) => new TextMatchFilter(queryText);
 
         /// <summary>
         /// Output as string
         /// </summary>
         /// <returns></returns>
-        public override string ToString() => string.Format("{0}", SearchText);
+        public string GetQueryText() => string.Format("{0}", SearchText);
 
-        /// <summary>
-        /// Gets the tag to apply
-        /// </summary>
-        /// <returns></returns>
-        public string GetTagName() => Name;
+        public static bool TokenIsFilter(string token) => true;
     }
 }

@@ -1,6 +1,7 @@
 using Fetcho.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Fetcho
@@ -32,13 +33,30 @@ namespace Fetcho
 
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();
-            else 
+            else
             {
                 string packetProcessorString = args[0];
                 string packetPath = args[1];
 
                 var reado = CreateReadoProcessor(packetProcessorString, args);
-                reado.Process(packetPath);
+
+                if (!packetPath.Contains("*"))
+                {
+                    reado.Process(packetPath);
+                }
+                else
+                {
+                    string path = Path.GetDirectoryName(packetPath);
+                    if (String.IsNullOrWhiteSpace(path))
+                        path = Environment.CurrentDirectory;
+
+                    string searchPattern = "*";
+                    if ( path.Length < packetPath.Length ) searchPattern = packetPath.Substring(path.Length+1);
+
+                    foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly))
+                        if (Path.GetFileName(file).StartsWith("packet-"))
+                            reado.Process(file);
+                }
             }
         }
 

@@ -6,7 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-using Fetcho.Common.entities;
+using Fetcho.Common.Entities;
 using log4net;
 
 namespace Fetcho.Common

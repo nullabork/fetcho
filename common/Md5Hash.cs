@@ -53,7 +53,7 @@ namespace Fetcho.Common
             Array.Copy(copyValues, Values, ExpectedByteLength);
         }
 
-        public MD5Hash(MD5Hash copy) : this(copy.Values) { }
+        public MD5Hash(MD5Hash copy) : this(copy?.Values) { }
 
         public override string ToString()
         {
@@ -90,9 +90,7 @@ namespace Fetcho.Common
         {
             if (ReferenceEquals(lhs, rhs))
                 return true;
-            if (ReferenceEquals(lhs, null) || ReferenceEquals(rhs, null))
-                return false;
-            return lhs.Equals(rhs);
+            return ReferenceEquals(lhs, null) || ReferenceEquals(rhs, null) ? false : lhs.Equals(rhs);
         }
 
         public static bool operator !=(MD5Hash lhs, MD5Hash rhs)

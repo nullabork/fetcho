@@ -183,8 +183,7 @@ namespace Fetcho.Common
         {
             foreach (var state in node.State)
             {
-                var d = state as IDisposable;
-                if (d != null) d.Dispose();
+                if (state is IDisposable d) d.Dispose();
             }
 
             node.State.Clear();

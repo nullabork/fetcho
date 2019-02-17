@@ -113,31 +113,31 @@ namespace Fetcho.Common
             RequestWritten = true;
         }
 
-        protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outstream)
+        protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outStream)
         {
-            outstream.WriteStartElement("response");
-            outstream.WriteStartElement("header");
+            outStream.WriteStartElement("response");
+            outStream.WriteStartElement("header");
 
             foreach (string key in response.Headers)
             {
-                outstream.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
+                outStream.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
             }
-            outstream.WriteEndElement(); // header
+            outStream.WriteEndElement(); // header
 
             try
             {
-                outstream.WriteStartElement("data");
-                outstream.WriteBase64(buffer, 0, bytesRead);
+                outStream.WriteStartElement("data");
+                outStream.WriteBase64(buffer, 0, bytesRead);
 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
             finally
             {
-                outstream.WriteEndElement(); // data
-                outstream.WriteEndElement(); // response
+                outStream.WriteEndElement(); // data
+                outStream.WriteEndElement(); // response
                 response.Close();
             }
         }

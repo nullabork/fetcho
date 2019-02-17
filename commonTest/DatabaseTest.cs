@@ -2,8 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Fetcho.Common;
-using Fetcho.Common.entities;
+using Fetcho.Common.Entities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fetcho.Common.Tests
@@ -61,7 +60,7 @@ namespace Fetcho.Common.Tests
         }
 
         [TestMethod]
-        public async Task VisitedTest()
+        public void VisitedTest()
         {
             Uri pandora = new Uri("http://www.pandora.tv/theme/main/8/74");
             Uri drupal = new Uri("http://drupal.org/");
@@ -70,10 +69,17 @@ namespace Fetcho.Common.Tests
 
             using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
             {
-                Assert.IsTrue(await db.NeedsVisiting(nonexist), nonexist.ToString());
-                Assert.IsFalse(await db.NeedsVisiting(pandora), pandora.ToString());
-                Assert.IsFalse(await db.NeedsVisiting(drupal), drupal.ToString());
-                Assert.IsFalse(await db.NeedsVisiting(archaeo), archaeo.ToString());
+                bool rtn = false;
+
+                // the first run is opening the DB connection lazily
+                TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(nonexist).GetAwaiter().GetResult(), 1000);
+                Assert.IsTrue(rtn, nonexist.ToString());
+                TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(pandora).GetAwaiter().GetResult(), 20);
+                Assert.IsFalse(rtn, pandora.ToString());
+                TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(drupal).GetAwaiter().GetResult(), 20);
+                Assert.IsFalse(rtn, drupal.ToString());
+                TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(archaeo).GetAwaiter().GetResult(), 20);
+                Assert.IsFalse(rtn, archaeo.ToString());
             }
         }
     }

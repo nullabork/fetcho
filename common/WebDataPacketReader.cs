@@ -175,7 +175,7 @@ namespace Fetcho.Common
         {
             const string ContentTypePrefix = "content-type:";
 
-            string contentType = "";
+            string contentType = String.Empty;
 
             int index = responseHeaders.IndexOf(ContentTypePrefix, StringComparison.InvariantCultureIgnoreCase);
             if ( index >= 0 )

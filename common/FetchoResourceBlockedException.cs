@@ -10,11 +10,11 @@ namespace Fetcho.Common
         {
         }
 
-        public FetchoResourceBlockedException(string block_reason) : base(string.Format("URI is blocked, {0}", block_reason))
+        public FetchoResourceBlockedException(string blockReason) : base(string.Format("URI is blocked, {0}", blockReason))
         {
         }
 
-        public FetchoResourceBlockedException(string block_reason, Exception innerException) : base(block_reason, innerException)
+        public FetchoResourceBlockedException(string blockReason, Exception innerException) : base(blockReason, innerException)
         {
         }
 

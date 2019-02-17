@@ -1,7 +1,7 @@
 ﻿
 using System;
 
-namespace Fetcho.Common.entites
+namespace Fetcho.Common.Entities
 {
   /// <summary>
   /// Description of WebResource.

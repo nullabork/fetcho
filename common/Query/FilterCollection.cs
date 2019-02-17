@@ -1,11 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Fetcho.Common
 {
-    public class FilterCollection
+    public class FilterCollection : IEnumerable<IFilter>
     {
         private List<IFilter> Filters { get; }
+
+        public int Count { get => Filters.Count; }
 
         public FilterCollection()
         {
@@ -18,10 +22,12 @@ namespace Fetcho.Common
 
         public void Clear() => Filters.Clear();
 
-        public bool AllMatch(string fragment) => Filters.All(x => x.IsMatch(fragment));
+        public bool AllMatch(Uri uri, string fragment) => Filters.All(x => x.IsMatch(uri, fragment));
 
-        public bool AnyMatch(string fragment) => Filters.Any(x => x.IsMatch(fragment));
+        public bool AnyMatch(Uri uri, string fragment) => Filters.Any(x => x.IsMatch(uri, fragment));
 
+        public IEnumerator<IFilter> GetEnumerator() => Filters.GetEnumerator();
 
+        IEnumerator IEnumerable.GetEnumerator() => Filters.GetEnumerator();
     }
 }

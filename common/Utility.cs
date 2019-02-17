@@ -61,27 +61,27 @@ namespace Fetcho.Common
         /// <summary>
         /// Creates a new file with a name that is indexed from the filename if it already exists
         /// </summary>
-        /// <param name="filename"></param>
+        /// <param name="fileName"></param>
         /// <returns></returns>
-        public static string CreateNewFileOrIndexNameIfExists(string filename)
+        public static string CreateNewFileOrIndexNameIfExists(string fileName)
         {
-            if (File.Exists(filename))
+            if (File.Exists(fileName))
             {
-                string name = Path.GetFileNameWithoutExtension(filename);
-                string extension = Path.GetExtension(filename);
+                string name = Path.GetFileNameWithoutExtension(fileName);
+                string extension = Path.GetExtension(fileName);
 
                 int index = 0;
                 do
                 {
-                    filename = String.Format("{0}-{1}.{2}", name, index, extension);
+                    fileName = String.Format("{0}-{1}.{2}", name, index, extension);
                     index++;
                 }
-                while (File.Exists(filename));
+                while (File.Exists(fileName));
             }
 
-            File.Create(filename);
+            File.Create(fileName);
 
-            return filename;
+            return fileName;
         }
 
         /// <summary>
@@ -181,6 +181,7 @@ namespace Fetcho.Common
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", MessageId = "1#")]
         public static IEnumerable<Uri> GetLinks(Uri sourceUri, string uriCandidate)
         {
+            string[] acceptedSchemes = new string[] { "http", "https" };
             const int MaxUriLength = 2043; // IIS limit seems to be the shortest. Lets be serious, if anyone uses anything longer than this...
             var list = new List<Uri>(5);
 
@@ -189,27 +190,23 @@ namespace Fetcho.Common
 
             try
             {
-                string tempUrl = uriCandidate;
+                string tempUrl = uriCandidate.Trim();
 
                 // too long 
                 if (tempUrl.Length > MaxUriLength)
                     return list;
 
-                // can't follow a JS link
-                if (tempUrl.StartsWith("javascript:"))
-                    return list;
-
-                // drop mailto links they're emails
-                if (tempUrl.StartsWith("mailto:", StringComparison.InvariantCultureIgnoreCase))
-                    return list;
-
-                // drop file links they go no where
-                if (tempUrl.StartsWith("file:", StringComparison.InvariantCultureIgnoreCase))
-                    return list;
-
-                // data URIs have to be chucked
-                if (tempUrl.StartsWith("data:", StringComparison.InvariantCultureIgnoreCase))
-                    return list;
+                // test for http/https and chuck out all the others
+                int schemeIndex = tempUrl.IndexOf(":");
+                if ( schemeIndex > -1 )
+                {
+                    string scheme = tempUrl.Substring(0, schemeIndex).ToLower();
+                    if (scheme.All(Char.IsLetter) && !acceptedSchemes.Any(x => scheme == x))
+                    {
+                        log.DebugFormat("Unaccepted scheme detected: {0}", tempUrl);
+                        return list;
+                    }
+                }
 
                 // can't follow an internal anchor
                 if (tempUrl.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))

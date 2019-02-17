@@ -8,18 +8,18 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("common")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Fetcho.Common")]
+[assembly: AssemblyDescription("Common functions for Fetcho")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("common")]
+[assembly: AssemblyProduct("Fetcho.Common")]
 [assembly: AssemblyCopyright("Copyright 2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
 // This sets the default COM visibility of types in the assembly to invisible.
 // If you need to expose a type to COM, use [ComVisible(true)] on that type.
-[assembly: ComVisible(false)]
+[assembly: ComVisible(true)]
 
 // The assembly version has following format :
 //

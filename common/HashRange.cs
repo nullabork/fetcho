@@ -115,11 +115,11 @@ namespace Fetcho.Common
             return b;
         }
 
-        public static BigInteger GetBigIntegerFromBytes(byte[] bytes)
+        public static BigInteger GetBigIntegerFromBytes(byte[] value)
         {
-            if (bytes == null) throw new ArgumentNullException("bytes");
+            if (value == null) throw new ArgumentNullException("bytes");
 
-            return new BigInteger(bytes.Reverse().Append(new byte[] { 0 }));
+            return new BigInteger(value.Reverse().Append(new byte[] { 0 }));
         }
 
         public static bool Contains(HashRange range, MD5Hash hash)
