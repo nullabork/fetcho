@@ -25,6 +25,8 @@ namespace Fetcho.queueo
         /// </summary>
         public int MaximumQueueLength { get; set; }
 
+        public int ItemCount { get; private set; }
+
         /// <summary>
         /// Action that is run when the queue is flushed
         /// </summary>
@@ -65,6 +67,7 @@ namespace Fetcho.queueo
             if (!queues.ContainsKey(queueKey))
                 queues.Add(queueKey, new List<TItem>());
             queues[queueKey].Add(item);
+            ItemCount++;
 
             CheckIfMaxQueueLengthReached(queueKey);
         }
@@ -75,8 +78,10 @@ namespace Fetcho.queueo
         /// <param name="queueKey"></param>
         public void Remove(TKey queueKey)
         {
+            int c = queues[queueKey].Count;
             queues[queueKey].Clear();
             queues.Remove(queueKey);
+            ItemCount -= c;
         }
 
         public void Clear()
@@ -85,6 +90,7 @@ namespace Fetcho.queueo
             foreach (var key in keys)
                 queues[key].Clear();
             queues.Clear();
+            ItemCount = 0;
         }
 
         /// <summary>

@@ -47,6 +47,8 @@ namespace Fetcho.queueo
         /// </summary>
         public QueueoConfiguration Configuration { get; set; }
 
+        public bool EndOfStream { get => Configuration.InStream.Peek() > -1; }
+
         public int _active = 0;
 
         /// <summary>
@@ -85,14 +87,14 @@ namespace Fetcho.queueo
 
                 item = NextQueueItem();
             }
-            while (item != null);
+            while (!EndOfStream);
 
             // dump out remainder queue items
             EmptyBuffer();
 
-            while (_active > 0)
+            while (buffer.ItemCount > 0)
             {
-                await Task.Delay(1000);
+                await Task.Delay(10000);
                 log.InfoFormat("Waiting for output buffers to end, running {0}", _active);
             }
 
@@ -168,9 +170,8 @@ namespace Fetcho.queueo
             return item;
         }
 
-        private QueueItem NextQueueItem(int retriesLeft = 10000)
+        private QueueItem NextQueueItem()
         {
-            if (retriesLeft == 0) return null;
             string line = Configuration.InStream.ReadLine();
 
             if (String.IsNullOrWhiteSpace(line))
@@ -179,10 +180,7 @@ namespace Fetcho.queueo
             // get a queue item 
             QueueItem item = ExtractQueueItem(line);
 
-            if (item != null)
-                return item;
-            else
-                return NextQueueItem(--retriesLeft);
+            return item;
         }
 
 
@@ -201,10 +199,10 @@ namespace Fetcho.queueo
 
                 lock (outputBufferLock)
                 {
-                    int i = -1; 
+                    int i = -1;
                     foreach (var item in items.OrderBy(x => x.Priority))
                     {
-                        if ( i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
+                        if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
                         item.ChunkSequence = i++;
                         Console.WriteLine(item);
                         lastItem = item;

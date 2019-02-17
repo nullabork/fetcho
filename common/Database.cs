@@ -303,7 +303,7 @@ namespace Fetcho.Common
             Workspace workspace = null;
 
             string sql =
-                "select workspace_id, name, description, is_active, query_text, created " +
+                "select workspace_id, name, description, is_active, query_text, result_count, created " +
                 "from   \"Workspace\" " +
                 "where  workspace_id = :workspace_id;";
 
@@ -325,7 +325,8 @@ namespace Fetcho.Common
                         Description = reader.IsDBNull(2) ? String.Empty : reader.GetFieldValue<string>(2),
                         IsActive = reader.GetBoolean(3),
                         QueryText = reader.GetString(4),
-                        Created = reader.GetDateTime(5)
+                        ResultCount = reader.GetInt64(5),
+                        Created = reader.GetDateTime(6)
                     };
                 }
             }
@@ -348,7 +349,7 @@ namespace Fetcho.Common
             Workspace workspace = null;
 
             string sql =
-                "select workspace_id, name, description, is_active, query_text, created " +
+                "select workspace_id, name, description, is_active, query_text, result_count, created " +
                 "from   \"Workspace\"; ";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -366,7 +367,8 @@ namespace Fetcho.Common
                         Description = reader.IsDBNull(2) ? String.Empty : reader.GetFieldValue<string>(2),
                         IsActive = reader.GetBoolean(3),
                         QueryText = reader.GetString(4),
-                        Created = reader.GetDateTime(5)
+                        ResultCount = reader.GetInt64(5),
+                        Created = reader.GetDateTime(6)
                     };
 
                     l.Add(workspace);
@@ -574,7 +576,7 @@ namespace Fetcho.Common
             byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select hash, uri, referrer, title, description, created, sequence " +
+            "select hash, uri, referrer, title, description, created, page_size, sequence " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
             "       sequence > :min_sequence " +
@@ -598,7 +600,8 @@ namespace Fetcho.Common
                         Title = reader.GetString(3),
                         Description = reader.GetString(4),
                         Created = reader.GetDateTime(5),
-                        Sequence = reader.GetInt64(6)
+                        PageSize = reader.GetInt64(6),
+                        Sequence = reader.GetInt64(7)
                     });
                 }
             }
@@ -613,12 +616,13 @@ namespace Fetcho.Common
               "       referrer = :referrer, " +
               "       title = :title, " +
               "       description = :description, " +
+              "       page_size = :page_size, " +
               "       created = :created " +
               "where  hash = :hash and " +
               "       workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id) " +
-              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id);";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id, page_size) " +
+              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size );";
 
             foreach (var result in results)
             {
@@ -644,6 +648,23 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<string>("description", result.Description));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize));
+        }
+
+        public async Task UpdateWorkspaceStatistics()
+        {
+            await ExecuteSqlAgainstConnection(
+                "update \"Workspace\" set result_count = coalesce((select count(*) c "+
+                " from   \"WorkspaceResult\" r "+
+                " where  r.workspace_id = \"Workspace\".workspace_id "+
+                " group  by workspace_id), 0) "
+                );
+        }
+
+        async Task ExecuteSqlAgainstConnection(string sql)
+        {
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         void SetBinaryParameter(NpgsqlCommand cmd, string parameterName, object value)

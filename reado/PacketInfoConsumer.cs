@@ -133,7 +133,7 @@ namespace Fetcho
             Console.WriteLine("\tData:     \t{0} bytes", CountOfDataBytes);
             Console.WriteLine();
 
-            OutputDictionary(ExceptionCounts, "Exceptions", 0);
+            OutputDictionary(ExceptionCounts, "Exceptions", 0); // don't summarise any of the data for exceptions
             OutputDictionary(TLDCounts, "TLDs", ResourceCount / 100);
             OutputDictionary(ContentTypes, "Content Types", ResourceCount / 100);
             OutputDictionary(HostCounts, "Hosts", ResourceCount / 100);

@@ -62,7 +62,6 @@ namespace Fetcho
                                 if (AddToTheWorkspace(result))
                                     controller.PostResultsByWorkspace(wq.WorkspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                             }
-
                         }
                     }
                 }
@@ -87,12 +86,14 @@ namespace Fetcho
         {
             using (var db = new Database())
             {
+                db.UpdateWorkspaceStatistics().GetAwaiter().GetResult();
                 var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
                 foreach (var workspace in workspaces)
                     if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
                         Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
             }
         }
+
         public void ReadingException(Exception ex) { }
 
         bool AddToTheWorkspace(WorkspaceResult result) =>
@@ -109,7 +110,7 @@ namespace Fetcho
                 Title = "",
                 Description = "",
                 Created = DateTime.Now,
-                Size = 0
+                PageSize = 0
             };
 
             string line = reader.ReadLine();
@@ -118,13 +119,13 @@ namespace Fetcho
             else
             {
 
-                r.Size += line.Length;
+                r.PageSize += line.Length;
                 while (reader.Peek() > 0)
                 {
                     if (String.IsNullOrWhiteSpace(r.Title) && line.ToLower().Contains("<title")) r.Title = ReadTitle(line);
                     else if (String.IsNullOrWhiteSpace(r.Description) && line.ToLower().Contains("description")) r.Description = ReadDesc(line).Truncate(100);
                     line = reader.ReadLine();
-                    r.Size += line.Length;
+                    r.PageSize += line.Length;
                 }
 
                 return r;

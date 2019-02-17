@@ -24,6 +24,9 @@ namespace Fetcho.Common.Entities
         /// </summary>
         public string Description { get; set; }
 
+        /// <summary>
+        /// Query search text
+        /// </summary>
         public string QueryText { get; set; }
 
         /// <summary>
@@ -35,6 +38,11 @@ namespace Fetcho.Common.Entities
         /// Is the workspace active
         /// </summary>
         public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Number of results in the workspace
+        /// </summary>
+        public long ResultCount { get; set; }
 
         /// <summary>
         /// list of revokable keys that can access this workspace
@@ -73,7 +81,8 @@ namespace Fetcho.Common.Entities
                 Description = "",
                 QueryText = "",
                 IsActive = true,
-                Created = DateTime.UtcNow
+                Created = DateTime.UtcNow,
+                ResultCount = 0
             };
             w.AccessKeys.Add(WorkspaceAccessKey.Create(true));
 

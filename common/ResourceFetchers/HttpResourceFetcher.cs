@@ -46,10 +46,10 @@ namespace Fetcho.Common
             Exception exception = null;
             bool wroteOk = false;
 
-            base.BeginRequest();
-
             try
             {
+                base.BeginRequest();
+
                 using (var db = new Database())
                     await db.SaveWebResource(uri, DateTime.Now.AddDays(Settings.PageCacheExpiryInDays));
 
@@ -83,6 +83,7 @@ namespace Fetcho.Common
                         if (!firstTime) cts.Cancel(); // sometimes they block forever, I haven't figured this out. 
                         var wait = Task.Delay(Settings.ResponseReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
+                        if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
                     }
                 }
@@ -109,7 +110,6 @@ namespace Fetcho.Common
                         OutputRequest(request, writeStream, startTime);
                         OutputException(exception, writeStream, request, startTime);
                         OutputEndResource(writeStream);
-                        base.EndRequest();
                         OutputSync.Release();
                     }
                 }
@@ -122,6 +122,7 @@ namespace Fetcho.Common
                 response = null;
                 cts?.Dispose();
                 cts = null;
+                base.EndRequest();
             }
         }
 
@@ -174,7 +175,6 @@ namespace Fetcho.Common
             {
                 OutputException(exception, writeStream, request, startTime);
                 OutputEndResource(writeStream);
-                base.EndRequest();
                 OutputSync.Release();
                 wroteOk = true;
             }

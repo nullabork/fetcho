@@ -36,6 +36,7 @@ namespace Fetcho
         Random random = new Random(DateTime.Now.Millisecond);
         Stopwatch spoolingTimeWatch = new Stopwatch();
         TimeSpan lastSpoolingTime;
+        DateTime startTime = DateTime.Now;
 
         public Fetcho(FetchoConfiguration config)
         {
@@ -354,15 +355,17 @@ namespace Fetcho
             !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
 
         private void LogStatus(string status) =>
-            log.InfoFormat("{0}: Active Fetches {1}, Completed {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Waiting to Write: {5}, Spooling time {6}, Active Chunks {7}",
-                status,
-                    valve.TasksInValve,
-                    completedFetches,
-                    valve.TasksWaiting,
-                    waitingForFetchTimeout,
-                    ResourceFetcher.WaitingToWrite,
-                    lastSpoolingTime,
-                    MaxConcurrentFetches - fetchLock.CurrentCount);
+            log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Waiting to Write: {5}, Completed {6}, Spooling time {7}, Active Chunks {8}, Running Time {9}",
+                            status,
+                            valve.TasksInValve,
+                            ResourceFetcher.ActiveFetches,
+                            valve.TasksWaiting,
+                            waitingForFetchTimeout,
+                            ResourceFetcher.WaitingToWrite,
+                            completedFetches,
+                            lastSpoolingTime,
+                            MaxConcurrentFetches - fetchLock.CurrentCount,
+                            (DateTime.Now - startTime));
 
     }
 }

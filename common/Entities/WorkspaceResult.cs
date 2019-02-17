@@ -19,14 +19,14 @@ namespace Fetcho.Common.Entities
 
         public DateTime Created { get; set; }
 
-        public long Size { get; set; }
+        public long PageSize { get; set; }
 
         public long Sequence { get; set; }
 
         public WorkspaceResult()
         {
             Tags = new List<string>();
-            Size = -1;
+            PageSize = -1;
             Sequence = -1;
             Created = DateTime.MinValue;
             Description = "";
