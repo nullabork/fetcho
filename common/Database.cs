@@ -609,6 +609,46 @@ namespace Fetcho.Common
             return l;
         }
 
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResultsByRandom(Guid workspaceId, int count)
+        {
+            var l = new List<WorkspaceResult>();
+            byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
+
+            string sql =
+            "select hash, uri, referrer, title, description, created, page_size, sequence " +
+            "from   \"WorkspaceResult\" " +
+            "where  workspace_id = :workspace_id and" +
+            "       random > :random " +
+            "order  by random " + 
+            "limit  " + count + ";";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<double>("random", random.NextDouble()));
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                while (reader.Read())
+                {
+                    reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
+
+                    l.Add(new WorkspaceResult()
+                    {
+                        Hash = new MD5Hash(buffer).ToString(),
+                        Uri = reader.GetString(1),
+                        ReferrerUri = reader.GetString(2),
+                        Title = reader.GetString(3),
+                        Description = reader.GetString(4),
+                        Created = reader.GetDateTime(5),
+                        PageSize = reader.GetInt64(6),
+                        Sequence = reader.GetInt64(7)
+                    });
+                }
+            }
+
+            return l;
+        }
+
         public async Task AddWorkspaceResults(Guid workspaceId, IEnumerable<WorkspaceResult> results)
         {
             string updateSql = "set client_encoding='UTF8'; update \"WorkspaceResult\" " +

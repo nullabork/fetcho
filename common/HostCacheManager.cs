@@ -200,8 +200,8 @@ namespace Fetcho.Common
             public DateTime LastCall { get; set; }
             public int TouchCount { get; set; }
             public int MaxFetchSpeedInMilliseconds { get; set; }
-            public SemaphoreSlim UpdateWaitHandle { get; }
-            public SemaphoreSlim FetchWaitHandle { get; }
+            public SemaphoreSlim UpdateWaitHandle { get; set; }
+            public SemaphoreSlim FetchWaitHandle { get; set;  }
             public RobotsFile Robots { get; set; }
             public bool CheckRobots { get { return !RobotsChecked; } }
             public bool RobotsChecked { get; set; }
@@ -232,8 +232,10 @@ namespace Fetcho.Common
                     if (disposing)
                     {
                         Robots?.Dispose();
-                        UpdateWaitHandle.Dispose(); // we're disposing whilst people have this accessed. Do we lock here ?
-                        FetchWaitHandle.Dispose();// we're disposing whilst people have this accessed. Do we lock here ? 
+                        UpdateWaitHandle?.Dispose(); // we're disposing whilst people have this accessed. Do we lock here ?
+                        FetchWaitHandle?.Dispose();// we're disposing whilst people have this accessed. Do we lock here ? 
+                        UpdateWaitHandle = null;
+                        FetchWaitHandle = null;
                     }
 
                     Robots = null;

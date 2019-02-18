@@ -47,7 +47,7 @@ namespace Fetcho.queueo
         /// </summary>
         public QueueoConfiguration Configuration { get; set; }
 
-        public bool EndOfStream { get => Configuration.InStream.Peek() > -1; }
+        public bool EndOfStream { get => Configuration.InStream.Peek() <= -1; }
 
         public int _active = 0;
 

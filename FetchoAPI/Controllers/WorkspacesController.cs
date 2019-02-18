@@ -119,6 +119,31 @@ namespace Fetcho.FetchoAPI.Controllers
             return null;
         }
 
+        /// <summary>
+        /// Get random results from a workspace
+        /// </summary>
+        /// <param name="guid">Workspace guid</param>
+        /// <param name="minSequence">Minimum sequence value to start from</param>
+        /// <param name="count">Max number of results to get</param>
+        /// <returns>An enumerable array of results</returns>
+        [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results/random")]
+        [HttpGet()]
+        public async Task<IEnumerable<WorkspaceResult>> GetRandomResultsByAccessKey(string accesskey, Guid accessKeyId, int count = 1)
+        {
+            try
+            {
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+
+                return await GetRandomResultsByWorkspace(guid, count);
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+            }
+
+            return null;
+        }
+
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results")]
         [HttpPost()]
         [HttpPut()]
@@ -148,6 +173,34 @@ namespace Fetcho.FetchoAPI.Controllers
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
                     results = await db.GetWorkspaceResults(guid, minSequence, count);
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get random results from a workspace
+        /// </summary>
+        /// <param name="guid">Workspace guid</param>
+        /// <param name="minSequence">Minimum sequence value to start from</param>
+        /// <param name="count">Max number of results to get</param>
+        /// <returns>An enumerable array of results</returns>
+        [Route("api/v1/workspaces/{guid}/results/random")]
+        [HttpGet()]
+        public async Task<IEnumerable<WorkspaceResult>> GetRandomResultsByWorkspace(Guid guid, int count = 1)
+        {
+            try
+            {
+                count = count.RangeConstraint(1, 50);
+
+                IEnumerable<WorkspaceResult> results = null;
+                using (var db = new Database())
+                    results = await db.GetWorkspaceResultsByRandom(guid, count);
                 return results;
             }
             catch (Exception ex)
