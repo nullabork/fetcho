@@ -135,7 +135,12 @@ namespace Fetcho.NextLinks
             }
         }
 
-        void ReportStatus() => log.InfoFormat("NEXTLINKS: Active Fetches {0}", _activeTasks);
+        void ReportStatus() => log.InfoFormat(
+            "NEXTLINKS: Active Fetches {0}, Waiting to write {1}, Active Tasks {2}", 
+            _activeTasks,
+            ResourceFetcher.WaitingToWrite, 
+            MaxConcurrentTasks - taskPool.CurrentCount
+            );
 
         /// <summary>
         /// Asyncronously validates a QueueItem
@@ -296,11 +301,23 @@ namespace Fetcho.NextLinks
         /// <param name="item"></param>
         /// <returns></returns>
         bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > MaximumChunkSize;
-        
-        FastLookupCache<string> recentips = new FastLookupCache<string>(MaxConcurrentFetches);
 
+        // the function for the size of this window needs to be determined. *4 times the number of concurrent fetches is not correct
+        // its probably relative to the number of unique IPs in a fetch window times the max-min length of their queues and a bunch 
+        // of other factors
+        FastLookupCache<string> recentips = new FastLookupCache<string>(MaxConcurrentFetches*4); 
+
+        /// <summary>
+        /// Check if an IP has been seen recently
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         bool HasIPBeenSeenRecently(QueueItem item) => recentips.Contains(item.TargetIP.ToString());
         
+        /// <summary>
+        /// Add an IP address to the fast lookup cache to say its been seen recently
+        /// </summary>
+        /// <param name="item"></param>
         void CacheRecentIPAddress(QueueItem item)
         {
             if (!recentips.Contains(item.TargetIP.ToString()))
