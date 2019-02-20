@@ -74,9 +74,13 @@
     <Compile Include="DatabaseTest.cs" />
     <Compile Include="FastLookupCacheTest.cs" />
     <Compile Include="HtmlTextReaderTest.cs" />
+    <Compile Include="IndexableQueueTest.cs" />
+    <Compile Include="Md5HashTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RobotsTest.cs" />
     <Compile Include="ScratchTests.cs" />
     <Compile Include="TestUtility.cs" />
+    <Compile Include="TextFileLinkExtractorTest.cs" />
     <Compile Include="WebPacketDataReaderTest.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -42,7 +42,12 @@ namespace Fetcho.Common
             this.inStream = reader;
             if (reader.NodeType == XmlNodeType.None)
                 if (!NextResource())
-                    throw new Exception("No resources in the file");
+                    throw new FetchoException("No resources in the file");
+        }
+
+        public WebDataPacketReader(string fileName) : this(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+
         }
 
         /// <summary>

@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using System.Xml;
 using Fetcho.Common.Entities;
 using log4net;
@@ -171,7 +172,7 @@ namespace Fetcho.Common
                             {
                                 var disallow_matcher = Disallow.GetState(userAgent);
                                 if (disallow_matcher.Length == 0)
-                                    throw new Exception("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
+                                    throw new FetchoException("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
 
                                 if (line.Length > 9)
                                     addStringToMatcher(disallow_matcher[0],
@@ -182,7 +183,7 @@ namespace Fetcho.Common
                             {
                                 var allow_matcher = Allow.GetState(userAgent);
                                 if (allow_matcher.Length == 0)
-                                    throw new Exception("No default allow matcher available for '" + userAgent + "' uri " + Uri);
+                                    throw new FetchoException("No default allow matcher available for '" + userAgent + "' uri " + Uri);
 
                                 if (line.Length > 6)
                                     addStringToMatcher(allow_matcher[0],
@@ -231,7 +232,7 @@ namespace Fetcho.Common
                     else if (matchString[i + 1] != '*')
                         skip_next = false;
                 }
-                else if ( i == matchString.Length - 1)
+                else if (i == matchString.Length - 1)
                     current_state = state;
 
                 if (skip_next && matchString.Length - 2 == i)
@@ -353,10 +354,17 @@ namespace Fetcho.Common
                     return null;
                 }
 
+                var bb = new BufferBlock<WebDataPacketWriter>();
+
                 using (var ms = new MemoryStream())
-                using (var writer = CreateXmlWriter(ms))
                 {
-                    await (new HttpResourceFetcher()).Fetch(null, robotsUri, writer, NullBlockProvider.Default, lastFetched);
+                    using (var packet = new WebDataPacketWriter(ms))
+                    {
+                        // this is annoying, I shouldn't have to create a buffer block to get a robots file
+                        // or we should put robots into the standard flow of things
+                        await bb.SendAsync(packet); 
+                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, bb, NullBlockProvider.Default, lastFetched);
+                    }
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(CreateXmlReader(ms));
                 }

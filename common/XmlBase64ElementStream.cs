@@ -16,7 +16,7 @@ namespace Fetcho.Common
         {
             this.xmlReader = xmlReader;
             if (this.xmlReader.NodeType != XmlNodeType.Element)
-                throw new Exception("Needs to be on the Element node. On " + this.xmlReader.NodeType);
+                throw new FetchoException("Needs to be on the Element node. On " + this.xmlReader.NodeType);
         }
 
         public override bool CanRead => true;

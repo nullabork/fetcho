@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using System.Xml;
 using log4net;
 
@@ -15,16 +16,6 @@ namespace Fetcho.Common
         static readonly ILog log = LogManager.GetLogger(typeof(ResourceFetcher));
 
         /// <summary>
-        /// Used for syncronising the writing to the file
-        /// </summary>
-        protected static readonly SemaphoreSlim OutputSync = new SemaphoreSlim(1);
-
-        /// <summary>
-        /// Does a thread have control of the file
-        /// </summary>
-        protected static bool OutputInUse { get => OutputSync.CurrentCount == 0; }
-
-        /// <summary>
         /// Number of active downloads
         /// </summary>
         public static int ActiveFetches { get => _activeFetches; set => _activeFetches = value; }
@@ -36,14 +27,10 @@ namespace Fetcho.Common
         public static int WaitingToWrite { get => _waitingToWrite; set => _waitingToWrite = value; }
         static int _waitingToWrite;
 
-        protected bool ResourceWritten { get; set; }
-
-        protected bool RequestWritten { get; set; }
-
         public abstract Task Fetch(
             Uri referrerUri,
             Uri uri,
-            XmlWriter writeStream,
+            BufferBlock<WebDataPacketWriter> writers,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate
             );
@@ -60,7 +47,7 @@ namespace Fetcho.Common
         public static async Task FetchFactory(
             Uri referrerUri,
             Uri uri,
-            XmlWriter writeStream,
+            BufferBlock<WebDataPacketWriter> writers,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate
             )
@@ -68,7 +55,7 @@ namespace Fetcho.Common
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(referrerUri, uri, writeStream, blockProvider, lastFetchedDate).ConfigureAwait(false);
+                await new HttpResourceFetcher().Fetch(referrerUri, uri, writers, blockProvider, lastFetchedDate).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
         }
@@ -84,19 +71,6 @@ namespace Fetcho.Common
 
         protected void EndRequest() => Interlocked.Decrement(ref _activeFetches);
 
-        protected void OutputStartResource(XmlWriter outStream)
-        {
-            outStream.WriteStartElement("resource");
-            ResourceWritten = true;
-        }
-
-        protected void OutputEndResource(XmlWriter outStream)
-        {
-            outStream.WriteEndElement();
-            outStream.Flush();
-            ResourceWritten = false;
-        }
-
         protected void OutputRequest(WebRequest request, XmlWriter outstream, DateTime startTime)
         {
             DateTime now = DateTime.Now;
@@ -110,7 +84,6 @@ namespace Fetcho.Common
                 outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
             }
             outstream.WriteEndElement();
-            RequestWritten = true;
         }
 
         protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outStream)
@@ -142,7 +115,7 @@ namespace Fetcho.Common
             }
         }
 
-        protected void OutputException(Exception ex, XmlWriter outStream, WebRequest request, DateTime startTime)
+        protected void OutputException(Exception ex, XmlWriter outStream)
         {
             if (ex == null) return;
             outStream.WriteElementString("exception", ex.ToString().CleanupForXml());

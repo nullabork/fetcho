@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Cache;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
+using System.Threading.Tasks.Dataflow;
 using log4net;
 
 namespace Fetcho.Common
@@ -25,7 +25,7 @@ namespace Fetcho.Common
         public override async Task Fetch(
             Uri referrerUri,
             Uri uri,
-            XmlWriter writeStream,
+            BufferBlock<WebDataPacketWriter> writers,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate)
         {
@@ -76,7 +76,7 @@ namespace Fetcho.Common
                 else
                 {
                     bool firstTime = true;
-                    var rspw = WriteOutResponse(writeStream, request, response, startTime, cts.Token);
+                    var rspw = WriteOutResponse(writers, request, response, startTime, cts.Token);
 
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
                     {
@@ -88,29 +88,23 @@ namespace Fetcho.Common
                     }
                 }
             }
-            catch (TimeoutException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
-            catch (AggregateException ex) { ErrorHandler(ex.InnerException, writeStream, request, false, startTime); exception = ex; }
-            catch (FetchoResourceBlockedException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
-            catch (WebException ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
-            catch (InvalidOperationException ex)
-            {
-                log.ErrorFormat("Barfing because of a corrupt XML: {0}", ex);
-                log.InfoFormat("WriteState: {0}", writeStream.WriteState);
-                Environment.Exit(1);
-            }
-            catch (Exception ex) { ErrorHandler(ex, writeStream, request, true, startTime); exception = ex; }
+            catch (TimeoutException ex) { ErrorHandler(ex, request, false); exception = ex; }
+            catch (AggregateException ex) { ErrorHandler(ex.InnerException, request, false); exception = ex; }
+            catch (FetchoResourceBlockedException ex) { ErrorHandler(ex, request, false); exception = ex; }
+            catch (WebException ex) { ErrorHandler(ex, request, false); exception = ex; }
+            catch (Exception ex) { ErrorHandler(ex, request, true); exception = ex; }
             finally
             {
                 try
                 {
                     if (!wroteOk)
                     {
-                        await OutputSync.WaitAsync();
-                        OutputStartResource(writeStream);
-                        OutputRequest(request, writeStream, startTime);
-                        OutputException(exception, writeStream, request, startTime);
-                        OutputEndResource(writeStream);
-                        OutputSync.Release();
+                        var packet = await writers.ReceiveAsync();
+                        packet.OutputStartResource();
+                        OutputRequest(request, packet.Writer, startTime);
+                        OutputException(exception, packet.Writer);
+                        packet.OutputEndResource();
+                        await writers.SendAsync(packet);
                     }
                 }
                 catch (Exception ex)
@@ -128,19 +122,20 @@ namespace Fetcho.Common
 
         /// <summary>
         /// </summary>
-        /// <param name="writeStream"></param>
+        /// <param name="writers"></param>
         /// <param name="request"></param>
         /// <param name="response"></param>
         /// <param name="startTime"></param>
         /// <returns></returns>
         private async Task<bool> WriteOutResponse(
-            XmlWriter writeStream, 
+            BufferBlock<WebDataPacketWriter> writers, 
             HttpWebRequest request, 
             HttpWebResponse response, 
             DateTime startTime, 
             CancellationToken cancellationToken
             )
         {
+            WebDataPacketWriter packet = null;
             Exception exception = null;
             bool wroteOk = false;
 
@@ -157,25 +152,28 @@ namespace Fetcho.Common
             catch(Exception ex)
             {
                 log.Error(ex);
+                exception = ex;
+                bytesread = 0;
             }
 
             try
             {
                 // once we've got plenty of bytes go find a lock
                 IncWaitingToWrite();
-                await OutputSync.WaitAsync().ConfigureAwait(false);
+                packet = await writers.ReceiveAsync().ConfigureAwait(false);
                 DecWaitingToWrite();
 
-                OutputStartResource(writeStream);
-                OutputRequest(request, writeStream, startTime);
-                OutputResponse(response, buffer, bytesread, writeStream);
+                packet.OutputStartResource();
+                OutputRequest(request, packet.Writer, startTime);
+                if (bytesread > 0)
+                    OutputResponse(response, buffer, bytesread, packet.Writer);
             }
-            catch (Exception ex) { ErrorHandler(ex, writeStream, request, false, startTime); exception = ex; }
+            catch (Exception ex) { ErrorHandler(ex, request, false); exception = ex; }
             finally
             {
-                OutputException(exception, writeStream, request, startTime);
-                OutputEndResource(writeStream);
-                OutputSync.Release();
+                OutputException(exception, packet.Writer);
+                packet.OutputEndResource();
+                await writers.SendAsync(packet);
                 wroteOk = true;
             }
             return wroteOk;
@@ -231,7 +229,7 @@ namespace Fetcho.Common
             }
         }
 
-        private void ErrorHandler(Exception ex, XmlWriter writer, HttpWebRequest request, bool verbose, DateTime startTime)
+        private void ErrorHandler(Exception ex, HttpWebRequest request, bool verbose)
         {
             const string format = "'{0}': {1}";
 

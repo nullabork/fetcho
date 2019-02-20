@@ -22,7 +22,7 @@ namespace Fetcho
             }
         }
 
-        private FileStream GetFileStream(string filepath) => new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        private FileStream GetFileStream(string filepath) => new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
         private void CheckPacketPath(string packetPath)
         {

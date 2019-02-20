@@ -448,7 +448,7 @@ namespace Fetcho.Common
             int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (count == 0)
-                throw new Exception("No record was deleted");
+                throw new FetchoException("No record was deleted");
         }
 
         private void _saveWorkspaceSetParams(NpgsqlCommand cmd, Workspace workspace)

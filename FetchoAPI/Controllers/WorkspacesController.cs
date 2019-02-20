@@ -253,7 +253,7 @@ namespace Fetcho.FetchoAPI.Controllers
         private void TestWorkspaceAndGuidMatch(Workspace workspace, Guid guid)
         {
             if (workspace.WorkspaceId != guid)
-                throw new Exception("Permission denied");
+                throw new FetchoException("Permission denied");
         }
 
         /// <summary>
@@ -266,13 +266,13 @@ namespace Fetcho.FetchoAPI.Controllers
         private async Task ThrowIfNoWorkspaceAccess(Database db, Guid guid, string accesskey)
         {
             if (!await db.HasWorkspaceAccess(guid, accesskey))
-                throw new Exception("No access to " + guid + " " + accesskey);
+                throw new FetchoException("No access to " + guid + " " + accesskey);
         }
 
         private async Task ThrowIfNotAValidAccessKey(Database db, string accesskey)
         {
             if (!await db.IsValidAccessKey(accesskey))
-                throw new Exception("invalid key");
+                throw new FetchoException("invalid key");
         }
 
         private async Task<Guid> GetWorkspaceIdOrThrowIfNoAccess(string accesskey)

@@ -70,7 +70,7 @@ namespace Fetcho.Common
         public T Dequeue()
         {
             if (firstNode == null)
-                throw new Exception("No items");
+                throw new FetchoException("No items");
             else
             {
                 var v = firstNode.Value;

@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using System.Xml;
 using Fetcho.Common;
 using log4net;
@@ -30,7 +31,7 @@ namespace Fetcho
         SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
         readonly object requeueWriterLock = new object();
         TextWriter requeueWriter = null;
-        XmlWriter outputWriter = null;
+        BufferBlock<WebDataPacketWriter> writers = null;
         TextReader inputReader = null;
         PressureReliefValve<QueueItem> valve = null;
         Random random = new Random(DateTime.Now.Millisecond);
@@ -42,6 +43,7 @@ namespace Fetcho
         {
             Configuration = config;
             valve = CreatePressureReliefValve();
+            writers = new BufferBlock<WebDataPacketWriter>();
         }
 
         public async Task Process()
@@ -52,10 +54,10 @@ namespace Fetcho
                 log.Info("Fetcho.Process() commenced");
                 requeueWriter = GetRequeueWriter();
                 inputReader = GetInputReader();
+                var packet = CreateNewDataPacketWriter();
+                await writers.SendAsync(packet);
 
                 var r = ReportStatus();
-                OpenNewOutputWriter();
-
                 var u = NextQueueItem();
 
                 while (u != null)
@@ -80,8 +82,7 @@ namespace Fetcho
             }
             finally
             {
-
-                CloseOutputWriter();
+                await CloseAllWriters();
                 CloseRequeueWriter();
                 log.Info("Fetcho.Process() complete");
             }
@@ -206,7 +207,7 @@ namespace Fetcho
                         await ResourceFetcher.FetchFactory(
                             item.SourceUri,
                             item.TargetUri,
-                            outputWriter,
+                            writers,
                             Configuration.BlockProvider,
                             DateTime.MinValue
                             );
@@ -275,29 +276,19 @@ namespace Fetcho
             return XmlWriter.Create(writer, settings);
         }
 
-        private void OpenNewOutputWriter()
+        private WebDataPacketWriter CreateNewDataPacketWriter()
         {
-            outputWriter = GetOutputWriter();
-            outputWriter.WriteStartDocument();
-            outputWriter.WriteStartElement("resources");
-            outputWriter.WriteStartElement("startTime");
-            outputWriter.WriteValue(DateTime.UtcNow);
-            outputWriter.WriteEndElement();
+            if (String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
+                throw new FetchoException("No output data file is set");
+            return new WebDataPacketWriter(Configuration.OutputDataFilePath);
         }
 
-        private void CloseOutputWriter()
+        private async Task CloseAllWriters()
         {
-            outputWriter.WriteStartElement("endTime");
-            outputWriter.WriteValue(DateTime.UtcNow);
-            outputWriter.WriteEndElement();
-            outputWriter.WriteEndElement(); // resources
-            outputWriter.WriteEndDocument();
-            outputWriter.Flush();
-
-            if (!String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
+            while (writers.Count > 0)
             {
-                outputWriter.Close();
-                outputWriter.Dispose();
+                var packet = await writers.ReceiveAsync();
+                packet.Dispose();
             }
         }
 

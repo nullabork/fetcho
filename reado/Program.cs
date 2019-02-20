@@ -74,7 +74,7 @@ namespace Fetcho
             var type = GetWebDataPacketConsumerTypes().FirstOrDefault(x => x.Name == typeName);
 
             if (type == null)
-                throw new Exception("Can't find type with name " + typeName);
+                throw new FetchoException("Can't find type with name " + typeName);
 
             return Activator.CreateInstance(type, args.ToArray()) as IWebDataPacketConsumer;
         }
