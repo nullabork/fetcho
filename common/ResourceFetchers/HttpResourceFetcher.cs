@@ -86,6 +86,8 @@ namespace Fetcho.Common
                         if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
                     }
+
+                    wroteOk = await rspw;
                 }
             }
             catch (TimeoutException ex) { ErrorHandler(ex, request, false); exception = ex; }
@@ -179,6 +181,13 @@ namespace Fetcho.Common
             return wroteOk;
         }
 
+        /// <summary>
+        /// Create a web request with all the usual suspect configurations
+        /// </summary>
+        /// <param name="referrerUri"></param>
+        /// <param name="uri"></param>
+        /// <param name="lastFetchedDate"></param>
+        /// <returns></returns>
         private HttpWebRequest CreateRequest(Uri referrerUri, Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;

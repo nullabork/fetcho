@@ -41,7 +41,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsTrue(robots.IsDisallowed(new Uri("https://bs.wikipedia.org/w/index.php?title=Ujedinjeno_Kraljevstvo&action=edit&section=4"),
-                                              "ResearchBot"));
+                                              Settings.UserAgent));
 
         }
 
@@ -61,7 +61,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsFalse(robots.IsDisallowed(new Uri("https://blogs.wsj.com/privateequity"),
-                                               "ResearchBot"));
+                                              Settings.UserAgent));
 
         }
 
@@ -83,7 +83,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsFalse(robots.IsDisallowed(new Uri("https://wiki.dolphin-emu.org/index.php?title=Category:Japan_(Release_region)"),
-                                               "ResearchBot"));
+                                               Settings.UserAgent));
 
         }
 

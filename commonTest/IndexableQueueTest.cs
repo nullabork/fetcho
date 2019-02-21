@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
-using Fetcho.Common;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace getlinks_core.tests
+namespace Fetcho.Common.Tests
 {
     [TestClass]
     public class IndexableQueueTest

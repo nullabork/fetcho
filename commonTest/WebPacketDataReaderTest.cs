@@ -1,9 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fetcho.Common.Tests
 {
@@ -21,6 +16,9 @@ namespace Fetcho.Common.Tests
             ct = WebDataPacketReader.GetContentTypeFromResponseHeaders("");
             Assert.IsTrue(ct == ContentType.Unknown, ct.ToString());
             Assert.IsTrue(ContentType.IsUnknownOrNull(ct), ct.ToString());
+
+            ct = WebDataPacketReader.GetContentTypeFromResponseHeaders("Content-Type: text/html");
+            Assert.IsTrue(ct.Raw == "text/html");
         }
     }
 }

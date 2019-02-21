@@ -67,19 +67,20 @@ namespace Fetcho.Common
         {
             if (File.Exists(fileName))
             {
+                string path = Path.GetDirectoryName(fileName);
                 string name = Path.GetFileNameWithoutExtension(fileName);
                 string extension = Path.GetExtension(fileName);
 
                 int index = 0;
                 do
                 {
-                    fileName = String.Format("{0}-{1}.{2}", name, index, extension);
+                    fileName = Path.Combine(path, String.Format("{0}-{1}{2}", name, index, extension));
                     index++;
                 }
                 while (File.Exists(fileName));
             }
 
-            File.Create(fileName);
+            File.Create(fileName).Dispose();
 
             return fileName;
         }

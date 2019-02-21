@@ -1,7 +1,6 @@
-﻿using Fetcho.Common;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace getlinks_core.tests
+namespace Fetcho.Common.Tests
 {
     [TestClass]
 	public class Md5HashTest
@@ -22,7 +21,4 @@ namespace getlinks_core.tests
 	    Assert.IsTrue(h1 == h2, h2.ToString());
 	  }
 	}
-	
-
-	
 }

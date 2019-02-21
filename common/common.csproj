@@ -48,6 +48,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <RegisterForComInterop>false</RegisterForComInterop>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -58,6 +59,9 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Antlr4.Runtime, Version=4.6.0.0, Culture=neutral, PublicKeyToken=09abb75b9ed49849, processorArchitecture=MSIL">
+      <HintPath>..\packages\Antlr4.Runtime.4.6.6\lib\net45\Antlr4.Runtime.dll</HintPath>
+    </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
     </Reference>
@@ -100,6 +104,24 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Grammars\obj\Debug\HTMLLexer.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLLexer.cs</Link>
+    </Compile>
+    <Compile Include="..\Grammars\obj\Debug\HTMLParser.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLParser.cs</Link>
+    </Compile>
+    <Compile Include="..\Grammars\obj\Debug\HTMLParserBaseListener.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLParserBaseListener.cs</Link>
+    </Compile>
+    <Compile Include="..\Grammars\obj\Debug\HTMLParserBaseVisitor.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLParserBaseVisitor.cs</Link>
+    </Compile>
+    <Compile Include="..\Grammars\obj\Debug\HTMLParserListener.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLParserListener.cs</Link>
+    </Compile>
+    <Compile Include="..\Grammars\obj\Debug\HTMLParserVisitor.cs">
+      <Link>ContentReader\GeneratedFiles\HTMLParserVisitor.cs</Link>
+    </Compile>
     <Compile Include="ContentReader\HtmlTextReader.cs" />
     <Compile Include="ContentReader\ILinkExtractor.cs" />
     <Compile Include="ContentReader\ITokenizer.cs" />
