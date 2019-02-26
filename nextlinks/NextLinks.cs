@@ -337,11 +337,12 @@ namespace Fetcho.NextLinks
             {
                 var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host);
                 if (r == null) rtn = false;
-                else if (r.IsDisallowed(item.TargetUri)) rtn = true;
+                else rtn = r.IsDisallowed(item.TargetUri);
             }
             catch (Exception ex)
             {
                 log.Error("IsBlockedByRobots(): ", ex);
+                rtn = false;
             }
 
             return rtn;

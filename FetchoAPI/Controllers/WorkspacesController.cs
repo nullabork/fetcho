@@ -9,6 +9,7 @@ namespace Fetcho.FetchoAPI.Controllers
 {
     // TODO: Alter this so you access all workspaces by accesskey
     // need GetWorkspaceIdByAccessKey()
+    // TODO: Access Key you created
 
     public class WorkspacesController : ApiController
     {
@@ -103,13 +104,13 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetResultsByAccessKey(string accesskey, Guid accessKeyId, long minSequence = 0, int count = 30)
+        public async Task<IEnumerable<WorkspaceResult>> GetResultsByAccessKey(string accesskey, Guid accessKeyId, long fromSequence = 0, int count = 30)
         {
             try
             {
                 Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
 
-                return await GetResultsByWorkspace(guid, minSequence, count);
+                return await GetResultsByWorkspace(guid, fromSequence, count);
             }
             catch( Exception ex)
             {
@@ -158,21 +159,21 @@ namespace Fetcho.FetchoAPI.Controllers
         /// Get some results from a workspace
         /// </summary>
         /// <param name="guid">Workspace guid</param>
-        /// <param name="minSequence">Minimum sequence value to start from</param>
+        /// <param name="fromSequence">Minimum sequence value to start from</param>
         /// <param name="count">Max number of results to get</param>
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetResultsByWorkspace(Guid guid, long minSequence = 0, int count = 30)
+        public async Task<IEnumerable<WorkspaceResult>> GetResultsByWorkspace(Guid guid, long fromSequence = 0, int count = 30)
         {
             try
             {
                 count = count.RangeConstraint(1, 50);
-                minSequence = minSequence.MinConstraint(0);
+                fromSequence = fromSequence.MinConstraint(0);
 
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
-                    results = await db.GetWorkspaceResults(guid, minSequence, count);
+                    results = await db.GetWorkspaceResults(guid, fromSequence, count);
                 return results;
             }
             catch (Exception ex)

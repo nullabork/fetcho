@@ -134,6 +134,10 @@ namespace Fetcho.Common
         public static decimal MinConstraint(this decimal val, decimal min) => val < min ? min : val;
         public static decimal RangeConstraint(this decimal val, decimal min, decimal max) => val < min ? min : val > max ? max : val;
 
+        public static bool Between(this int val, int min, int max) => val >= min && val <= max;
+        public static bool Between(this long val, long min, long max) => val >= min && val <= max;
+        public static bool Between(this decimal val, decimal min, decimal max) => val >= min && val <= max;
+        public static bool Between(this double val, double min, double max) => val >= min && val <= max;
 
         /// <summary>
         /// Ensure a string always only comes to maxlength

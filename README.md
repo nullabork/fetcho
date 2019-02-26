@@ -26,20 +26,20 @@ Use workspaces if you're building a server facing tool
 
 ### AccessKeys
 
-Use this for user facing tools
+Use this for user facing tools. You make up your own access keys minimum of 12 chars.
 
-* GET /{accesskey} - get the details for an AccessKey
+* GET /{accesskey} - get the details for an AccessKey 
 * GET /{accesskey}/workspace/{accessKeyId} - get a specific Workspace by its AccessKey id
-* POST /{accesskey}/workspace - create a Workspace
+* POST /{accesskey}/workspace - create a Workspace and access key
 * PUT /{accesskey}/workspace/{accessKeyId} - update a Workspace
 * DELETE /accesskeys/{accesskey}/workspace/{accessKeyId} - delete a Workspace AccessKey. Note the workspace one delete until all accesskeys are deleted
-* GET /{accesskey}/workspace/{accessKeyId}/results - get the Workspace WorkspaceResults. Optional ?minsequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
+* GET /{accesskey}/workspace/{accessKeyId}/results - get the Workspace WorkspaceResults. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
 * PUT,POST /{accesskey}/workspace/{accessKeyId}/results - add or update WorkspaceResult s for a workspace
 
 ### Workspaces
 
 Use this for server facing tools
 
-* GET /{workspaceId}/results - get WorkspaceResult records. Optional ?minsequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
+* GET /{workspaceId}/results - get WorkspaceResult records. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
 * PUT,POST /{workspaceId}/results - add or update WorkspaceResult records
 * DELETE /{workspaceId}/results - delete WorkspaceResult records

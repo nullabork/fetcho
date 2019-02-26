@@ -39,7 +39,6 @@ namespace Fetcho.Common
             // 6. write to the XML
             // 7. clean up
 
-            CancellationTokenSource cts = new CancellationTokenSource();
             HttpWebResponse response = null;
             HttpWebRequest request = null;
             DateTime startTime = DateTime.Now;
@@ -76,11 +75,13 @@ namespace Fetcho.Common
                 else
                 {
                     bool firstTime = true;
-                    var rspw = WriteOutResponse(writers, request, response, startTime, cts.Token);
+                    var rspw = WriteOutResponse(writers, request, response, startTime);
+
 
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
                     {
-                        if (!firstTime) cts.Cancel(); // sometimes they block forever, I haven't figured this out. 
+                        if (!firstTime)
+                            throw new FetchoException("WriteOutResponse timed out");
                         var wait = Task.Delay(Settings.ResponseReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
                         if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
@@ -116,8 +117,6 @@ namespace Fetcho.Common
                 }
                 response?.Dispose();
                 response = null;
-                cts?.Dispose();
-                cts = null;
                 base.EndRequest();
             }
         }
@@ -133,8 +132,7 @@ namespace Fetcho.Common
             BufferBlock<WebDataPacketWriter> writers, 
             HttpWebRequest request, 
             HttpWebResponse response, 
-            DateTime startTime, 
-            CancellationToken cancellationToken
+            DateTime startTime
             )
         {
             WebDataPacketWriter packet = null;
@@ -149,7 +147,7 @@ namespace Fetcho.Common
             try
             {
                 using (var readStream = response.GetResponseStream())
-                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length);
             }
             catch(Exception ex)
             {
@@ -195,6 +193,9 @@ namespace Fetcho.Common
             // our user agent
             request.UserAgent = Settings.UserAgent;
             request.Method = "GET";
+
+            // we need to check the redirect URL is OK from a robots standpoint
+            request.AllowAutoRedirect = false; 
 
             // compression yes please!
             request.AutomaticDecompression =

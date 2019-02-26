@@ -41,8 +41,8 @@ namespace Fetcho.Common
 
                         if (record.CheckRobots)
                         {
-                            record.RobotsChecked = true;
                             record.Robots = await RobotsFile.GetFile(new Uri("http://" + fromHost));
+                            record.RobotsChecked = true;
                         }
                     }
                     catch (Exception ex)
@@ -143,10 +143,11 @@ namespace Fetcho.Common
         /// Retrives a record from the cache or creates a new one
         /// </summary>
         /// <param name="fromHost"></param>
-        /// <param name="fetch_robots"></param>
         /// <returns></returns>
         static async Task<HostCacheManagerRecord> GetRecord(string fromHost)
         {
+            HostCacheManagerRecord record = null;
+
             // bump the host
             try
             {
@@ -172,15 +173,13 @@ namespace Fetcho.Common
                 {
                     string domainToDrop = recencyQueue.Dequeue();
 
-                    var record = hosts[domainToDrop];
+                    record = hosts[domainToDrop];
                     record.Dispose();
 
                     hosts.Remove(domainToDrop);
                 }
 
-                var domain = hosts[fromHost];
-
-                return domain;
+                record = hosts[fromHost];
             }
             catch (Exception ex)
             {
@@ -191,7 +190,7 @@ namespace Fetcho.Common
                 hosts_lock.Release();
             }
 
-            return null;
+            return record;
         }
 
         class HostCacheManagerRecord : IDisposable

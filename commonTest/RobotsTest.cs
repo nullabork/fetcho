@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fetcho.Common.Tests
@@ -105,6 +106,28 @@ namespace Fetcho.Common.Tests
 
             System.Diagnostics.Process.Start(robotsFilePath);
 
+        }
+
+        [TestMethod]
+        public async Task TestUnusualUris()
+        {
+            Uri uri = new Uri("http://omim.org/contact");
+            Assert.IsTrue(await VerifyUrlIsBlocked(uri), uri.ToString());
+
+            uri = new Uri("https://www.wikipedia.org/wiki/Burger");
+            Assert.IsTrue(!await VerifyUrlIsBlocked(uri), uri.ToString());
+
+            uri = new Uri("https://www.bbc.com/news/world-asia-40360168");
+            Assert.IsTrue(!await VerifyUrlIsBlocked(uri), uri.ToString());
+
+            uri = new Uri("https://wiki.dolphin-emu.org/index.php?title=Category:Japan_(Release_region)");
+            Assert.IsTrue(!await VerifyUrlIsBlocked(uri), uri.ToString());
+        }
+
+        public async Task<bool> VerifyUrlIsBlocked(Uri uri)
+        {
+            var robots = await RobotsFile.GetFile(uri);
+            return robots.IsDisallowed(uri);
         }
 
     }

@@ -11,7 +11,7 @@
         public const int MaximumFetchSpeedMilliseconds = 10000;
         public const int RobotsCacheTimeoutMinutes = 60*24*28; // 4 weeks
         public const int MaxFileDownloadLengthInBytes = 1 * 1024 * 1024;
-        public const int ResponseReadTimeoutInMilliseconds = 30000;
+        public const int ResponseReadTimeoutInMilliseconds = 120000;
         public const int PageCacheExpiryInDays = 7;
 
         public Settings()

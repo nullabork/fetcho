@@ -120,6 +120,7 @@
     <Compile Include="ExceptionWebDataPacketConsumer.cs" />
     <Compile Include="ExtractKeywordsConsumer.cs" />
     <Compile Include="ExtractLinksConsumer.cs" />
+    <Compile Include="ListUrlsInPacketConsumer.cs" />
     <Compile Include="PacketInfoConsumer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

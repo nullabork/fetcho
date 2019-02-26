@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common;
 using Fetcho.ContentReaders;
+using Fetcho.Grammars.Html;
 using System;
 using System.IO;
 
@@ -31,17 +32,17 @@ namespace Fetcho
 
         public void ProcessResponseStream(Stream dataStream)
         {
-            Console.WriteLine(CurrentUri);
-            if ( ContentType.MediaType == "text")
+            if ( ContentType.MediaType == "text" && ContentType.SubType == "html")
             {
-                using (var tokenizer = new WordTokenizer(new HtmlTextReader(dataStream), true))
+                writtenUri = false;
+                var parser = new HTMLKeywordExtractor
                 {
-                    foreach (var word in tokenizer)
-                        Console.Write(word + " ");
-                }
+                    MinimumLength = 256,
+                    IncludeChardata = false
+                };
+                parser.Parse(dataStream, WriteKeyword);
             }
 
-            Console.WriteLine();
         }
 
         public void NewResource()
@@ -55,6 +56,19 @@ namespace Fetcho
         public void PacketOpened() { }
 
         public void ReadingException(Exception ex) { }
+
+        private bool writtenUri = false;
+        private void WriteKeyword(string keyword)
+        {
+            if ( !writtenUri)
+            {
+                writtenUri = true;
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine(CurrentUri);
+            }
+            Console.Write("{0} ", keyword);
+        }
     }
 
 }

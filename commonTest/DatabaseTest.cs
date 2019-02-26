@@ -50,13 +50,21 @@ namespace Fetcho.Common.Tests
         }
 
         [TestMethod]
-        public async Task RobotsTest()
+        public async Task GetSiteTest()
         {
-            var r = await RobotsFile.GetFile(new Uri("https://www.wikipedia.org/"));
-            Assert.IsTrue(r.IsNotDisallowed(new Uri("https://en.wikipedia.org/wiki/Burger")), "https://en.wikipedia.org/wiki/Burger is Disallowed according to robots");
+            var uri = new Uri("https://omim.org/contact");
 
-            r = await RobotsFile.DownloadRobots(new Uri("https://www.bbc.com/robots.txt"), null);
-            Assert.IsTrue(r.IsNotDisallowed(new Uri("https://www.bbc.com/news/world-asia-40360168")));
+            using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
+            {
+                var site = await db.GetSite(uri);
+                Assert.IsNotNull(site);
+                Assert.IsNotNull(site.RobotsFile);
+                Assert.IsTrue(site.RobotsFile.IsDisallowed(uri));
+            }
+
+            var robots = await HostCacheManager.GetRobotsFile(uri.Host);
+            Assert.IsNotNull(robots);
+            Assert.IsTrue(robots.IsDisallowed(uri));
         }
 
         [TestMethod]

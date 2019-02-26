@@ -263,15 +263,15 @@ namespace Fetcho.Common
         /// <summary>
         /// Fetch a robot file for a uri
         /// </summary>
-        /// <param name="uri">Any URI for which you want the robots file for</param>
+        /// <param name="anyUri">Any URI for which you want the robots file for</param>
         /// <returns></returns>
-        public static async Task<RobotsFile> GetFile(Uri uri)
+        public static async Task<RobotsFile> GetFile(Uri anyUri)
         {
             //log.Debug("Downloading robots: " + uri);
 
             Site site = null;
             RobotsFile robotsFile = null;
-            var robotsUri = MakeRobotsUri(uri);
+            var robotsUri = MakeRobotsUri(anyUri);
 
             try
             {
@@ -282,9 +282,13 @@ namespace Fetcho.Common
                 {
                     site = await db.GetSite(robotsUri);
                     if (site != null)
+                    {
                         needsVisiting = site.RobotsNeedsVisiting;
+                    }
                     else
-                        site = MakeNewSite(uri);
+                    {
+                        site = MakeNewSite(anyUri);
+                    }
                 }
 
                 if (needsVisiting)

@@ -20,23 +20,21 @@ namespace Fetcho.Common
     public class Database : IDisposable
     {
         public const int ConnectionPoolWaitTimeInMilliseconds = 120000;
-        private const int WaitTimeVarianceInMilliseconds = 250;
-
-        static readonly BinaryFormatter formatter = new BinaryFormatter();
         public const int DefaultDatabasePort = 5432;
         public const int MaxConcurrentConnections = 10;
+        public const int WaitTimeVarianceInMilliseconds = 250;
+
+        static readonly BinaryFormatter formatter = new BinaryFormatter();
         static readonly ILog log = LogManager.GetLogger(typeof(Database));
         static readonly Random random = new Random(DateTime.Now.Millisecond);
-
         static readonly SemaphoreSlim connPool = new SemaphoreSlim(MaxConcurrentConnections);
 
-        NpgsqlConnection conn;
-        NpgsqlConnectionStringBuilder connstr;
+        private NpgsqlConnection conn;
+        private NpgsqlConnectionStringBuilder connstr;
+        private bool IsOpen { get => (conn != null && conn.State == ConnectionState.Open); }
 
         public string Server { get; set; }
         public int Port { get; set; }
-
-        private bool IsOpen { get => (conn != null && conn.State == ConnectionState.Open); }
 
         public Database(string server, int port)
         {
@@ -136,7 +134,6 @@ namespace Fetcho.Common
                                                  );
 
                 cmd.Parameters.AddWithValue("hostname_hash", hash.Values);
-
 
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
@@ -570,7 +567,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("expiry", wak.Expiry));
         }
 
-        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long minSequence, int count)
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long fromSequence, int count)
         {
             var l = new List<WorkspaceResult>();
             byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
@@ -579,12 +576,12 @@ namespace Fetcho.Common
             "select hash, uri, referrer, title, description, created, page_size, sequence " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
-            "       sequence > :min_sequence " +
+            "       sequence > :from_sequence " +
             "limit  " + count + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
-            cmd.Parameters.Add(new NpgsqlParameter<long>("min_sequence", minSequence));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("from_sequence", fromSequence));
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
@@ -735,7 +732,9 @@ namespace Fetcho.Common
 
             using (var ms = new MemoryStream(buffer))
             {
-                return formatter.Deserialize(ms) as T;
+                var o = formatter.Deserialize(ms) as T;
+                if (o == null) throw new FetchoException(string.Format("Deserialization to {0} failed", typeof(T)));
+                return o;
             }
         }
 

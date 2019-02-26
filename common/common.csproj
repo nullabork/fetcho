@@ -122,7 +122,7 @@
     <Compile Include="..\Grammars\obj\Debug\HTMLParserVisitor.cs">
       <Link>ContentReader\GeneratedFiles\HTMLParserVisitor.cs</Link>
     </Compile>
-    <Compile Include="ContentReader\HtmlTextReader.cs" />
+    <Compile Include="ContentReader\HTMLKeywordParser.cs" />
     <Compile Include="ContentReader\ILinkExtractor.cs" />
     <Compile Include="ContentReader\ITokenizer.cs" />
     <Compile Include="ContentReader\TextFileLinkExtractor.cs" />
@@ -149,7 +149,6 @@
     <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
-    <Compile Include="Entities\WebResource.cs" />
     <Compile Include="FetchoException.cs" />
     <Compile Include="FiniteStateMachine.cs" />
     <Compile Include="FiniteStateMachineNode.cs" />
