@@ -143,11 +143,19 @@ namespace Fetcho.Common
             byte[] buffer = new byte[Settings.MaxFileDownloadLengthInBytes]; 
             int bytesread = 0;
 
-            // Read as much into memory as possible
+            // Read as much into memory as possible up to the max limit
             try
             {
                 using (var readStream = response.GetResponseStream())
-                    bytesread = await readStream.ReadAsync(buffer, 0, buffer.Length);
+                {
+                    int l = 0;
+                    do
+                    {
+                        l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread).ConfigureAwait(false);
+                        bytesread += l;
+                    }
+                    while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit
+                }
             }
             catch(Exception ex)
             {

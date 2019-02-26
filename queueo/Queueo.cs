@@ -36,7 +36,6 @@ namespace Fetcho.queueo
         // ie. have we recently visited the link?
         FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
 
-
         /// <summary>
         /// Syncronise outputBuffer
         /// </summary>
@@ -90,12 +89,12 @@ namespace Fetcho.queueo
             while (!EndOfStream);
 
             // dump out remainder queue items
-            EmptyBuffer();
-
-            while (buffer.ItemCount > 0)
+            while (buffer.ItemCount > 0 || _active > 0)
             {
                 await Task.Delay(10000);
-                log.InfoFormat("Waiting for output buffers to end, running {0}", _active);
+                log.InfoFormat("Waiting for output buffers to end, buffercount {0}, running {1}", buffer.ItemCount, _active);
+                if ( buffer.ItemCount > 0 )
+                    EmptyBuffer();
             }
 
         }

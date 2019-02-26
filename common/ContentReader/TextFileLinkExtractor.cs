@@ -1,4 +1,5 @@
 ﻿using Fetcho.Common;
+using log4net;
 using System;
 using System.IO;
 using System.Text;
@@ -11,6 +12,7 @@ namespace Fetcho.ContentReaders
     /// </summary>
     public class TextFileLinkExtractor : ILinkExtractor
     {
+        static readonly ILog log = LogManager.GetLogger(typeof(TextFileLinkExtractor));
         private TextReader reader;
 
         /// <summary>

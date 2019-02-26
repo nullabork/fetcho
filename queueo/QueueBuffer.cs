@@ -27,6 +27,8 @@ namespace Fetcho.queueo
 
         public int ItemCount { get; private set; }
 
+        private readonly object _itemLock = new object();
+
         /// <summary>
         /// Action that is run when the queue is flushed
         /// </summary>
@@ -64,10 +66,13 @@ namespace Fetcho.queueo
         {
             CheckIfMaximumNumberOfQueuesReached();
 
-            if (!queues.ContainsKey(queueKey))
-                queues.Add(queueKey, new List<TItem>());
-            queues[queueKey].Add(item);
-            ItemCount++;
+            lock (_itemLock)
+            {
+                if (!queues.ContainsKey(queueKey))
+                    queues.Add(queueKey, new List<TItem>());
+                queues[queueKey].Add(item);
+                ItemCount++;
+            }
 
             CheckIfMaxQueueLengthReached(queueKey);
         }
@@ -78,19 +83,25 @@ namespace Fetcho.queueo
         /// <param name="queueKey"></param>
         public void Remove(TKey queueKey)
         {
-            int c = queues[queueKey].Count;
-            queues[queueKey].Clear();
-            queues.Remove(queueKey);
-            ItemCount -= c;
+            lock (_itemLock)
+            {
+                int c = queues[queueKey].Count;
+                queues[queueKey].Clear();
+                queues.Remove(queueKey);
+                ItemCount -= c;
+            }
         }
 
         public void Clear()
         {
-            var keys = queues.Keys.ToArray();
-            foreach (var key in keys)
-                queues[key].Clear();
-            queues.Clear();
-            ItemCount = 0;
+            lock (_itemLock)
+            {
+                var keys = queues.Keys.ToArray();
+                foreach (var key in keys)
+                    queues[key].Clear();
+                queues.Clear();
+                ItemCount = 0;
+            }
         }
 
         /// <summary>

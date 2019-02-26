@@ -96,7 +96,7 @@ namespace Fetcho
                 await Task.Delay(HowOftenToReportStatusInMilliseconds);
                 LogStatus("STATUS UPDATE");
 
-                if (valve.TasksInValve <= 0)
+                if (fetchLock.CurrentCount < MaxConcurrentFetches)
                     return;
             }
         }
@@ -294,8 +294,8 @@ namespace Fetcho
 
         private void CloseRequeueWriter()
         {
-            requeueWriter.Close();
-            requeueWriter.Dispose();
+            requeueWriter?.Close();
+            requeueWriter?.Dispose();
             requeueWriter = null;
         }
 
@@ -343,7 +343,7 @@ namespace Fetcho
                 );
 
         private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
-            !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
+            item.TargetIP != null && !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
 
         private void LogStatus(string status) =>
             log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Waiting to Write: {5}, Completed {6}, Spooling time {7}, Active Chunks {8}, Running Time {9}",
