@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -12,19 +13,22 @@ namespace Fetcho
             Processor = new WebDataPacketProcessor();
         }
 
-        public void Process(string filepath)
+        public async Task Process(string filepath)
         {
-            CheckPacketPath(filepath);
-            using (var fs = GetFileStream(filepath))
+            await Task.Run(() =>
             {
-                var packet = new WebDataPacketReader(fs);
-                Processor.Process(packet);
-            }
+                ThrowIfFileDoesntExist(filepath);
+                using (var fs = GetFileStream(filepath))
+                {
+                    var packet = new WebDataPacketReader(fs);
+                    Processor.Process(packet);
+                }
+            });
         }
 
         private FileStream GetFileStream(string filepath) => new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-        private void CheckPacketPath(string packetPath)
+        private void ThrowIfFileDoesntExist(string packetPath)
         {
             if (!File.Exists(packetPath))
                 throw new FileNotFoundException(packetPath);

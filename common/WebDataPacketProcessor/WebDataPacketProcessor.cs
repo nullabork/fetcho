@@ -1,5 +1,6 @@
 ﻿using log4net;
 using System;
+using System.Threading.Tasks;
 
 namespace Fetcho.Common
 {
@@ -40,8 +41,10 @@ namespace Fetcho.Common
                             string responseHeaders = packet.GetResponseHeaders();
                             Consumer.ProcessResponseHeaders(responseHeaders);
 
-                            var response = packet.GetResponseStream();
-                            Consumer.ProcessResponseStream(response);
+                            using (var response = packet.GetResponseStream())
+                            {
+                                Consumer.ProcessResponseStream(response);
+                            }
                         }
 
                         if (Consumer.ProcessesException)

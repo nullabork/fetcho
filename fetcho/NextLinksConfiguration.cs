@@ -1,7 +1,6 @@
 ﻿
 using System;
 
-[assembly: CLSCompliant(true)]
 namespace Fetcho
 {
     public class NextLinksConfiguration

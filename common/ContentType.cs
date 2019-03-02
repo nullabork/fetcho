@@ -31,6 +31,7 @@ namespace Fetcho.Common
 
         private void Parse(string contentType)
         {
+            if (contentType == String.Empty) return;
             string[] attrs = contentType.Split(';');
 
             int index = attrs[0].IndexOf('/');

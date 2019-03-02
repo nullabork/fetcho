@@ -80,10 +80,20 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExtractLinksAndBufferConsumer.cs" />
     <Compile Include="Fetcho.cs" />
     <Compile Include="FetchoConfiguration.cs" />
+    <Compile Include="IQueueCalculationModel.cs" />
+    <Compile Include="NaiveQueueOrderingModel.cs" />
+    <Compile Include="NextLinks.cs" />
+    <Compile Include="NextLinksConfiguration.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QueueBuffer.cs" />
+    <Compile Include="Queueo.cs" />
+    <Compile Include="QueueoConfiguration.cs" />
+    <Compile Include="ReadLinko.cs" />
+    <Compile Include="ReadLinkoConfiguration.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
@@ -96,6 +106,10 @@
     <ProjectReference Include="..\common\Common.csproj">
       <Project>{42364165-ff2e-49b6-a707-d3c5181fa8f5}</Project>
       <Name>Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\reado\reado.csproj">
+      <Project>{7baa38b9-ff7b-4be4-95e1-9a494f0bbb85}</Project>
+      <Name>reado</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

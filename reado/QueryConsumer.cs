@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Web;
 
 namespace Fetcho
@@ -42,7 +43,7 @@ namespace Fetcho
         {
         }
 
-        public void ProcessResponseStream(Stream dataStream)
+        public async void ProcessResponseStream(Stream dataStream)
         {
             try
             {
@@ -60,7 +61,7 @@ namespace Fetcho
                             {
                                 var result = ReadNextWebResource(new StreamReader(dataStream));
                                 if (AddToTheWorkspace(result))
-                                    controller.PostResultsByWorkspace(wq.WorkspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                                    await controller.PostResultsByWorkspace(wq.WorkspaceId, new WorkspaceResult[] { result });
                             }
                         }
                     }

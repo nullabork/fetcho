@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -84,7 +85,8 @@ namespace Fetcho
                 ContentType = ContentType.Guess(dataStream);
             }
 
-            string key = String.Format("{0}{1}", guess ? "(GUESS) " : "", (ContentType ?? ContentType.Unknown).ToString());
+            var ct = (ContentType ?? ContentType.Unknown);
+            string key = String.Format("{0}{1}/{2}", guess ? "(GUESS) " : "", ct.MediaType, ct.SubType);
 
             Increment(ContentTypes, key);
         }

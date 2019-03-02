@@ -4,21 +4,22 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using Fetcho.Common;
 using log4net;
 
-namespace Fetcho.queueo
+namespace Fetcho
 {
     /// <summary>
-    /// Calculates the crawl priority for links and eliminates duplicate links
+    /// Calculates the crawl priority for links, eliminates duplicate links and puts the links into appropriate queues
     /// </summary>
-    class Queueo
+    public class Queueo
     {
         public const int FastCacheSize = 10000;
-        public const int MaxConcurrentTasks = 500;
+        public const int MaxConcurrentTasks = 200;
         public const int MaxBufferSize = 200000;
 
-        static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
+        static readonly ILog log = LogManager.GetLogger(typeof(Queueo));
 
         /// <summary>
         /// To avoid OOM exceptions this limits the max tasks running at any one time
@@ -37,24 +38,31 @@ namespace Fetcho.queueo
         FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
 
         /// <summary>
-        /// Syncronise outputBuffer
-        /// </summary>
-        private readonly object outputBufferLock = new object();
-
-        /// <summary>
         /// Configuration set for this class
         /// </summary>
         public QueueoConfiguration Configuration { get; set; }
 
-        public bool EndOfStream { get => Configuration.InStream.Peek() <= -1; }
-
         public int _active = 0;
+
+        public bool Running { get; set; }
+
+        private BufferBlock<QueueItem> PrioritisationBufferIn = null;
+        private BufferBlock<QueueItem> NextlinksBufferOut = null;
+        private readonly SemaphoreSlim outBufferLock = new SemaphoreSlim(1);
+
 
         /// <summary>
         /// Create a Queueo with a configuration
         /// </summary>
         /// <param name="config"></param>
-        public Queueo(QueueoConfiguration config) => Configuration = config;
+        public Queueo(QueueoConfiguration config, BufferBlock<QueueItem> prioritisationBufferIn, BufferBlock<QueueItem> nextlinksBufferOut) : this()
+        {
+            Configuration = config;
+            PrioritisationBufferIn = prioritisationBufferIn;
+            NextlinksBufferOut = nextlinksBufferOut;
+        }
+
+        public Queueo() => Running = true;
 
         /// <summary>
         /// Start doing the work based on the configuration provided
@@ -62,13 +70,14 @@ namespace Fetcho.queueo
         /// <returns></returns>
         public async Task Process()
         {
+            var r = ReportStatus();
             buffer.ActionWhenQueueIsFlushed = (key, items) =>
             {
-                var t = OutputQueueItems(items);
+                var t = SendQueueItemsToNextLinks(items);
             };
 
             // get a queue item 
-            QueueItem item = NextQueueItem();
+            QueueItem item = await NextQueueItem();
 
             do
             {
@@ -84,20 +93,22 @@ namespace Fetcho.queueo
                     var t = AssessQueueItemForBuffer(item);
                 }
 
-                item = NextQueueItem();
+                item = await NextQueueItem();
             }
-            while (!EndOfStream);
+            while (Running);
 
             // dump out remainder queue items
             while (buffer.ItemCount > 0 || _active > 0)
             {
                 await Task.Delay(10000);
                 log.InfoFormat("Waiting for output buffers to end, buffercount {0}, running {1}", buffer.ItemCount, _active);
-                if ( buffer.ItemCount > 0 )
-                    EmptyBuffer();
+                if (buffer.ItemCount > 0)
+                    await EmptyBuffer();
             }
 
         }
+
+        void Shutdown() => Running = false;
 
         void CacheUri(QueueItem item) => lookupCache.Enqueue(item.TargetUri);
 
@@ -108,7 +119,7 @@ namespace Fetcho.queueo
             try
             {
                 await CalculateQueueItemProperties(item);
-                AddToBuffer(item);
+                await AddToBuffer(item);
             }
             catch (Exception ex)
             {
@@ -120,92 +131,79 @@ namespace Fetcho.queueo
             }
         }
 
-        private void AddToBuffer(QueueItem item)
+        private async Task AddToBuffer(QueueItem item)
         {
-            lock (outputBufferLock) buffer.Add(item.TargetIP, item);
-        }
-
-        private void EmptyBuffer()
-        {
-            lock (outputBufferLock) buffer.FlushAllQueues();
-        }
-
-        /// <summary>
-        /// Gets a queue item from a raw <paramref name="line"/> - can determine if its a proper <see cref="QueueItem"/> or just raw link
-        /// </summary>
-        /// <param name="line"></param>
-        /// <returns></returns>
-        private QueueItem ExtractQueueItem(string line)
-        {
-            // if theres no data return null
-            if (String.IsNullOrWhiteSpace(line)) return null;
-
-            // if its a proper queue item parse it
-            var item = QueueItem.Parse(line);
-
-            // else try a version where it's not proper
-            if (item == null)
+            try
             {
-                string[] tokens = line.Split('\t');
-
-                // if the tokens are both URIs make a bogus queue item
-                if (tokens.Length >= 2 &&
-                    Uri.IsWellFormedUriString(tokens[0], UriKind.Absolute) &&
-                    Uri.IsWellFormedUriString(tokens[1], UriKind.Absolute))
-                {
-                    var source = new Uri(tokens[0]);
-                    var target = new Uri(tokens[1]);
-
-                    item = new QueueItem()
-                    {
-                        SourceUri = source,
-                        TargetUri = target
-                    };
-                }
+                await outBufferLock.WaitAsync();
+                buffer.Add(item.TargetIP, item);
             }
-
-            if (item?.TargetUri == null)
-                return null;
-            return item;
+            catch(Exception ex)
+            {
+                log.Error(ex);
+            }
+            finally
+            {
+                outBufferLock.Release();
+            }
         }
 
-        private QueueItem NextQueueItem()
+        private async Task EmptyBuffer()
         {
-            string line = Configuration.InStream.ReadLine();
-
-            if (String.IsNullOrWhiteSpace(line))
-                return null;
-
-            // get a queue item 
-            QueueItem item = ExtractQueueItem(line);
-
-            return item;
+            try
+            {
+                await outBufferLock.WaitAsync();
+                buffer.FlushAllQueues();
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+            finally
+            {
+                outBufferLock.Release();
+            }
         }
 
+        private async Task<QueueItem> NextQueueItem() => await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
 
-        private QueueItem lastItem = null;
+        private async Task ReportStatus()
+        {
+            while (true)
+            {
+                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                LogStatus("STATUS UPDATE");
+            }
+        }
+
+        private void LogStatus(string status)
+            => log.InfoFormat("{0}: Active outputs {1}, inbox {2}, queuing {3}, outbox {4}",
+                status,
+                _active,
+                PrioritisationBufferIn.Count,
+                buffer.ItemCount,
+                NextlinksBufferOut.Count
+                );
 
         /// <summary>
         /// Outputs the queue items and clears the <see cref="outputBuffer"/>
         /// </summary>
-        async Task OutputQueueItems(IEnumerable<QueueItem> items)
+        async Task SendQueueItemsToNextLinks(IEnumerable<QueueItem> items)
         {
             try
             {
                 Interlocked.Increment(ref _active);
 
-                await Configuration.QueueOrderingModel.CalculatePriority(items);
+                await Configuration.QueueOrderingModel.CalculatePriority(items).ConfigureAwait(false);
+                await outBufferLock.WaitAsync().ConfigureAwait(false);
 
-                lock (outputBufferLock)
+                int i = -1;
+                foreach (var item in items.OrderBy(x => x.Priority))
                 {
-                    int i = -1;
-                    foreach (var item in items.OrderBy(x => x.Priority))
-                    {
-                        if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
-                        item.ChunkSequence = i++;
-                        Console.WriteLine(item);
-                        lastItem = item;
-                    }
+                    if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
+                    item.ChunkSequence = i++;
+                    await SendQueueItemToNextLinks(item).ConfigureAwait(false);
+                    lastItem = item;
                 }
             }
             catch (Exception ex)
@@ -214,9 +212,12 @@ namespace Fetcho.queueo
             }
             finally
             {
+                outBufferLock.Release();
                 Interlocked.Decrement(ref _active);
             }
         }
+        private QueueItem lastItem = null;
+
 
         /// <summary>
         /// Fills in the properties of a queue item based on what we know
@@ -225,15 +226,19 @@ namespace Fetcho.queueo
         /// <returns></returns>
         async Task CalculateQueueItemProperties(QueueItem item)
         {
-            var needsVisitingTask = NeedsVisiting(item);
-            var addr = Utility.GetHostIPAddress(item.TargetUri);
-
             item.UnsupportedUri = CantDownloadItYet(item);
             item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
             item.IsProbablyBlocked = IsUriProbablyBlocked(item);
-            item.VisitedRecently = !await needsVisitingTask;
-            item.TargetIP = await addr;
+
+            // cut the cost of this by 99% basically if these things are true
+            if ( !item.IsBlockedByDomain && !item.UnsupportedUri && !item.IsProbablyBlocked )
+            {
+                item.TargetIP = await Utility.GetHostIPAddress(item.TargetUri);
+                item.VisitedRecently = !await NeedsVisiting(item);
+            }
         }
+
+        async Task SendQueueItemToNextLinks(QueueItem item) => await NextlinksBufferOut.SendAsync(item).ConfigureAwait(false);
 
         /// <summary>
         /// Returns true if theres no resource fetcher for the type of URL
@@ -298,7 +303,7 @@ namespace Fetcho.queueo
 
                 using (var db = new Database())
                 {
-                    rtn = await db.NeedsVisiting(item.TargetUri);
+                    rtn = await db.NeedsVisiting(item.TargetUri).ConfigureAwait(false);
                 }
 
                 return rtn;

@@ -6,20 +6,9 @@ using System.Xml;
 
 namespace Fetcho.Common
 {
-    public enum WebDataPacketReaderSection
-    {
-        Request, Response, Exception, None
-    };
 
     public class WebDataPacketReader : IDisposable
     {
-
-        /// <summary>
-        /// Are we at the end of the stream
-        /// </summary>
-        public bool EndOfFile { get { return inStream.EOF; } }
-
-        public WebDataPacketReaderSection CurrentSection { get; private set; }
 
         /// <summary>
         /// Raw stream we're accessing

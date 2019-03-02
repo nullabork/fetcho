@@ -164,6 +164,12 @@ namespace Fetcho.ContentReaders
             if (openQuote == '<' && prospectiveCloseQuote == '>') return true;
             return false;
         }
+
+        public void Dispose()
+        {
+            reader?.Dispose();
+            reader = null;
+        }
     }
 
 

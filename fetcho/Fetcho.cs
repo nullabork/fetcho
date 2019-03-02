@@ -17,33 +17,31 @@ namespace Fetcho
     /// </summary>
     public class Fetcho
     {
-        const int MaxConcurrentFetches = 2000;
-        const int PressureReliefThreshold = MaxConcurrentFetches * 5 / 10; // if it totally fills up it'll chuck some out
-        const int HowOftenToReportStatusInMilliseconds = 30000;
-        const int TaskStartupWaitTimeInMilliseconds = 360000;
-        const int MinPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds * 2;
-        const int MaxPressureReliefValveWaitTimeInMilliseconds = Settings.MaximumFetchSpeedMilliseconds * 12;
-
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int completedFetches = 0;
         int waitingForFetchTimeout = 0;
         public FetchoConfiguration Configuration { get; set; }
-        SemaphoreSlim fetchLock = new SemaphoreSlim(MaxConcurrentFetches);
-        readonly object requeueWriterLock = new object();
-        TextWriter requeueWriter = null;
-        BufferBlock<WebDataPacketWriter> writers = null;
-        TextReader inputReader = null;
+        SemaphoreSlim fetchLock = null;
         PressureReliefValve<QueueItem> valve = null;
         Random random = new Random(DateTime.Now.Millisecond);
         Stopwatch spoolingTimeWatch = new Stopwatch();
         TimeSpan lastSpoolingTime;
         DateTime startTime = DateTime.Now;
 
-        public Fetcho(FetchoConfiguration config)
+        private BufferBlock<QueueItem> FetchQueueIn;
+        private BufferBlock<QueueItem> RequeueOut;
+        private BufferBlock<WebDataPacketWriter> DataWritersCycle;
+
+        public bool Running { get; set; }
+
+        public Fetcho(FetchoConfiguration config, BufferBlock<QueueItem> fetchQueueIn, BufferBlock<QueueItem> requeueOut)
         {
+            Running = true;
             Configuration = config;
             valve = CreatePressureReliefValve();
-            writers = new BufferBlock<WebDataPacketWriter>();
+            FetchQueueIn = fetchQueueIn;
+            RequeueOut = requeueOut;
+            fetchLock = new SemaphoreSlim(Configuration.MaxConcurrentFetches);
         }
 
         public async Task Process()
@@ -52,18 +50,16 @@ namespace Fetcho
             {
                 RunPreStartChecks();
                 log.Info("Fetcho.Process() commenced");
-                requeueWriter = GetRequeueWriter();
-                inputReader = GetInputReader();
-                var packet = CreateNewDataPacketWriter();
-                await writers.SendAsync(packet);
+                await CreateDataPacketWriters();
 
                 var r = ReportStatus();
-                var u = NextQueueItem();
 
-                while (u != null)
+                var u = await NextQueueItem();
+
+                while (Running)
                 {
                     spoolingTimeWatch.Start();
-                    while (!await fetchLock.WaitAsync(TaskStartupWaitTimeInMilliseconds))
+                    while (!await fetchLock.WaitAsync(Configuration.TaskStartupWaitTimeInMilliseconds))
                         LogStatus("Waiting for a fetchLock");
 
                     u = await CreateTaskToCrawlIPAddress(u);
@@ -73,7 +69,7 @@ namespace Fetcho
                 }
 
                 // wait for all the tasks to finish before shutting down
-                while (fetchLock.CurrentCount < MaxConcurrentFetches)
+                while (fetchLock.CurrentCount < Configuration.MaxConcurrentFetches)
                     await Task.Delay(1000);
             }
             catch (Exception ex)
@@ -83,7 +79,6 @@ namespace Fetcho
             finally
             {
                 await CloseAllWriters();
-                CloseRequeueWriter();
                 log.Info("Fetcho.Process() complete");
             }
         }
@@ -93,26 +88,11 @@ namespace Fetcho
         {
             while (true)
             {
-                await Task.Delay(HowOftenToReportStatusInMilliseconds);
+                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
                 LogStatus("STATUS UPDATE");
 
-                if (fetchLock.CurrentCount < MaxConcurrentFetches)
-                    return;
-            }
-        }
-
-        private QueueItem ParseQueueItem(string line)
-        {
-            try
-            {
-                if (Configuration.InputRawUrls)
-                    return new QueueItem() { TargetUri = new Uri(line), Priority = 0 };
-                else
-                    return QueueItem.Parse(line);
-            }
-            catch (Exception)
-            {
-                return null;
+                //if (fetchLock.CurrentCount < MaxConcurrentFetches)
+                //    return;
             }
         }
 
@@ -120,24 +100,7 @@ namespace Fetcho
         /// Get the next item off the queue
         /// </summary>
         /// <returns></returns>
-        private QueueItem NextQueueItem(int retriesLeft = 10)
-        {
-            if (retriesLeft == 0) return null;
-            var line = inputReader.ReadLine();
-
-            if (String.IsNullOrWhiteSpace(line))
-                return null;
-
-            var item = ParseQueueItem(line);
-
-            if (item == null || item.HasAnIssue)
-            {
-                log.InfoFormat("QueueItem has an issue:{0}", item);
-                return NextQueueItem(--retriesLeft);
-            }
-            else
-                return item;
-        }
+        private async Task<QueueItem> NextQueueItem() => await FetchQueueIn.ReceiveAsync();
 
         private async Task<QueueItem> CreateTaskToCrawlIPAddress(QueueItem item)
         {
@@ -149,7 +112,7 @@ namespace Fetcho
             while (addr.Equals(nextaddr))
             {
                 l.Add(item);
-                item = NextQueueItem();
+                item = await NextQueueItem();
 
                 if (item == null)
                     nextaddr = IPAddress.None;
@@ -198,7 +161,7 @@ namespace Fetcho
                 if (!await valve.WaitToEnter(item))
                 {
                     LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
-                    OutputItemForRequeuing(item);
+                    await SendItemForRequeuing(item);
                 }
                 else
                 {
@@ -207,10 +170,14 @@ namespace Fetcho
                         await ResourceFetcher.FetchFactory(
                             item.SourceUri,
                             item.TargetUri,
-                            writers,
+                            DataWritersCycle,
                             Configuration.BlockProvider,
                             DateTime.MinValue
                             );
+
+                        var writer = await DataWritersCycle.ReceiveAsync();
+                        writer = ReplaceDataPacketWriterIfQuotaReached(writer);
+                        await DataWritersCycle.SendAsync(writer);
                     }
                     catch (Exception)
                     {
@@ -233,86 +200,57 @@ namespace Fetcho
         /// Output the item for requeuing
         /// </summary>
         /// <param name="item"></param>
-        private void OutputItemForRequeuing(QueueItem item)
+        private async Task SendItemForRequeuing(QueueItem item)
         {
-            lock (requeueWriterLock) requeueWriter?.WriteLine(item);
+            await RequeueOut.SendAsync(item);
         }
 
-        /// <summary>
-        /// Open the data stream from either a specific file or STDIN
-        /// </summary>
-        /// <returns>A TextReader if successful</returns>
-        private TextReader GetInputReader()
+        private async Task CreateDataPacketWriters()
         {
-            // if there's no file argument, read from STDIN
-            if (String.IsNullOrWhiteSpace(Configuration.UriSourceFilePath))
-                return Console.In;
-
-            var fs = new FileStream(Configuration.UriSourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var sr = new StreamReader(fs);
-
-            return sr;
-        }
-
-        /// <summary>
-        /// Get the stream where we're writing the internet out to
-        /// </summary>
-        /// <returns></returns>
-        private XmlWriter GetOutputWriter()
-        {
-            TextWriter writer = null;
-
-            if (String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
-                writer = Console.Out;
-            else
-            {
-                string filename = Utility.CreateNewFileOrIndexNameIfExists(Configuration.OutputDataFilePath);
-                writer = new StreamWriter(new FileStream(filename, FileMode.Open, FileAccess.Write, FileShare.Read));
-            }
-
-            var settings = new XmlWriterSettings();
-            settings.Indent = true;
-            settings.NewLineHandling = NewLineHandling.Replace;
-            return XmlWriter.Create(writer, settings);
+            DataWritersCycle = new BufferBlock<WebDataPacketWriter>();
+            var packet = CreateNewDataPacketWriter();
+            await DataWritersCycle.SendAsync(packet);
         }
 
         private WebDataPacketWriter CreateNewDataPacketWriter()
         {
-            if (String.IsNullOrWhiteSpace(Configuration.OutputDataFilePath))
+            if (String.IsNullOrWhiteSpace(Configuration.DataSourcePath))
                 throw new FetchoException("No output data file is set");
-            return new WebDataPacketWriter(Configuration.OutputDataFilePath);
+
+            string fileName = Path.Combine(Configuration.DataSourcePath, "packet.xml");
+
+            return new WebDataPacketWriter(fileName);
+        }
+
+        private WebDataPacketWriter ReplaceDataPacketWriterIfQuotaReached(WebDataPacketWriter writer)
+        {
+            if (writer.ResourcesWritten > Configuration.MaximumResourcesPerDataPacket)
+                return ReplaceDataPacketWriter(writer);
+            return writer;
+        }
+
+        private WebDataPacketWriter ReplaceDataPacketWriter(WebDataPacketWriter writer)
+        {
+            writer.Dispose();
+            return CreateNewDataPacketWriter();
         }
 
         private async Task CloseAllWriters()
         {
-            while (writers.Count > 0)
+            while (DataWritersCycle.Count > 0)
             {
-                var packet = await writers.ReceiveAsync();
+                var packet = await DataWritersCycle.ReceiveAsync();
                 packet.Dispose();
             }
-        }
-
-        private void CloseRequeueWriter()
-        {
-            requeueWriter?.Close();
-            requeueWriter?.Dispose();
-            requeueWriter = null;
         }
 
         private void RunPreStartChecks()
         {
             // not sure why it thinks this - probably comparing ints rather than longs
-            if (Settings.MaxFileDownloadLengthInBytes * (long)MaxConcurrentFetches > (long)4096 * 1024 * 1024)
+            if (Settings.MaxFileDownloadLengthInBytes * (long)Configuration.MaxConcurrentFetches > (long)4096 * 1024 * 1024)
 #pragma warning disable CS0162 // Unreachable code detected
                 log.WarnFormat("MaxConcurrentFetches * MaxFileDownloadLengthInBytes is greater than 4GB. For safety this should not be this big");
 #pragma warning restore CS0162 // Unreachable code detected
-        }
-
-        private TextWriter GetRequeueWriter()
-        {
-            if (String.IsNullOrEmpty(Configuration.RequeueUrlsFilePath))
-                return null;
-            return new StreamWriter(new FileStream(Configuration.RequeueUrlsFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read));
         }
 
         /// <summary>
@@ -321,7 +259,7 @@ namespace Fetcho
         /// <returns></returns>
         private PressureReliefValve<QueueItem> CreatePressureReliefValve()
         {
-            var prv = new PressureReliefValve<QueueItem>(PressureReliefThreshold);
+            var prv = new PressureReliefValve<QueueItem>(Configuration.PressureReliefThreshold);
 
             prv.WaitFunc = async (item) =>
                 await HostCacheManager.WaitToFetch(
@@ -338,8 +276,8 @@ namespace Fetcho
         /// <returns></returns>
         private int GetRandomReliefTimeout() =>
             random.Next(
-                MinPressureReliefValveWaitTimeInMilliseconds,
-                MaxPressureReliefValveWaitTimeInMilliseconds
+                Configuration.MinPressureReliefValveWaitTimeInMilliseconds,
+                Configuration.MaxPressureReliefValveWaitTimeInMilliseconds
                 );
 
         private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
@@ -355,7 +293,7 @@ namespace Fetcho
                             ResourceFetcher.WaitingToWrite,
                             completedFetches,
                             lastSpoolingTime,
-                            MaxConcurrentFetches - fetchLock.CurrentCount,
+                            Configuration.MaxConcurrentFetches - fetchLock.CurrentCount,
                             (DateTime.Now - startTime));
 
     }

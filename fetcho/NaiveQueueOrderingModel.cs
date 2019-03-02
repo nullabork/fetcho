@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Fetcho.Common;
 using log4net;
 
-namespace Fetcho.queueo
+namespace Fetcho
 {
     /// <summary>
     /// Assigns a random number to the queue item adjusts slightly for common hosts and IP addresses

@@ -122,6 +122,9 @@
     <Compile Include="..\Grammars\obj\Debug\HTMLParserVisitor.cs">
       <Link>ContentReader\GeneratedFiles\HTMLParserVisitor.cs</Link>
     </Compile>
+    <Compile Include="DataFlow\BufferBlockObjectConsoleWriter.cs" />
+    <Compile Include="DataFlow\BufferBlockObjectConsumer.cs" />
+    <Compile Include="DataFlow\BufferBlockObjectFileWriter.cs" />
     <Compile Include="ContentReader\HTMLKeywordParser.cs" />
     <Compile Include="ContentReader\ILinkExtractor.cs" />
     <Compile Include="ContentReader\ITokenizer.cs" />
@@ -165,6 +168,7 @@
     <Compile Include="ResourceFetchers\ResourceFetcher.cs" />
     <Compile Include="RobotsFile.cs" />
     <Compile Include="Settings.cs" />
+    <Compile Include="DataFlow\ThrowAwayBufferBlockObjectConsumer.cs" />
     <Compile Include="TypeExtensions.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="WebDataPacketProcessor\IWebDataPacketConsumer.cs" />

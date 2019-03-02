@@ -36,7 +36,7 @@ namespace Fetcho.Common
                 {
                     try
                     {
-                        while (!await record.UpdateWaitHandle.WaitAsync(10000))
+                        while (!await record.UpdateWaitHandle.WaitAsync(60000))
                             log.InfoFormat("GetRobotsFile() waiting on {0}", fromHost);
 
                         if (record.CheckRobots)

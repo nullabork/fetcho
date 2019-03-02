@@ -2,12 +2,12 @@
 using System.Threading.Tasks;
 using Fetcho.Common;
 
-namespace Fetcho.queueo
+namespace Fetcho
 {
     /// <summary>
     /// Model used to calculate 
     /// </summary>
-    interface IQueuePriorityCalculationModel
+    public interface IQueuePriorityCalculationModel
     {
         /// <summary>
         /// Calculate the priorities for queue items

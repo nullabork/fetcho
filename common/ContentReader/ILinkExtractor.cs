@@ -2,7 +2,7 @@
 
 namespace Fetcho.ContentReaders
 {
-    public interface ILinkExtractor
+    public interface ILinkExtractor : IDisposable
     {
         Uri CurrentSourceUri { get; set; }
         Uri NextUri();

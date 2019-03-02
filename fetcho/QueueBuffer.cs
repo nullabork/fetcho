@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Fetcho.queueo
+namespace Fetcho
 {
     /// <summary>
     /// Buffers items into queues by some key and flushes them when the maximum queues are reached or maximum for a queue is reached
@@ -25,6 +25,9 @@ namespace Fetcho.queueo
         /// </summary>
         public int MaximumQueueLength { get; set; }
 
+        /// <summary>
+        /// Count of total items in the buffer
+        /// </summary>
         public int ItemCount { get; private set; }
 
         private readonly object _itemLock = new object();
@@ -53,9 +56,7 @@ namespace Fetcho.queueo
         /// <summary>
         /// Default constructor not available
         /// </summary>
-        private QueueBuffer()
-        {
-        }
+        private QueueBuffer() { }
 
         /// <summary>
         /// Add an item to a queue
@@ -92,6 +93,9 @@ namespace Fetcho.queueo
             }
         }
 
+        /// <summary>
+        /// Clear all the items out of all queues
+        /// </summary>
         public void Clear()
         {
             lock (_itemLock)
@@ -109,8 +113,6 @@ namespace Fetcho.queueo
         /// </summary>
         public void FlushAllQueues()
         {
-            log.Info("FlushAllQueues()");
-
             var keys = queues.Keys.ToArray();
 
             foreach (var key in keys)

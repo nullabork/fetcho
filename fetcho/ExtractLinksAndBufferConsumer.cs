@@ -3,16 +3,24 @@ using Fetcho.ContentReaders;
 using log4net;
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Fetcho
 {
-    internal class ExtractLinksConsumer : IWebDataPacketConsumer
+    internal class ExtractLinksAndBufferConsumer : IWebDataPacketConsumer
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksConsumer));
+        static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksAndBufferConsumer));
 
         public Uri CurrentUri;
         public ContentType ContentType;
+        public BufferBlock<QueueItem> PrioritisationBuffer;
+
+        public ExtractLinksAndBufferConsumer(BufferBlock<QueueItem> prioritisationBuffer)
+        {
+            PrioritisationBuffer = prioritisationBuffer;
+        }
 
         public string Name { get => "Extract Links"; }
         public bool ProcessesRequest { get => true; }
@@ -38,7 +46,11 @@ namespace Fetcho
             if (dataStream == null) return;
             var extractor = GuessLinkExtractor(dataStream);
             if (extractor != null)
-                OutputUris(extractor);
+            {
+                SendUris(extractor);
+                extractor.Dispose();
+                extractor = null;
+            }
         }
 
         public void NewResource()
@@ -81,7 +93,8 @@ namespace Fetcho
             }
         }
 
-        private void OutputUris(ILinkExtractor reader)
+
+        private void SendUris(ILinkExtractor reader)
         {
             if (reader == null) return;
 
@@ -89,11 +102,16 @@ namespace Fetcho
 
             while (uri != null)
             {
-                Console.WriteLine("{0}\t{1}", reader.CurrentSourceUri, uri);
+                var item = new QueueItem()
+                {
+                    SourceUri = reader.CurrentSourceUri,
+                    TargetUri = uri
+                };
+
+                PrioritisationBuffer.Post(item);
 
                 uri = reader.NextUri();
             }
         }
     }
-
 }

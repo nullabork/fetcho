@@ -3,6 +3,7 @@ using Fetcho.ContentReaders;
 using Fetcho.Grammars.Html;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
