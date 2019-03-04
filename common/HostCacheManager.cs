@@ -32,14 +32,14 @@ namespace Fetcho.Common
             {
                 var record = await GetRecord(fromHost);
 
-                if (record.CheckRobots) // this crazy looking double check is necessary to avoid race conditions
+                if (record.UpdateRobotsFileRequired) // this crazy looking double check is necessary to avoid race conditions
                 {
                     try
                     {
                         while (!await record.UpdateWaitHandle.WaitAsync(60000))
                             log.InfoFormat("GetRobotsFile() waiting on {0}", fromHost);
 
-                        if (record.CheckRobots)
+                        if (record.UpdateRobotsFileRequired)
                         {
                             record.Robots = await RobotsFile.GetFile(new Uri("http://" + fromHost));
                             record.RobotsChecked = true;
@@ -47,7 +47,7 @@ namespace Fetcho.Common
                     }
                     catch (Exception ex)
                     {
-                        log.Error(ex);
+                        Utility.LogException(ex);
                     }
                     finally
                     {
@@ -95,7 +95,7 @@ namespace Fetcho.Common
                 }
                 catch (Exception ex)
                 {
-                    log.Error(ex);
+                    Utility.LogException(ex);
                 }
                 finally
                 {
@@ -183,7 +183,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
             finally
             {
@@ -202,7 +202,7 @@ namespace Fetcho.Common
             public SemaphoreSlim UpdateWaitHandle { get; set; }
             public SemaphoreSlim FetchWaitHandle { get; set;  }
             public RobotsFile Robots { get; set; }
-            public bool CheckRobots { get { return !RobotsChecked; } }
+            public bool UpdateRobotsFileRequired { get { return !RobotsChecked; } }
             public bool RobotsChecked { get; set; }
 
             /// <summary>

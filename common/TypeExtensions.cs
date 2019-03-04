@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using System.Xml;
 
 namespace Fetcho.Common
@@ -165,6 +167,12 @@ namespace Fetcho.Common
                     sb.Append(value[i]);
 
             return sb.ToString();
+        }
+
+        public async static Task SendOrWaitAsync<T>(this BufferBlock<T> bufferBlock, T item, int waitTime = 100)
+        {
+            while (!await bufferBlock.SendAsync(item))
+                await Task.Delay(waitTime);
         }
     }
 

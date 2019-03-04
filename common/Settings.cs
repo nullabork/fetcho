@@ -13,6 +13,7 @@
         public const int MaxFileDownloadLengthInBytes = 1 * 1024 * 1024;
         public const int ResponseReadTimeoutInMilliseconds = 120000;
         public const int PageCacheExpiryInDays = 7;
+        public const int DefaultRequestTimeoutInMilliseconds = 30000;
 
         public Settings()
         {

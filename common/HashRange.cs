@@ -12,43 +12,21 @@ namespace Fetcho.Common
         public MD5Hash MinHash { get; set; }
         public MD5Hash MaxHash { get; set; }
 
-        public bool IsValid
-        {
-            get
-            {
-                return MinHash < MaxHash;
-            }
-        }
+        public bool IsValid { get => MinHash < MaxHash; }
 
-        public decimal CoverageRatio
-        {
-            get
-            {
-                return GetCoverageRatio(this);
-            }
-        }
+        public decimal CoverageRatio { get => GetCoverageRatio(this); }
 
-        public HashRange()
-        {
-            MinHash = MD5Hash.MinValue;
-            MaxHash = MD5Hash.MaxValue;
-        }
+        public HashRange() : this(MD5Hash.MinValue, MD5Hash.MaxValue) { }
 
-        public HashRange(MD5Hash minHash, MD5Hash maxHash) : this()
+        public HashRange(MD5Hash minHash, MD5Hash maxHash)
         {
             MinHash = minHash;
             MaxHash = maxHash;
         }
 
-        public bool Contains(MD5Hash hash)
-        {
-            return Contains(this, hash);
-        }
+        public bool Contains(MD5Hash hash) => Contains(this, hash);
 
-        public override string ToString()
-        {
-            return MinHash + " to " + MaxHash;
-        }
+        public override string ToString() => string.Format("{0} to {1}", MinHash, MaxHash);
 
         public static decimal[] GetEqualPercentages(int count)
         {

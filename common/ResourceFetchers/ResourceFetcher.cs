@@ -30,7 +30,8 @@ namespace Fetcho.Common
         public abstract Task Fetch(
             Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writers,
+            BufferBlock<WebDataPacketWriter> writerPool,
+            BufferBlock<Database> databasePool,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate
             );
@@ -47,7 +48,8 @@ namespace Fetcho.Common
         public static async Task FetchFactory(
             Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writers,
+            BufferBlock<WebDataPacketWriter> writerPool,
+            BufferBlock<Database> databasePool,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate
             )
@@ -55,7 +57,13 @@ namespace Fetcho.Common
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-                await new HttpResourceFetcher().Fetch(referrerUri, uri, writers, blockProvider, lastFetchedDate).ConfigureAwait(false);
+                await new HttpResourceFetcher().Fetch(
+                    referrerUri,
+                    uri,
+                    writerPool,
+                    databasePool,
+                    blockProvider,
+                    lastFetchedDate).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
         }
@@ -73,17 +81,25 @@ namespace Fetcho.Common
 
         protected void OutputRequest(WebRequest request, XmlWriter outstream, DateTime startTime)
         {
-            DateTime now = DateTime.Now;
-            outstream.WriteStartElement("request");
-            outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri.ToString().CleanupForXml()));
-            outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
-            outstream.WriteString(string.Format("Date: {0}\n", now));
-            // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
-            foreach (string key in request.Headers.AllKeys) 
+            if (request == null)
             {
-                outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
+                outstream.WriteStartElement("request");
+                outstream.WriteEndElement();
             }
-            outstream.WriteEndElement();
+            else
+            {
+                DateTime now = DateTime.Now;
+                outstream.WriteStartElement("request");
+                outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri == null ? "" : request.RequestUri.ToString().CleanupForXml()));
+                outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
+                outstream.WriteString(string.Format("Date: {0}\n", now));
+                // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
+                foreach (string key in request.Headers.AllKeys)
+                {
+                    outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
+                }
+                outstream.WriteEndElement();
+            }
         }
 
         protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outStream)

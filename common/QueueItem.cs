@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks.Dataflow;
 
 namespace Fetcho.Common
 {
@@ -44,6 +46,8 @@ namespace Fetcho.Common
                 PriorityTooLow ||
                 UnsupportedUri ||
                 IsProbablyBlocked ||
+                ChunkSequenceTooHigh ||
+                IPSeenRecently ||
                 IsBlockedByDomain;
         }
 
@@ -82,6 +86,15 @@ namespace Fetcho.Common
         public bool IsBlockedByDomain { get; set; }
 
         /// <summary>
+        /// </summary>
+        public bool ChunkSequenceTooHigh { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IPSeenRecently { get; set; }
+
+        /// <summary>
         /// Chunk sequence
         /// </summary>
         public int ChunkSequence { get; set; }
@@ -104,6 +117,8 @@ namespace Fetcho.Common
                 if (IsProbablyBlocked) code += 'P';
                 if (IsBlockedByDomain) code += 'L';
                 if (VisitedRecently) code += 'V';
+                if (IPSeenRecently) code += 'I';
+                if (ChunkSequenceTooHigh) code += 'C';
 
                 return code;
             }
@@ -117,12 +132,15 @@ namespace Fetcho.Common
                 IsProbablyBlocked = value.Contains("P");
                 IsBlockedByDomain = value.Contains("L");
                 VisitedRecently = value.Contains("V");
+                IPSeenRecently = value.Contains("I");
+                ChunkSequenceTooHigh = value.Contains("C");
             }
         }
 
         public QueueItem()
         {
             Priority = QueueItem.BadQueueItemPriorityNumber;
+            TargetIP = IPAddress.None;
         }
 
         public override string ToString()

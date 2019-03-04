@@ -16,16 +16,9 @@ namespace Fetcho
     {
         static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
-        static readonly Dictionary<IPAddress, uint> HostCount = new Dictionary<IPAddress, uint>();
-        static readonly object hostCountLock = new object();
 
-        /// <summary>
-        /// For memory safety this is the maximum that be in HostCount before we clear it out and start again
-        /// </summary>
-        const int MaxHostCountCache = 20000;
-
-        const int MinCommonIPSeq = 10 * 1000 * 1000;
-        const int MaxCommonIPSeq = 200 * 1000 * 1000;
+        const int MinHostsAreEqualPriority = 10 * 1000 * 1000;
+        const int MaxHostsAreEqualPriority = 200 * 1000 * 1000;
 
         const int MinRandSeq = 0;
         const int MaxRandSeq = 5 * 1000 * 1000;
@@ -46,25 +39,12 @@ namespace Fetcho
         /// </summary>
         /// <param name="current"></param>
         /// <returns></returns>
-        public async Task CalculatePriority(IEnumerable<QueueItem> items)
+        public void CalculatePriority(IEnumerable<QueueItem> items)
         {
             IPAddress ipaddr = IPAddress.None;
             uint priority = 0;
-            uint basePriority = 0;
+            uint basePriority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
             QueueItem f = items.First();
-
-            try
-            {
-                if (await HostsShareCommonIPAddresses(f))
-                    basePriority = (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
-                else
-                    basePriority = (uint)rand.Next(MinRandSeq, MaxRandSeq);
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex);
-                basePriority = (uint)rand.Next(MinCommonIPSeq, MaxCommonIPSeq);
-            }
 
             foreach (var current in items)
             {
@@ -72,6 +52,8 @@ namespace Fetcho
 
                 if (current.UnsupportedUri)
                     priority += NoResourceFetcherHandler;
+                else if (HostsAreEqual(current))
+                    priority += (uint)rand.Next(MinHostsAreEqualPriority, MaxHostsAreEqualPriority);
                 else if (current.IsBlockedByDomain)
                     priority += UnreadableLanguage;
                 else if (current.IsProbablyBlocked)
@@ -127,7 +109,7 @@ namespace Fetcho
             }
             catch (SocketException ex)
             {
-                log.Error(ex.Message);
+                Utility.LogException(ex);
                 return true;
             }
         }

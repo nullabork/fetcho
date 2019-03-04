@@ -38,48 +38,41 @@ namespace Fetcho
             // console encoding will now be unicode
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // configure readlinko
-            var readLinkoConfig = new ReadLinkoConfiguration();
-            readLinkoConfig.DataSourcePath = path;
-
             // configure fetcho
-            var fetchoConfig = new FetchoConfiguration();
-            fetchoConfig.DataSourcePath = path;
+            var cfg = new FetchoConfiguration();
+            cfg.DataSourcePath = path;
 
             // setup the block provider we want to use
-            fetchoConfig.BlockProvider = new DefaultBlockProvider();
+            cfg.BlockProvider = new DefaultBlockProvider();
 
             // configure queueo
-            var queueoConfig = new QueueoConfiguration();
-            queueoConfig.QueueOrderingModel = new NaiveQueueOrderingModel();
-
-            // configure nextlinks
-            var nextLinksConfig = new NextLinksConfiguration();
+            cfg.QueueOrderingModel = new NaiveQueueOrderingModel();
 
             // buffers to connect the seperate tasks together
-            BufferBlock<QueueItem> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
-            BufferBlock<QueueItem> nextlinksBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             // really beef this up since it takes for ever to get here
-            BufferBlock<QueueItem> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit*1000);
-            BufferBlock<QueueItem> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
-            BufferBlock<QueueItem> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit*1000);
+            BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
 
             // fetcho!
-            var readLinko = new ReadLinko(readLinkoConfig, prioritisationBuffer, startPacketIndex);
-            var queueo = new Queueo(queueoConfig, prioritisationBuffer, nextlinksBuffer);
-            var nextlinks = new NextLinks(nextLinksConfig, nextlinksBuffer, fetchQueueBuffer, rejectsBuffer);
-            var fetcho = new Fetcho(fetchoConfig, fetchQueueBuffer, requeueBuffer);
-            var requeueWriter = new BufferBlockObjectFileWriter<QueueItem>(fetchoConfig.DataSourcePath, "requeue", requeueBuffer);
-            var rejectsWriter = new BufferBlockObjectFileWriter<QueueItem>(fetchoConfig.DataSourcePath, "rejects", rejectsBuffer);
+            var readLinko = new ReadLinko(cfg, prioritisationBuffer, startPacketIndex);
+            var queueo = new Queueo(cfg, prioritisationBuffer, fetchQueueBuffer, rejectsBuffer);
+            var fetcho = new Fetcho(cfg, fetchQueueBuffer, requeueBuffer);
+            var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
+            var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", rejectsBuffer);
 
             // execute
             var tasks = new List<Task>();
 
-            tasks.Add(queueo.Process());
-            tasks.Add(nextlinks.Process());
             tasks.Add(fetcho.Process());
+
+            Task.Delay(1000).GetAwaiter().GetResult();
             tasks.Add(requeueWriter.Process());
             tasks.Add(rejectsWriter.Process());
+            Task.Delay(1000).GetAwaiter().GetResult();
+            tasks.Add(queueo.Process());
+            Task.Delay(1000).GetAwaiter().GetResult();
             tasks.Add(readLinko.Process());
 
             Task.WaitAll(tasks.ToArray());
@@ -90,8 +83,8 @@ namespace Fetcho
             Console.WriteLine("fetcho path start_index");
         }
 
-        private static BufferBlock<QueueItem> CreateBufferBlock(int boundedCapacity) =>
-            new BufferBlock<QueueItem>(new DataflowBlockOptions()
+        private static BufferBlock<IEnumerable<QueueItem>> CreateBufferBlock(int boundedCapacity) =>
+            new BufferBlock<IEnumerable<QueueItem>>(new DataflowBlockOptions()
             {
                 BoundedCapacity = boundedCapacity
             });

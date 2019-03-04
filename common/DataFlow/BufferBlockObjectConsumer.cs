@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,7 @@ namespace Fetcho.Common.DataFlow
         private BufferBlock<T> InBuffer;
         private bool running = true;
         private TextWriter Writer = null;
+        private int count = 0;
 
         public BufferBlockObjectConsumer(TextWriter writer, BufferBlock<T> inBuffer)
         {
@@ -28,7 +30,12 @@ namespace Fetcho.Common.DataFlow
             while (running)
             {
                 T o = await InBuffer.ReceiveAsync().ConfigureAwait(false);
-                await Writer?.WriteLineAsync(o.ToString());
+                if (o is IEnumerable)
+                    foreach (var oo in (o as IEnumerable))
+                        await Writer?.WriteLineAsync(oo.ToString());
+                else
+                    await Writer?.WriteLineAsync(o.ToString());
+                if (count++ % 1000 == 0) await Writer?.FlushAsync();
             }
         }
 

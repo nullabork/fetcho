@@ -21,7 +21,7 @@ namespace Fetcho.Common
     {
         public const int ConnectionPoolWaitTimeInMilliseconds = 120000;
         public const int DefaultDatabasePort = 5432;
-        public const int MaxConcurrentConnections = 10;
+        public const int MaxConcurrentConnections = 50;
         public const int WaitTimeVarianceInMilliseconds = 250;
 
         static readonly BinaryFormatter formatter = new BinaryFormatter();
@@ -59,7 +59,7 @@ namespace Fetcho.Common
         /// open a connection to the DB
         /// </summary>
         /// <returns></returns>
-        async Task Open()
+        public async Task Open()
         {
             try
             {
@@ -258,7 +258,7 @@ namespace Fetcho.Common
                 // the logic here looks backward, but it deals with the case where there's no records!
                 NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();");
 
-                cmd.Parameters.Add(new NpgsqlParameter("urihash", MD5Hash.Compute(uri).Values));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
 
                 object o = await cmd.ExecuteScalarAsync();
 

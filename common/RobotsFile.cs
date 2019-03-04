@@ -44,12 +44,21 @@ namespace Fetcho.Common
         /// </summary>
         public List<string> SiteMaps { get; set; }
 
+        private readonly object databasePoolLock = new object();
+        private static BufferBlock<Database> databasePool = null;
+
         public RobotsFile()
         {
             Disallow = new FiniteStateMachine<FiniteStateMachine<FiniteStateMachineBooleanState, char>, char>();
             Allow = new FiniteStateMachine<FiniteStateMachine<FiniteStateMachineBooleanState, char>, char>();
             SiteMaps = new List<string>();
             Malformed = false;
+
+            lock(databasePoolLock)
+            {
+                databasePool = new BufferBlock<Database>();
+                databasePool.SendAsync(new Database());
+            }
         }
 
         public RobotsFile(byte[] data) : this(XmlReader.Create(new MemoryStream(data)))
@@ -311,7 +320,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
             return robotsFile;
         }
@@ -359,6 +368,7 @@ namespace Fetcho.Common
                 }
 
                 var bb = new BufferBlock<WebDataPacketWriter>();
+                var db = new BufferBlock<Database>();
 
                 using (var ms = new MemoryStream())
                 {
@@ -366,8 +376,8 @@ namespace Fetcho.Common
                     {
                         // this is annoying, I shouldn't have to create a buffer block to get a robots file
                         // or we should put robots into the standard flow of things
-                        await bb.SendAsync(packet); 
-                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, bb, NullBlockProvider.Default, lastFetched);
+                        await bb.SendAsync(packet);
+                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, bb, databasePool, NullBlockProvider.Default, lastFetched);
                     }
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(CreateXmlReader(ms));
@@ -376,7 +386,7 @@ namespace Fetcho.Common
             catch (Exception ex)
             {
                 log.ErrorFormat("Fetching {0}:", robotsUri);
-                log.Error(ex);
+                Utility.LogException(ex);
             }
 
             return robots;

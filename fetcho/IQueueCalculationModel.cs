@@ -12,7 +12,7 @@ namespace Fetcho
         /// <summary>
         /// Calculate the priorities for queue items
         /// </summary>
-        Task CalculatePriority(IEnumerable<QueueItem> items);
+        void CalculatePriority(IEnumerable<QueueItem> items);
     }
 }
 

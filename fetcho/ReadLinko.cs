@@ -1,6 +1,7 @@
 ﻿using Fetcho.Common;
 using log4net;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -13,17 +14,22 @@ namespace Fetcho
 
         public bool Running { get; set; }
 
-        private ReadLinkoConfiguration Configuration { get; set; }
-        private BufferBlock<QueueItem> PrioritisationBufferOut = null;
+        private FetchoConfiguration Configuration { get; set; }
+        private BufferBlock<IEnumerable<QueueItem>> PrioritisationBufferOut = null;
 
         private int CurrentPacketIndex = 0;
+        private ReadoProcessor processor = null;
+        private ExtractLinksAndBufferConsumer consumer = null;
 
-        public ReadLinko(ReadLinkoConfiguration config, BufferBlock<QueueItem> prioritisationBufferOut, int startPacketIndex)
+        public ReadLinko(FetchoConfiguration config, BufferBlock<IEnumerable<QueueItem>> prioritisationBufferOut, int startPacketIndex)
         {
             Running = true;
             Configuration = config;
             PrioritisationBufferOut = prioritisationBufferOut;
             CurrentPacketIndex = startPacketIndex;
+            processor = new ReadoProcessor();
+            consumer = new ExtractLinksAndBufferConsumer(PrioritisationBufferOut);
+            processor.Processor.Consumer = consumer;
         }
 
         public async Task Process()
@@ -31,9 +37,9 @@ namespace Fetcho
             try
             {
 
+                var r = ReportStatus();
+
                 log.Debug("ReadLinko started");
-                var processor = new ReadoProcessor();
-                processor.Processor.Consumer = new ExtractLinksAndBufferConsumer(PrioritisationBufferOut);
 
                 while (Running)
                 {
@@ -43,7 +49,7 @@ namespace Fetcho
                     {
                         await processor.Process(filename).ConfigureAwait(false);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         log.Error(ex);
                     }
@@ -62,9 +68,35 @@ namespace Fetcho
 
         public void Shutdown() => Running = false;
 
+        async Task ReportStatus()
+        {
+            while (true)
+            {
+                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                LogStatus("STATUS UPDATE");
+            }
+        }
+
+        void LogStatus(string status) =>
+        log.InfoFormat(
+            "{0}: resources processed {1}, links extracted {2}, outbox {3}",
+            status,
+            processor.Processor.ResourcesProcessedCount,
+            consumer.LinksExtracted,
+            PrioritisationBufferOut.Count
+            );
+
         string GetNextFile()
         {
-            var filepath = Path.Combine(Configuration.DataSourcePath, "packet-" + (CurrentPacketIndex++) + ".xml");
+            var filepath = Path.Combine(Configuration.DataSourcePath, "packet-" + CurrentPacketIndex + ".xml");
+            if (File.Exists(filepath))
+            {
+                CurrentPacketIndex++;
+            }
+            else
+            {
+                CurrentPacketIndex = 0;
+            }
             return filepath;
         }
     }

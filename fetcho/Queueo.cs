@@ -16,8 +16,8 @@ namespace Fetcho
     public class Queueo
     {
         public const int FastCacheSize = 10000;
-        public const int MaxConcurrentTasks = 200;
-        public const int MaxBufferSize = 200000;
+        public const int MaxConcurrentTasks = 1000;
+        public const int MaxBufferSize = 50000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Queueo));
 
@@ -29,37 +29,52 @@ namespace Fetcho
         /// <summary>
         /// Used to buffer queue items for output
         /// </summary>
-        private QueueBuffer<IPAddress, QueueItem> buffer = new QueueBuffer<IPAddress, QueueItem>(MaxBufferSize / 50, 50);
+        private QueueBuffer<IPAddress, QueueItem> buffer = null;
 
         // a limited cache that stores recent URLs to compare against for duplicates
         // prevents running out of memory whilst roughly eliminating duplicates cheaply
         // later stages of the process will properly limit dupes, but are more expensive
         // ie. have we recently visited the link?
-        FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+        private FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
 
         /// <summary>
         /// Configuration set for this class
         /// </summary>
-        public QueueoConfiguration Configuration { get; set; }
+        public FetchoConfiguration Configuration { get; set; }
 
         public int _active = 0;
+        public int _duplicates = 0;
 
         public bool Running { get; set; }
 
-        private BufferBlock<QueueItem> PrioritisationBufferIn = null;
-        private BufferBlock<QueueItem> NextlinksBufferOut = null;
-        private readonly SemaphoreSlim outBufferLock = new SemaphoreSlim(1);
+        private BufferBlock<IEnumerable<QueueItem>> PrioritisationBufferIn = null;
+        private readonly SemaphoreSlim RejectsBufferOutLock = new SemaphoreSlim(1);
+        private BufferBlock<IEnumerable<QueueItem>> RejectsBufferOut = null;
+        private readonly SemaphoreSlim FetchQueueBufferOutLock = new SemaphoreSlim(1);
+        private BufferBlock<IEnumerable<QueueItem>> FetchQueueBufferOut;
+
+        public int ActiveValidationTasks = 0;
+        public int LinksAccepted = 0;
+        public int LinksRejected = 0;
+
 
 
         /// <summary>
         /// Create a Queueo with a configuration
         /// </summary>
         /// <param name="config"></param>
-        public Queueo(QueueoConfiguration config, BufferBlock<QueueItem> prioritisationBufferIn, BufferBlock<QueueItem> nextlinksBufferOut) : this()
+        public Queueo(
+            FetchoConfiguration config,
+            BufferBlock<IEnumerable<QueueItem>> prioritisationBufferIn,
+            BufferBlock<IEnumerable<QueueItem>> fetchQueueBufferOut,
+            BufferBlock<IEnumerable<QueueItem>> rejectsBufferOut) : this()
         {
             Configuration = config;
             PrioritisationBufferIn = prioritisationBufferIn;
-            NextlinksBufferOut = nextlinksBufferOut;
+            RejectsBufferOut = rejectsBufferOut;
+            FetchQueueBufferOut = fetchQueueBufferOut;
+            buffer = new QueueBuffer<IPAddress, QueueItem>(MaxBufferSize / config.MaximumChunkSize, config.MaximumChunkSize);
+            recentips = new FastLookupCache<string>(Configuration.WindowForIPsSeenRecently);
         }
 
         public Queueo() => Running = true;
@@ -71,40 +86,38 @@ namespace Fetcho
         public async Task Process()
         {
             var r = ReportStatus();
-            buffer.ActionWhenQueueIsFlushed = (key, items) =>
-            {
-                var t = SendQueueItemsToNextLinks(items);
-            };
-
-            // get a queue item 
-            QueueItem item = await NextQueueItem();
+            buffer.ActionWhenQueueIsFlushed = (key, items) => SendQueueItemsToFetcho(items.ToArray());
 
             do
             {
-                // if the item is OK and its not already cached
-                if (UriIsNotADuplicate(item))
+                // get a queue items 
+                var items = await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
+
+                // wait for tasks to continue
+                await buildQueueTasks.WaitAsync();
+
+                var tasks = new List<Task>();
+
+                foreach (var item in items)
                 {
-                    // cache it 
-                    CacheUri(item);
+                    // if the item is OK and its not already cached
+                    if (UriIsNotADuplicate(item))
+                    {
+                        // cache it 
+                        CacheUri(item);
 
-                    // wait for access to the pool
-                    await buildQueueTasks.WaitAsync();
-
-                    var t = AssessQueueItemForBuffer(item);
+                        // release() happens in this task
+                        tasks.Add(AssessQueueItemForBuffer(item));
+                    }
+                    else
+                    {
+                        _duplicates++;
+                    }
                 }
 
-                item = await NextQueueItem();
+                var t = Task.WhenAll(tasks.ToArray()).ContinueWith((task) => buildQueueTasks.Release());
             }
             while (Running);
-
-            // dump out remainder queue items
-            while (buffer.ItemCount > 0 || _active > 0)
-            {
-                await Task.Delay(10000);
-                log.InfoFormat("Waiting for output buffers to end, buffercount {0}, running {1}", buffer.ItemCount, _active);
-                if (buffer.ItemCount > 0)
-                    await EmptyBuffer();
-            }
 
         }
 
@@ -114,20 +127,31 @@ namespace Fetcho
 
         bool UriIsNotADuplicate(QueueItem item) => item != null && !lookupCache.Contains(item.TargetUri);
 
-        async Task AssessQueueItemForBuffer(QueueItem item)
+        private async Task AssessQueueItemForBuffer(QueueItem item)
         {
             try
             {
-                await CalculateQueueItemProperties(item);
-                await AddToBuffer(item);
+                item.UnsupportedUri = CantDownloadItYet(item);
+                item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
+                item.IsProbablyBlocked = IsUriProbablyBlocked(item);
+
+                // cut the cost of this by 99% basically if these things are true
+                if (!item.IsBlockedByDomain && !item.UnsupportedUri && !item.IsProbablyBlocked)
+                {
+                    item.TargetIP = await Utility.GetHostIPAddress(item.TargetUri);
+
+                    if (!IPAddress.None.Equals(item.TargetIP))
+                        item.VisitedRecently = !await NeedsVisiting(item);
+                }
+
+                if (RejectItemEarly(item))
+                    SendItemToRejects(item);
+                else
+                    await AddToBuffer(item);
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 log.Error(ex);
-            }
-            finally
-            {
-                buildQueueTasks.Release();
             }
         }
 
@@ -135,25 +159,8 @@ namespace Fetcho
         {
             try
             {
-                await outBufferLock.WaitAsync();
+                await FetchQueueBufferOutLock.WaitAsync();
                 buffer.Add(item.TargetIP, item);
-            }
-            catch(Exception ex)
-            {
-                log.Error(ex);
-            }
-            finally
-            {
-                outBufferLock.Release();
-            }
-        }
-
-        private async Task EmptyBuffer()
-        {
-            try
-            {
-                await outBufferLock.WaitAsync();
-                buffer.FlushAllQueues();
             }
             catch (Exception ex)
             {
@@ -161,11 +168,9 @@ namespace Fetcho
             }
             finally
             {
-                outBufferLock.Release();
+                FetchQueueBufferOutLock.Release();
             }
         }
-
-        private async Task<QueueItem> NextQueueItem() => await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
 
         private async Task ReportStatus()
         {
@@ -177,68 +182,56 @@ namespace Fetcho
         }
 
         private void LogStatus(string status)
-            => log.InfoFormat("{0}: Active outputs {1}, inbox {2}, queuing {3}, outbox {4}",
+            => log.InfoFormat("{0}: inbox {1}, duplicates {2}, inqueue {3}, validating {4}, to-rejects {5}, to-fetcho {6}, accepted {7}, rejected {8}",
                 status,
-                _active,
                 PrioritisationBufferIn.Count,
+                _duplicates,
                 buffer.ItemCount,
-                NextlinksBufferOut.Count
+                ActiveValidationTasks,
+                RejectsBufferOut.Count,
+                FetchQueueBufferOut.Count,
+                LinksAccepted,
+                LinksRejected
                 );
 
         /// <summary>
         /// Outputs the queue items and clears the <see cref="outputBuffer"/>
         /// </summary>
-        async Task SendQueueItemsToNextLinks(IEnumerable<QueueItem> items)
+        void SendQueueItemsToFetcho(IEnumerable<QueueItem> items)
         {
-            try
-            {
-                Interlocked.Increment(ref _active);
+            Interlocked.Increment(ref _active);
 
-                await Configuration.QueueOrderingModel.CalculatePriority(items).ConfigureAwait(false);
-                await outBufferLock.WaitAsync().ConfigureAwait(false);
+            Configuration.QueueOrderingModel.CalculatePriority(items);
 
-                int i = -1;
-                foreach (var item in items.OrderBy(x => x.Priority))
-                {
-                    if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
-                    item.ChunkSequence = i++;
-                    await SendQueueItemToNextLinks(item).ConfigureAwait(false);
-                    lastItem = item;
-                }
-            }
-            catch (Exception ex)
+            int i = -1;
+            foreach (var item in items.OrderBy(x => x.Priority))
             {
-                log.Error(ex);
+                if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
+                item.ChunkSequence = i++;
+                lastItem = item;
             }
-            finally
-            {
-                outBufferLock.Release();
-                Interlocked.Decrement(ref _active);
-            }
+
+            var t = ValidateQueueItems(items.ToArray());
+
+            Interlocked.Decrement(ref _active);
         }
         private QueueItem lastItem = null;
 
+        List<QueueItem> outbuffer = new List<QueueItem>();
+        void SendItemToRejects(QueueItem item) => outbuffer.Add(item);
 
-        /// <summary>
-        /// Fills in the properties of a queue item based on what we know
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        async Task CalculateQueueItemProperties(QueueItem item)
+        async Task SendBufferToRejects()
         {
-            item.UnsupportedUri = CantDownloadItYet(item);
-            item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
-            item.IsProbablyBlocked = IsUriProbablyBlocked(item);
-
-            // cut the cost of this by 99% basically if these things are true
-            if ( !item.IsBlockedByDomain && !item.UnsupportedUri && !item.IsProbablyBlocked )
-            {
-                item.TargetIP = await Utility.GetHostIPAddress(item.TargetUri);
-                item.VisitedRecently = !await NeedsVisiting(item);
-            }
+            await RejectLinks(outbuffer.ToArray());
+            outbuffer.Clear();
         }
 
-        async Task SendQueueItemToNextLinks(QueueItem item) => await NextlinksBufferOut.SendAsync(item).ConfigureAwait(false);
+        bool RejectItemEarly(QueueItem item) =>
+            item.IsBlockedByDomain ||
+            item.IsProbablyBlocked ||
+            item.UnsupportedUri ||
+            item.TargetIP == null ||
+            item.TargetIP.Equals(IPAddress.None);
 
         /// <summary>
         /// Returns true if theres no resource fetcher for the type of URL
@@ -315,7 +308,180 @@ namespace Fetcho
             }
         }
 
+        /// <summary>
+        /// Asyncronously validates a QueueItem
+        /// </summary>
+        /// <param name="item">The queue item</param>
+        /// <returns>Async task (no return value)</returns>
+        async Task ValidateQueueItems(QueueItem[] items)
+        {
+            if (items == null || items.Length == 0) return;
 
+            var accepted = new List<QueueItem>();
+            var rejected = new List<QueueItem>();
+
+            try
+            {
+                Interlocked.Increment(ref ActiveValidationTasks);
+
+                QueueItem firstItem = items[0];
+                for (int i = 0; i < items.Length; i++)
+                {
+                    QueueItem item = items[i];
+
+                    if (item == null)
+                    {
+                        // item has an issue
+
+                    }
+
+                    else if (QuotaReached())
+                    {
+                        rejected.Add(item);
+                    }
+
+                    else if (IsMalformedQueueItem(item))
+                    {
+                        item.MalformedUrl = true;
+                        rejected.Add(item);
+                    }
+
+                    else if (IsPriorityTooLow(item))
+                    {
+                        item.PriorityTooLow = true;
+                        rejected.Add(item);
+                    }
+
+                    // make it so one chunk isn't too big
+                    else if (IsChunkSequenceTooHigh(item))
+                    {
+                        item.ChunkSequenceTooHigh = true;
+                        rejected.Add(item);
+                    }
+
+                    // if seen IP recently
+                    else if (HasIPBeenSeenRecently(item))
+                    {
+                        item.IPSeenRecently = true;
+                        rejected.Add(item);
+                    }
+
+                    else if (await IsBlockedByRobots(item)) // most expensive one last
+                    {
+                        item.BlockedByRobots = true;
+                        rejected.Add(item);
+                    }
+
+                    else
+                    {
+                        accepted.Add(item);
+                    }
+                }
+
+                if (accepted.Count > 0)
+                {
+                    CacheRecentIPAddress(firstItem);
+                    await AcceptLinks(accepted).ConfigureAwait(false);
+                }
+                await RejectLinks(rejected).ConfigureAwait(false);
+
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref ActiveValidationTasks);
+            }
+        }
+
+        async Task AcceptLinks(IEnumerable<QueueItem> items)
+        {
+            Interlocked.Add(ref LinksAccepted, items.Count());
+            await FetchQueueBufferOut.SendOrWaitAsync(items).ConfigureAwait(false);
+        }
+
+        async Task RejectLinks(IEnumerable<QueueItem> items)
+        {
+            Interlocked.Add(ref LinksRejected, items.Count());
+            await RejectsBufferOut.SendOrWaitAsync(items).ConfigureAwait(false);
+        }
+
+
+        /// <summary>
+        /// Returns true if we've reached the maximum accepted links
+        /// </summary>
+        /// <returns></returns>
+        bool QuotaReached() => Configuration.QuotaEnabled && LinksAccepted >= Configuration.MaximumLinkQuota;
+
+        /// <summary>
+        /// Returns true if the queue item is malformed and of no use to us
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool IsMalformedQueueItem(QueueItem item) => String.IsNullOrWhiteSpace(item.TargetUri.Host);
+
+        /// <summary>
+        /// Returns true if the queue item sequence is too high
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
+        bool IsPriorityTooLow(QueueItem item) => item.Priority > Configuration.MaximumPriorityValueForLinks;
+
+        /// <summary>
+        /// Throw out items when the queue for an IP gets too large
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > Configuration.MaximumChunkSize;
+
+        // the function for the size of this window needs to be determined. *4 times the number of concurrent fetches is not correct
+        // its probably relative to the number of unique IPs in a fetch window times the max-min length of their queues and a bunch 
+        // of other factors
+        FastLookupCache<string> recentips = null;
+
+        /// <summary>
+        /// Check if an IP has been seen recently
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        bool HasIPBeenSeenRecently(QueueItem item) => recentips.Contains(item.TargetIP.ToString());
+
+        /// <summary>
+        /// Add an IP address to the fast lookup cache to say its been seen recently
+        /// </summary>
+        /// <param name="item"></param>
+        void CacheRecentIPAddress(QueueItem item)
+        {
+            if (!recentips.Contains(item.TargetIP.ToString()))
+                recentips.Enqueue(item.TargetIP.ToString());
+        }
+
+        /// <summary>
+        /// Returns true if the queue item is blocked by a rule in the associated robots file
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns>bool</returns>
+        async Task<bool> IsBlockedByRobots(QueueItem item)
+        {
+            bool rtn = false;
+
+            try
+            {
+                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host).ConfigureAwait(false);
+                if (r == null) rtn = false;
+                else rtn = r.IsDisallowed(item.TargetUri);
+            }
+            catch (Exception ex)
+            {
+                log.Error("IsBlockedByRobots(): ", ex);
+                rtn = false;
+            }
+
+            return rtn;
+        }
     }
 }
 

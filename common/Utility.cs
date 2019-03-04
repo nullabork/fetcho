@@ -204,7 +204,7 @@ namespace Fetcho.Common
                     string scheme = tempUrl.Substring(0, schemeIndex).ToLower();
                     if (scheme.All(Char.IsLetter) && !acceptedSchemes.Any(x => scheme == x))
                     {
-                        log.DebugFormat("Unaccepted scheme detected: {0}", tempUrl);
+                        //log.DebugFormat("Unaccepted scheme detected: {0}", tempUrl);
                         return list;
                     }
                 }

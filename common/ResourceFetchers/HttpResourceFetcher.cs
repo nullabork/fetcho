@@ -25,7 +25,8 @@ namespace Fetcho.Common
         public override async Task Fetch(
             Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writers,
+            BufferBlock<WebDataPacketWriter> writerPool,
+            BufferBlock<Database> databasePool,
             IBlockProvider blockProvider,
             DateTime? lastFetchedDate)
         {
@@ -49,8 +50,10 @@ namespace Fetcho.Common
             {
                 base.BeginRequest();
 
-                using (var db = new Database())
-                    await db.SaveWebResource(uri, DateTime.Now.AddDays(Settings.PageCacheExpiryInDays));
+                // get database from the pool
+                var db = await databasePool.ReceiveAsync();
+                await db.SaveWebResource(uri, DateTime.Now.AddDays(Settings.PageCacheExpiryInDays));
+                await databasePool.SendAsync(db);
 
                 request = CreateRequest(referrerUri, uri, lastFetchedDate);
 
@@ -75,7 +78,7 @@ namespace Fetcho.Common
                 else
                 {
                     bool firstTime = true;
-                    var rspw = WriteOutResponse(writers, request, response, startTime);
+                    var rspw = WriteOutResponse(writerPool, request, response, startTime);
 
 
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
@@ -102,12 +105,12 @@ namespace Fetcho.Common
                 {
                     if (!wroteOk)
                     {
-                        var packet = await writers.ReceiveAsync();
+                        var packet = await writerPool.ReceiveAsync();
                         packet.OutputStartResource();
                         OutputRequest(request, packet.Writer, startTime);
                         OutputException(exception, packet.Writer);
                         packet.OutputEndResource();
-                        await writers.SendAsync(packet);
+                        await writerPool.SendAsync(packet);
                     }
                 }
                 catch (Exception ex)
@@ -211,7 +214,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout is not honoured by the framework in async mode, but is implemented manually by this code
-            request.Timeout = 30000;
+            request.Timeout = Settings.DefaultRequestTimeoutInMilliseconds;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;
@@ -252,9 +255,9 @@ namespace Fetcho.Common
             const string format = "'{0}': {1}";
 
             if (verbose)
-                log.ErrorFormat(format, request.RequestUri, ex);
+                log.ErrorFormat(format, request?.RequestUri, ex);
             else
-                log.ErrorFormat(format, request.RequestUri, ex.Message);
+                log.ErrorFormat(format, request?.RequestUri, ex.Message);
 
             // In memorandum:
             // The line here was originally if ( !OutputInUse) await OutputSync.WaitAsync();

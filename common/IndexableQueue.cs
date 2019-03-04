@@ -14,12 +14,10 @@ namespace Fetcho.Common
         LinkItem<T> lastNode;
         Dictionary<T, LinkItem<T>> list;
 
-        public int Count { get { return list.Count; } }
+        public int Count { get => list.Count;  }
 
-        public IndexableQueue(int capacity)
-        {
+        public IndexableQueue(int capacity) =>
             list = new Dictionary<T, LinkItem<T>>(capacity);
-        }
 
         public IndexableQueue() : this(DefaultCapacity)
         {

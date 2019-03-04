@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,17 +25,16 @@ namespace Fetcho
         SemaphoreSlim fetchLock = null;
         PressureReliefValve<QueueItem> valve = null;
         Random random = new Random(DateTime.Now.Millisecond);
-        Stopwatch spoolingTimeWatch = new Stopwatch();
-        TimeSpan lastSpoolingTime;
         DateTime startTime = DateTime.Now;
 
-        private BufferBlock<QueueItem> FetchQueueIn;
-        private BufferBlock<QueueItem> RequeueOut;
+        private BufferBlock<IEnumerable<QueueItem>> FetchQueueIn;
+        private BufferBlock<IEnumerable<QueueItem>> RequeueOut;
         private BufferBlock<WebDataPacketWriter> DataWritersCycle;
+        private BufferBlock<Database> DatabasePool;
 
         public bool Running { get; set; }
 
-        public Fetcho(FetchoConfiguration config, BufferBlock<QueueItem> fetchQueueIn, BufferBlock<QueueItem> requeueOut)
+        public Fetcho(FetchoConfiguration config, BufferBlock<IEnumerable<QueueItem>> fetchQueueIn, BufferBlock<IEnumerable<QueueItem>> requeueOut)
         {
             Running = true;
             Configuration = config;
@@ -48,24 +48,22 @@ namespace Fetcho
         {
             try
             {
-                RunPreStartChecks();
                 log.Info("Fetcho.Process() commenced");
+                RunPreStartChecks();
                 await CreateDataPacketWriters();
+                await CreateDatabasePool();
 
                 var r = ReportStatus();
 
+                log.Info("Fetcho.Process() queue items started");
                 var u = await NextQueueItem();
 
                 while (Running)
                 {
-                    spoolingTimeWatch.Start();
                     while (!await fetchLock.WaitAsync(Configuration.TaskStartupWaitTimeInMilliseconds))
                         LogStatus("Waiting for a fetchLock");
 
                     u = await CreateTaskToCrawlIPAddress(u);
-                    spoolingTimeWatch.Stop();
-                    lastSpoolingTime = spoolingTimeWatch.Elapsed;
-                    spoolingTimeWatch.Reset();
                 }
 
                 // wait for all the tasks to finish before shutting down
@@ -78,7 +76,8 @@ namespace Fetcho
             }
             finally
             {
-                await CloseAllWriters();
+                CloseAllWriters();
+                CloseAllDatabases();
                 log.Info("Fetcho.Process() complete");
             }
         }
@@ -86,13 +85,18 @@ namespace Fetcho
 
         private async Task ReportStatus()
         {
-            while (true)
+            try
             {
-                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
-                LogStatus("STATUS UPDATE");
+                while (true)
+                {
+                    await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                    LogStatus("STATUS UPDATE");
+                }
 
-                //if (fetchLock.CurrentCount < MaxConcurrentFetches)
-                //    return;
+            }
+            catch(Exception ex)
+            {
+                Utility.LogException(ex);
             }
         }
 
@@ -100,7 +104,16 @@ namespace Fetcho
         /// Get the next item off the queue
         /// </summary>
         /// <returns></returns>
-        private async Task<QueueItem> NextQueueItem() => await FetchQueueIn.ReceiveAsync();
+        private async Task<QueueItem> NextQueueItem()
+        {
+            while ( queueItemEnum == null || !queueItemEnum.MoveNext())
+            {
+                queueItemEnum = (await FetchQueueIn.ReceiveAsync().ConfigureAwait(false)).GetEnumerator();
+            }
+
+            return queueItemEnum.Current;
+        }
+        private IEnumerator<QueueItem> queueItemEnum = null;
 
         private async Task<QueueItem> CreateTaskToCrawlIPAddress(QueueItem item)
         {
@@ -161,7 +174,7 @@ namespace Fetcho
                 if (!await valve.WaitToEnter(item))
                 {
                     LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
-                    await SendItemForRequeuing(item);
+                    await SendItemsForRequeuing(new QueueItem[] { item });
                 }
                 else
                 {
@@ -171,11 +184,12 @@ namespace Fetcho
                             item.SourceUri,
                             item.TargetUri,
                             DataWritersCycle,
+                            DatabasePool,
                             Configuration.BlockProvider,
                             DateTime.MinValue
                             );
 
-                        var writer = await DataWritersCycle.ReceiveAsync();
+                        var writer = await DataWritersCycle.ReceiveAsync().ConfigureAwait(false);
                         writer = ReplaceDataPacketWriterIfQuotaReached(writer);
                         await DataWritersCycle.SendAsync(writer);
                     }
@@ -200,9 +214,9 @@ namespace Fetcho
         /// Output the item for requeuing
         /// </summary>
         /// <param name="item"></param>
-        private async Task SendItemForRequeuing(QueueItem item)
+        private async Task SendItemsForRequeuing(IEnumerable<QueueItem> items)
         {
-            await RequeueOut.SendAsync(item);
+            await RequeueOut.SendAsync(items);
         }
 
         private async Task CreateDataPacketWriters()
@@ -210,6 +224,17 @@ namespace Fetcho
             DataWritersCycle = new BufferBlock<WebDataPacketWriter>();
             var packet = CreateNewDataPacketWriter();
             await DataWritersCycle.SendAsync(packet);
+        }
+
+        private async Task CreateDatabasePool()
+        {
+            DatabasePool = new BufferBlock<Database>();
+            for ( int i=0;i<Configuration.DatabasePoolSize;i++)
+            {
+                var db = new Database();
+                await db.Open();
+                DatabasePool.Post(db);
+            }
         }
 
         private WebDataPacketWriter CreateNewDataPacketWriter()
@@ -235,12 +260,22 @@ namespace Fetcho
             return CreateNewDataPacketWriter();
         }
 
-        private async Task CloseAllWriters()
+        private void CloseAllWriters()
         {
             while (DataWritersCycle.Count > 0)
             {
-                var packet = await DataWritersCycle.ReceiveAsync();
+                var packet = DataWritersCycle.Receive();
                 packet.Dispose();
+            }
+        }
+
+        private void CloseAllDatabases()
+        {
+            while (DatabasePool.Count > 0)
+            {
+                var db = DatabasePool.Receive();
+                db.Dispose();
+                db = null;
             }
         }
 
@@ -284,7 +319,7 @@ namespace Fetcho
             item.TargetIP != null && !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
 
         private void LogStatus(string status) =>
-            log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting for IP {3}, Waiting For Fetch Timeout {4}, Waiting to Write: {5}, Completed {6}, Spooling time {7}, Active Chunks {8}, Running Time {9}",
+            log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting(IP) {3}, Waiting(Timeout) {4}, Waiting(Write): {5}, completed {6}, active chunks {7}, running {8}",
                             status,
                             valve.TasksInValve,
                             ResourceFetcher.ActiveFetches,
@@ -292,7 +327,6 @@ namespace Fetcho
                             waitingForFetchTimeout,
                             ResourceFetcher.WaitingToWrite,
                             completedFetches,
-                            lastSpoolingTime,
                             Configuration.MaxConcurrentFetches - fetchLock.CurrentCount,
                             (DateTime.Now - startTime));
 

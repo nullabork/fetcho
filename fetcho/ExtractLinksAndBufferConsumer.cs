@@ -2,6 +2,7 @@
 using Fetcho.ContentReaders;
 using log4net;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +16,10 @@ namespace Fetcho
 
         public Uri CurrentUri;
         public ContentType ContentType;
-        public BufferBlock<QueueItem> PrioritisationBuffer;
+        public BufferBlock<IEnumerable<QueueItem>> PrioritisationBuffer;
+        public int LinksExtracted;
 
-        public ExtractLinksAndBufferConsumer(BufferBlock<QueueItem> prioritisationBuffer)
+        public ExtractLinksAndBufferConsumer(BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer)
         {
             PrioritisationBuffer = prioritisationBuffer;
         }
@@ -96,6 +98,7 @@ namespace Fetcho
 
         private void SendUris(ILinkExtractor reader)
         {
+            var l = new List<QueueItem>();
             if (reader == null) return;
 
             Uri uri = reader.NextUri();
@@ -108,10 +111,14 @@ namespace Fetcho
                     TargetUri = uri
                 };
 
-                PrioritisationBuffer.Post(item);
-
+                l.Add(item);
                 uri = reader.NextUri();
             }
+
+            LinksExtracted += l.Count;
+            // effectively block until the URL is accepted
+            while (!PrioritisationBuffer.Post(l)) Task.Delay(10).GetAwaiter().GetResult();
+
         }
     }
 }
