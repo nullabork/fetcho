@@ -169,9 +169,9 @@ namespace Fetcho.Common
             return sb.ToString();
         }
 
-        public async static Task SendOrWaitAsync<T>(this BufferBlock<T> bufferBlock, T item, int waitTime = 100)
+        public async static Task SendOrWaitAsync<T>(this ITargetBlock<T> target, T item, int waitTime = 100)
         {
-            while (!await bufferBlock.SendAsync(item))
+            while (!await target.SendAsync(item))
                 await Task.Delay(waitTime);
         }
     }

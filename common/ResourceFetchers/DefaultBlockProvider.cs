@@ -14,12 +14,9 @@ namespace Fetcho.Common
         /// If everythig is OK
         /// </summary>
         const string OKBlockReason = "OK";
-        
-        public int MaxFileDownloadLengthInBytes { get; set; }
 
         public DefaultBlockProvider()
         {
-            MaxFileDownloadLengthInBytes = Settings.MaxFileDownloadLengthInBytes;
         }
 
         public bool IsBlocked(WebRequest request, WebResponse response, out string block_reason)
@@ -37,9 +34,9 @@ namespace Fetcho.Common
             block_reason = OKBlockReason;
             bool rtn = true;
 
-            if (response.ContentLength > Settings.MaxFileDownloadLengthInBytes)
+            if (response.ContentLength > FetchoConfiguration.Current.MaxFileDownloadLengthInBytes)
             {
-                block_reason = "Response exceeded max length of " + MaxFileDownloadLengthInBytes;
+                block_reason = "Response exceeded max length of " + FetchoConfiguration.Current.MaxFileDownloadLengthInBytes;
             }
             else if (response.Headers["Rating"] == AdultRatingString)
             {

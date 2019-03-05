@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Fetcho.Common;
 
-namespace Fetcho
+namespace Fetcho.Common
 {
     /// <summary>
     /// Model used to calculate 

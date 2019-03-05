@@ -62,7 +62,7 @@ namespace Fetcho.Common.Tests
                 Assert.IsTrue(site.RobotsFile.IsDisallowed(uri));
             }
 
-            var robots = await HostCacheManager.GetRobotsFile(uri.Host);
+            var robots = await FetchoConfiguration.Current.HostCache.GetRobotsFile(uri.Host);
             Assert.IsNotNull(robots);
             Assert.IsTrue(robots.IsDisallowed(uri));
         }

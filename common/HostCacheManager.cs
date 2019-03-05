@@ -11,14 +11,20 @@ namespace Fetcho.Common
     /// <summary>
     /// Manages a cache of host records and robots files
     /// </summary>
-    public static class HostCacheManager
+    public class HostCacheManager
     {
         static readonly ILog log = LogManager.GetLogger(typeof(HostCacheManager));
-        static readonly IndexableQueue<string> recencyQueue = new IndexableQueue<string>(Settings.HostCacheManagerMaxInMemoryDomainRecords);
-        static readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
-        static readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
-        static readonly SemaphoreSlim can_i_fetch_lock = new SemaphoreSlim(1);
-        static Random random = new Random(DateTime.Now.Millisecond);
+
+        readonly IndexableQueue<string> recencyQueue = null;
+        readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
+        readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
+        readonly SemaphoreSlim can_i_fetch_lock = new SemaphoreSlim(1);
+        readonly Random random = new Random(DateTime.Now.Millisecond);
+
+        public HostCacheManager()
+        {
+            recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords); 
+        }
 
         /// <summary>
         /// Fetch a robots file
@@ -26,7 +32,7 @@ namespace Fetcho.Common
         /// <param name="fromHost"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static async Task<RobotsFile> GetRobotsFile(string fromHost)
+        public async Task<RobotsFile> GetRobotsFile(string fromHost)
         {
             try
             {
@@ -70,7 +76,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="hostName"></param>
         /// <returns>True if we can fetch, false if timeout or cancelled</returns>
-        public static async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds)
+        public async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds)
         {
             DateTime startTime = DateTime.Now;
             bool keepWaiting = true;
@@ -117,23 +123,21 @@ namespace Fetcho.Common
             return success;
         }
 
-        public static async Task<bool> WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
+        public async Task<bool> WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
             await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds);
-
-
 
         /// <summary>
         /// Returns how much time we'd have to wait before fetching
         /// </summary>
         /// <param name="fromHost"></param>
         /// <returns></returns>
-        static int GetTimeRemainingToWait(HostCacheManagerRecord host_record) => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.Now - host_record.LastCall).TotalMilliseconds);
+        int GetTimeRemainingToWait(HostCacheManagerRecord host_record) => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.Now - host_record.LastCall).TotalMilliseconds);
 
         /// <summary>
         /// Moves a host to the top of the queue preventing it from being dropped out the bottom from disuse
         /// </summary>
         /// <param name="host"></param>
-        static void BumpHost(string host)
+        void BumpHost(string host)
         {
             recencyQueue.Remove(host);
             recencyQueue.Enqueue(host);
@@ -144,7 +148,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fromHost"></param>
         /// <returns></returns>
-        static async Task<HostCacheManagerRecord> GetRecord(string fromHost)
+        async Task<HostCacheManagerRecord> GetRecord(string fromHost)
         {
             HostCacheManagerRecord record = null;
 
@@ -169,7 +173,7 @@ namespace Fetcho.Common
                 }
 
                 // if there's too many domains in memory we drop one to avoid filling up memory with cached robots objects
-                if (recencyQueue.Count > Settings.HostCacheManagerMaxInMemoryDomainRecords)
+                if (recencyQueue.Count > FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords)
                 {
                     string domainToDrop = recencyQueue.Dequeue();
 
@@ -214,7 +218,7 @@ namespace Fetcho.Common
 
             public HostCacheManagerRecord()
             {
-                MaxFetchSpeedInMilliseconds = Settings.MaximumFetchSpeedMilliseconds;
+                MaxFetchSpeedInMilliseconds = FetchoConfiguration.Current.MaximumFetchSpeedMilliseconds;
                 LastCall = DateTime.MinValue;
                 UpdateWaitHandle = new SemaphoreSlim(1);
                 FetchWaitHandle = new SemaphoreSlim(1);

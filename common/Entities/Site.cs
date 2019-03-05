@@ -15,7 +15,7 @@ namespace Fetcho.Common.Entities
 
         public RobotsFile RobotsFile { get; set; }
 
-        public DateTime NextRobotsFetch { get { return !LastRobotsFetched.HasValue ? DateTime.MinValue : LastRobotsFetched.Value.AddMinutes(Settings.RobotsCacheTimeoutMinutes); } }
+        public DateTime NextRobotsFetch { get { return !LastRobotsFetched.HasValue ? DateTime.MinValue : LastRobotsFetched.Value.AddMinutes(FetchoConfiguration.Current.RobotsCacheTimeoutMinutes); } }
 
         public bool RobotsNeedsVisiting { get { return DateTime.Now > NextRobotsFetch; } }
 

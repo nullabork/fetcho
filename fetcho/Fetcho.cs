@@ -21,27 +21,26 @@ namespace Fetcho
         static readonly ILog log = LogManager.GetLogger(typeof(Fetcho));
         int completedFetches = 0;
         int waitingForFetchTimeout = 0;
-        public FetchoConfiguration Configuration { get; set; }
         SemaphoreSlim fetchLock = null;
         PressureReliefValve<QueueItem> valve = null;
         Random random = new Random(DateTime.Now.Millisecond);
         DateTime startTime = DateTime.Now;
 
-        private BufferBlock<IEnumerable<QueueItem>> FetchQueueIn;
-        private BufferBlock<IEnumerable<QueueItem>> RequeueOut;
+        private ISourceBlock<IEnumerable<QueueItem>> FetchQueueIn;
+        private ITargetBlock<IEnumerable<QueueItem>> RequeueOut;
         private BufferBlock<WebDataPacketWriter> DataWritersCycle;
-        private BufferBlock<Database> DatabasePool;
 
         public bool Running { get; set; }
 
-        public Fetcho(FetchoConfiguration config, BufferBlock<IEnumerable<QueueItem>> fetchQueueIn, BufferBlock<IEnumerable<QueueItem>> requeueOut)
+        public Fetcho(
+            ISourceBlock<IEnumerable<QueueItem>> fetchQueueIn, 
+            ITargetBlock<IEnumerable<QueueItem>> requeueOut)
         {
             Running = true;
-            Configuration = config;
             valve = CreatePressureReliefValve();
             FetchQueueIn = fetchQueueIn;
             RequeueOut = requeueOut;
-            fetchLock = new SemaphoreSlim(Configuration.MaxConcurrentFetches);
+            fetchLock = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentFetches);
         }
 
         public async Task Process()
@@ -51,7 +50,6 @@ namespace Fetcho
                 log.Info("Fetcho.Process() commenced");
                 RunPreStartChecks();
                 await CreateDataPacketWriters();
-                await CreateDatabasePool();
 
                 var r = ReportStatus();
 
@@ -60,14 +58,14 @@ namespace Fetcho
 
                 while (Running)
                 {
-                    while (!await fetchLock.WaitAsync(Configuration.TaskStartupWaitTimeInMilliseconds))
+                    while (!await fetchLock.WaitAsync(FetchoConfiguration.Current.TaskStartupWaitTimeInMilliseconds))
                         LogStatus("Waiting for a fetchLock");
 
                     u = await CreateTaskToCrawlIPAddress(u);
                 }
 
                 // wait for all the tasks to finish before shutting down
-                while (fetchLock.CurrentCount < Configuration.MaxConcurrentFetches)
+                while (fetchLock.CurrentCount < FetchoConfiguration.Current.MaxConcurrentFetches)
                     await Task.Delay(1000);
             }
             catch (Exception ex)
@@ -77,7 +75,6 @@ namespace Fetcho
             finally
             {
                 CloseAllWriters();
-                CloseAllDatabases();
                 log.Info("Fetcho.Process() complete");
             }
         }
@@ -89,7 +86,7 @@ namespace Fetcho
             {
                 while (true)
                 {
-                    await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                    await Task.Delay(FetchoConfiguration.Current.HowOftenToReportStatusInMilliseconds);
                     LogStatus("STATUS UPDATE");
                 }
 
@@ -152,7 +149,7 @@ namespace Fetcho
                 {
                     await FetchQueueItem(item);
                     Interlocked.Increment(ref waitingForFetchTimeout);
-                    await Task.Delay(Settings.MaximumFetchSpeedMilliseconds + 10);
+                    await Task.Delay(FetchoConfiguration.Current.MaximumFetchSpeedMilliseconds + 10);
                     Interlocked.Decrement(ref waitingForFetchTimeout);
                 }
             }
@@ -181,12 +178,10 @@ namespace Fetcho
                     try
                     {
                         await ResourceFetcher.FetchFactory(
-                            item.SourceUri,
                             item.TargetUri,
-                            DataWritersCycle,
-                            DatabasePool,
-                            Configuration.BlockProvider,
-                            DateTime.MinValue
+                            item.SourceUri,
+                            DateTime.MinValue,
+                            DataWritersCycle
                             );
 
                         var writer = await DataWritersCycle.ReceiveAsync().ConfigureAwait(false);
@@ -206,7 +201,7 @@ namespace Fetcho
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
         }
 
@@ -226,30 +221,19 @@ namespace Fetcho
             await DataWritersCycle.SendAsync(packet);
         }
 
-        private async Task CreateDatabasePool()
-        {
-            DatabasePool = new BufferBlock<Database>();
-            for ( int i=0;i<Configuration.DatabasePoolSize;i++)
-            {
-                var db = new Database();
-                await db.Open();
-                DatabasePool.Post(db);
-            }
-        }
-
         private WebDataPacketWriter CreateNewDataPacketWriter()
         {
-            if (String.IsNullOrWhiteSpace(Configuration.DataSourcePath))
+            if (String.IsNullOrWhiteSpace(FetchoConfiguration.Current.DataSourcePath))
                 throw new FetchoException("No output data file is set");
 
-            string fileName = Path.Combine(Configuration.DataSourcePath, "packet.xml");
+            string fileName = Path.Combine(FetchoConfiguration.Current.DataSourcePath, "packet.xml");
 
             return new WebDataPacketWriter(fileName);
         }
 
         private WebDataPacketWriter ReplaceDataPacketWriterIfQuotaReached(WebDataPacketWriter writer)
         {
-            if (writer.ResourcesWritten > Configuration.MaximumResourcesPerDataPacket)
+            if (writer.ResourcesWritten > FetchoConfiguration.Current.MaximumResourcesPerDataPacket)
                 return ReplaceDataPacketWriter(writer);
             return writer;
         }
@@ -269,20 +253,10 @@ namespace Fetcho
             }
         }
 
-        private void CloseAllDatabases()
-        {
-            while (DatabasePool.Count > 0)
-            {
-                var db = DatabasePool.Receive();
-                db.Dispose();
-                db = null;
-            }
-        }
-
         private void RunPreStartChecks()
         {
             // not sure why it thinks this - probably comparing ints rather than longs
-            if (Settings.MaxFileDownloadLengthInBytes * (long)Configuration.MaxConcurrentFetches > (long)4096 * 1024 * 1024)
+            if (FetchoConfiguration.Current.MaxFileDownloadLengthInBytes * (long)FetchoConfiguration.Current.MaxConcurrentFetches > (long)4096 * 1024 * 1024)
 #pragma warning disable CS0162 // Unreachable code detected
                 log.WarnFormat("MaxConcurrentFetches * MaxFileDownloadLengthInBytes is greater than 4GB. For safety this should not be this big");
 #pragma warning restore CS0162 // Unreachable code detected
@@ -294,10 +268,10 @@ namespace Fetcho
         /// <returns></returns>
         private PressureReliefValve<QueueItem> CreatePressureReliefValve()
         {
-            var prv = new PressureReliefValve<QueueItem>(Configuration.PressureReliefThreshold);
+            var prv = new PressureReliefValve<QueueItem>(FetchoConfiguration.Current.PressureReliefThreshold);
 
             prv.WaitFunc = async (item) =>
-                await HostCacheManager.WaitToFetch(
+                await FetchoConfiguration.Current.HostCache.WaitToFetch(
                         await GetQueueItemTargetIP(item),
                         GetRandomReliefTimeout() // randomised to spread the timeouts evenly to avoid bumps
                     );
@@ -311,8 +285,8 @@ namespace Fetcho
         /// <returns></returns>
         private int GetRandomReliefTimeout() =>
             random.Next(
-                Configuration.MinPressureReliefValveWaitTimeInMilliseconds,
-                Configuration.MaxPressureReliefValveWaitTimeInMilliseconds
+                FetchoConfiguration.Current.MinPressureReliefValveWaitTimeInMilliseconds,
+                FetchoConfiguration.Current.MaxPressureReliefValveWaitTimeInMilliseconds
                 );
 
         private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
@@ -327,7 +301,7 @@ namespace Fetcho
                             waitingForFetchTimeout,
                             ResourceFetcher.WaitingToWrite,
                             completedFetches,
-                            Configuration.MaxConcurrentFetches - fetchLock.CurrentCount,
+                            FetchoConfiguration.Current.MaxConcurrentFetches - fetchLock.CurrentCount,
                             (DateTime.Now - startTime));
 
     }

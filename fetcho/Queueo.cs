@@ -16,7 +16,6 @@ namespace Fetcho
     public class Queueo
     {
         public const int FastCacheSize = 10000;
-        public const int MaxConcurrentTasks = 1000;
         public const int MaxBufferSize = 50000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Queueo));
@@ -24,7 +23,7 @@ namespace Fetcho
         /// <summary>
         /// To avoid OOM exceptions this limits the max tasks running at any one time
         /// </summary>
-        private SemaphoreSlim buildQueueTasks = new SemaphoreSlim(MaxConcurrentTasks);
+        private SemaphoreSlim TaskPool = null;
 
         /// <summary>
         /// Used to buffer queue items for output
@@ -37,44 +36,36 @@ namespace Fetcho
         // ie. have we recently visited the link?
         private FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
 
-        /// <summary>
-        /// Configuration set for this class
-        /// </summary>
-        public FetchoConfiguration Configuration { get; set; }
-
-        public int _active = 0;
-        public int _duplicates = 0;
-
         public bool Running { get; set; }
 
-        private BufferBlock<IEnumerable<QueueItem>> PrioritisationBufferIn = null;
+        private ISourceBlock<IEnumerable<QueueItem>> PrioritisationBufferIn = null;
         private readonly SemaphoreSlim RejectsBufferOutLock = new SemaphoreSlim(1);
-        private BufferBlock<IEnumerable<QueueItem>> RejectsBufferOut = null;
+        private ITargetBlock<IEnumerable<QueueItem>> RejectsBufferOut = null;
         private readonly SemaphoreSlim FetchQueueBufferOutLock = new SemaphoreSlim(1);
-        private BufferBlock<IEnumerable<QueueItem>> FetchQueueBufferOut;
+        private ITargetBlock<IEnumerable<QueueItem>> FetchQueueBufferOut;
 
+        public int _duplicates = 0;
         public int ActiveValidationTasks = 0;
         public int LinksAccepted = 0;
         public int LinksRejected = 0;
-
-
 
         /// <summary>
         /// Create a Queueo with a configuration
         /// </summary>
         /// <param name="config"></param>
         public Queueo(
-            FetchoConfiguration config,
-            BufferBlock<IEnumerable<QueueItem>> prioritisationBufferIn,
-            BufferBlock<IEnumerable<QueueItem>> fetchQueueBufferOut,
-            BufferBlock<IEnumerable<QueueItem>> rejectsBufferOut) : this()
+            ISourceBlock<IEnumerable<QueueItem>> prioritisationBufferIn,
+            ITargetBlock<IEnumerable<QueueItem>> fetchQueueBufferOut,
+            ITargetBlock<IEnumerable<QueueItem>> rejectsBufferOut) : this()
         {
-            Configuration = config;
             PrioritisationBufferIn = prioritisationBufferIn;
             RejectsBufferOut = rejectsBufferOut;
             FetchQueueBufferOut = fetchQueueBufferOut;
-            buffer = new QueueBuffer<IPAddress, QueueItem>(MaxBufferSize / config.MaximumChunkSize, config.MaximumChunkSize);
-            recentips = new FastLookupCache<string>(Configuration.WindowForIPsSeenRecently);
+            buffer = new QueueBuffer<IPAddress, QueueItem>(
+                FetchoConfiguration.Current.MaxQueueBufferQueues,
+                FetchoConfiguration.Current.MaxQueueBufferQueueLength);
+            recentips = new FastLookupCache<string>(FetchoConfiguration.Current.WindowForIPsSeenRecently);
+            TaskPool = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentTasks);
         }
 
         public Queueo() => Running = true;
@@ -86,7 +77,10 @@ namespace Fetcho
         public async Task Process()
         {
             var r = ReportStatus();
-            buffer.ActionWhenQueueIsFlushed = (key, items) => SendQueueItemsToFetcho(items.ToArray());
+            buffer.ActionWhenQueueIsFlushed = (key, items) =>
+            {
+                var t = ValidateQueueItems(items.ToArray());
+            };
 
             do
             {
@@ -94,7 +88,7 @@ namespace Fetcho
                 var items = await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
 
                 // wait for tasks to continue
-                await buildQueueTasks.WaitAsync();
+                await TaskPool.WaitAsync();
 
                 var tasks = new List<Task>();
 
@@ -115,7 +109,7 @@ namespace Fetcho
                     }
                 }
 
-                var t = Task.WhenAll(tasks.ToArray()).ContinueWith((task) => buildQueueTasks.Release());
+                var t = Task.WhenAll(tasks.ToArray()).ContinueWith((task) => TaskPool.Release());
             }
             while (Running);
 
@@ -148,10 +142,14 @@ namespace Fetcho
                     SendItemToRejects(item);
                 else
                     await AddToBuffer(item);
+
+                if (outbuffer.Count >= 1000)
+                    await SendBufferToRejects();
+
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
         }
 
@@ -164,7 +162,7 @@ namespace Fetcho
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
             finally
             {
@@ -176,7 +174,7 @@ namespace Fetcho
         {
             while (true)
             {
-                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                await Task.Delay(FetchoConfiguration.Current.HowOftenToReportStatusInMilliseconds);
                 LogStatus("STATUS UPDATE");
             }
         }
@@ -184,41 +182,22 @@ namespace Fetcho
         private void LogStatus(string status)
             => log.InfoFormat("{0}: inbox {1}, duplicates {2}, inqueue {3}, validating {4}, to-rejects {5}, to-fetcho {6}, accepted {7}, rejected {8}",
                 status,
-                PrioritisationBufferIn.Count,
+                (PrioritisationBufferIn as BufferBlock<IEnumerable<QueueItem>>)?.Count,
                 _duplicates,
                 buffer.ItemCount,
                 ActiveValidationTasks,
-                RejectsBufferOut.Count,
-                FetchQueueBufferOut.Count,
+                (RejectsBufferOut as BufferBlock<IEnumerable<QueueItem>>)?.Count,
+                (FetchQueueBufferOut as BufferBlock<IEnumerable<QueueItem>>)?.Count,
                 LinksAccepted,
                 LinksRejected
                 );
 
-        /// <summary>
-        /// Outputs the queue items and clears the <see cref="outputBuffer"/>
-        /// </summary>
-        void SendQueueItemsToFetcho(IEnumerable<QueueItem> items)
-        {
-            Interlocked.Increment(ref _active);
-
-            Configuration.QueueOrderingModel.CalculatePriority(items);
-
-            int i = -1;
-            foreach (var item in items.OrderBy(x => x.Priority))
-            {
-                if (i == -1) i = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
-                item.ChunkSequence = i++;
-                lastItem = item;
-            }
-
-            var t = ValidateQueueItems(items.ToArray());
-
-            Interlocked.Decrement(ref _active);
-        }
-        private QueueItem lastItem = null;
 
         List<QueueItem> outbuffer = new List<QueueItem>();
-        void SendItemToRejects(QueueItem item) => outbuffer.Add(item);
+        void SendItemToRejects(QueueItem item)
+        {
+            outbuffer.Add(item);
+        }
 
         async Task SendBufferToRejects()
         {
@@ -294,16 +273,15 @@ namespace Fetcho
             {
                 bool rtn = false;
 
-                using (var db = new Database())
-                {
-                    rtn = await db.NeedsVisiting(item.TargetUri).ConfigureAwait(false);
-                }
+                var db = await DatabasePool.GetDatabaseAsync();
+                rtn = await db.NeedsVisiting(item.TargetUri).ConfigureAwait(false);
+                await DatabasePool.GiveBackToPool(db);
 
                 return rtn;
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
                 return true;
             }
         }
@@ -322,20 +300,23 @@ namespace Fetcho
 
             try
             {
+                await TaskPool.WaitAsync().ConfigureAwait(false);
                 Interlocked.Increment(ref ActiveValidationTasks);
 
-                QueueItem firstItem = items[0];
-                for (int i = 0; i < items.Length; i++)
+                FetchoConfiguration.Current.QueueOrderingModel.CalculatePriority(items);
+
+                int j = -1;
+                foreach (var item in items.OrderBy(x => x.Priority))
                 {
-                    QueueItem item = items[i];
+                    if (j == -1) j = lastItem != null && lastItem.TargetIP.Equals(item.TargetIP) ? lastItem.ChunkSequence : 0;
+                    item.ChunkSequence = j++;
+                    lastItem = item;
+                }
 
-                    if (item == null)
-                    {
-                        // item has an issue
-
-                    }
-
-                    else if (QuotaReached())
+                QueueItem firstItem = items[0];
+                foreach (var item in items)
+                {
+                    if (QuotaReached())
                     {
                         rejected.Add(item);
                     }
@@ -388,13 +369,15 @@ namespace Fetcho
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
             finally
             {
                 Interlocked.Decrement(ref ActiveValidationTasks);
+                TaskPool.Release();
             }
         }
+        private QueueItem lastItem = null;
 
         async Task AcceptLinks(IEnumerable<QueueItem> items)
         {
@@ -413,7 +396,7 @@ namespace Fetcho
         /// Returns true if we've reached the maximum accepted links
         /// </summary>
         /// <returns></returns>
-        bool QuotaReached() => Configuration.QuotaEnabled && LinksAccepted >= Configuration.MaximumLinkQuota;
+        bool QuotaReached() => FetchoConfiguration.Current.QuotaEnabled && LinksAccepted >= FetchoConfiguration.Current.MaximumLinkQuota;
 
         /// <summary>
         /// Returns true if the queue item is malformed and of no use to us
@@ -428,14 +411,14 @@ namespace Fetcho
         /// <param name="item"></param>
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
-        bool IsPriorityTooLow(QueueItem item) => item.Priority > Configuration.MaximumPriorityValueForLinks;
+        bool IsPriorityTooLow(QueueItem item) => item.Priority > FetchoConfiguration.Current.MaximumPriorityValueForLinks;
 
         /// <summary>
         /// Throw out items when the queue for an IP gets too large
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > Configuration.MaximumChunkSize;
+        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > FetchoConfiguration.Current.MaximumChunkSize;
 
         // the function for the size of this window needs to be determined. *4 times the number of concurrent fetches is not correct
         // its probably relative to the number of unique IPs in a fetch window times the max-min length of their queues and a bunch 
@@ -464,13 +447,13 @@ namespace Fetcho
         /// </summary>
         /// <param name="item"></param>
         /// <returns>bool</returns>
-        async Task<bool> IsBlockedByRobots(QueueItem item)
+        async ValueTask<bool> IsBlockedByRobots(QueueItem item)
         {
             bool rtn = false;
 
             try
             {
-                var r = await HostCacheManager.GetRobotsFile(item.TargetUri.Host).ConfigureAwait(false);
+                var r = await FetchoConfiguration.Current.HostCache.GetRobotsFile(item.TargetUri.Host).ConfigureAwait(false);
                 if (r == null) rtn = false;
                 else rtn = r.IsDisallowed(item.TargetUri);
             }
@@ -482,6 +465,7 @@ namespace Fetcho
 
             return rtn;
         }
+
     }
 }
 

@@ -28,12 +28,6 @@ namespace Fetcho
         const int ProbablyBlocked = 1000 * 1000 * 1000;
         const int UnreadableLanguage = 1000 * 1000 * 1000;
 
-        const int HostItemQuotaReachedPriority = 600 * 1000 * 1000;
-
-        const uint MultiHostLinkSpreadFactor = 20 * 1000 * 1000;
-
-        const int HostItemQuota = 15;
-
         /// <summary>
         /// Start a task to calculate the priority for the queueitem
         /// </summary>

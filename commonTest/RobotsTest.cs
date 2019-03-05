@@ -17,13 +17,13 @@ namespace Fetcho.Common.Tests
 
             var robots = new RobotsFile(buffer);
 
-            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/data/hooray.html"), Settings.UserAgent));
-            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/hooray.html"), Settings.UserAgent));
-            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/daylight/loafo.html"), Settings.UserAgent));
-            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/daylight/"), Settings.UserAgent));
-            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/jerk"), Settings.UserAgent));
-            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/index.html"), Settings.UserAgent));
-            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/"), Settings.UserAgent));
+            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/data/hooray.html"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/hooray.html"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/daylight/loafo.html"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/daylight/"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(robots.IsDisallowed(new Uri("http://rofflo.org/jerk"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/index.html"), FetchoConfiguration.Current.UserAgent));
+            Assert.IsTrue(!robots.IsDisallowed(new Uri("http://rofflo.org/"), FetchoConfiguration.Current.UserAgent));
         }
 
         [TestMethod]
@@ -42,7 +42,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsTrue(robots.IsDisallowed(new Uri("https://bs.wikipedia.org/w/index.php?title=Ujedinjeno_Kraljevstvo&action=edit&section=4"),
-                                              Settings.UserAgent));
+                                              FetchoConfiguration.Current.UserAgent));
 
         }
 
@@ -62,7 +62,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsFalse(robots.IsDisallowed(new Uri("https://blogs.wsj.com/privateequity"),
-                                              Settings.UserAgent));
+                                              FetchoConfiguration.Current.UserAgent));
 
         }
 
@@ -84,7 +84,7 @@ namespace Fetcho.Common.Tests
             var robots = new RobotsFile(File.ReadAllBytes(robotsFilePath));
 
             Assert.IsFalse(robots.IsDisallowed(new Uri("https://wiki.dolphin-emu.org/index.php?title=Category:Japan_(Release_region)"),
-                                               Settings.UserAgent));
+                                               FetchoConfiguration.Current.UserAgent));
 
         }
 

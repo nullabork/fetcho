@@ -28,12 +28,10 @@ namespace Fetcho.Common
         static int _waitingToWrite;
 
         public abstract Task Fetch(
-            Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writerPool,
-            BufferBlock<Database> databasePool,
-            IBlockProvider blockProvider,
-            DateTime? lastFetchedDate
+            Uri referrerUri,
+            DateTime? lastFetchedDate,
+            BufferBlock<WebDataPacketWriter> writerPool
             );
 
         /// <summary>
@@ -46,24 +44,20 @@ namespace Fetcho.Common
         /// <param name="lastFetchedDate"></param>
         /// <returns></returns>
         public static async Task FetchFactory(
-            Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writerPool,
-            BufferBlock<Database> databasePool,
-            IBlockProvider blockProvider,
-            DateTime? lastFetchedDate
+            Uri referrerUri,
+            DateTime? lastFetchedDate,
+            BufferBlock<WebDataPacketWriter> writerPool
             )
         {
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
                 await new HttpResourceFetcher().Fetch(
-                    referrerUri,
                     uri,
-                    writerPool,
-                    databasePool,
-                    blockProvider,
-                    lastFetchedDate).ConfigureAwait(false);
+                    referrerUri,
+                    lastFetchedDate,
+                    writerPool).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
             //        new FtpResourceFetcher().Fetch(uri, writeStream, lastFetchedDate);
         }

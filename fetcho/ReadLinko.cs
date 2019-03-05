@@ -14,17 +14,15 @@ namespace Fetcho
 
         public bool Running { get; set; }
 
-        private FetchoConfiguration Configuration { get; set; }
         private BufferBlock<IEnumerable<QueueItem>> PrioritisationBufferOut = null;
 
         private int CurrentPacketIndex = 0;
         private ReadoProcessor processor = null;
         private ExtractLinksAndBufferConsumer consumer = null;
 
-        public ReadLinko(FetchoConfiguration config, BufferBlock<IEnumerable<QueueItem>> prioritisationBufferOut, int startPacketIndex)
+        public ReadLinko(BufferBlock<IEnumerable<QueueItem>> prioritisationBufferOut, int startPacketIndex)
         {
             Running = true;
-            Configuration = config;
             PrioritisationBufferOut = prioritisationBufferOut;
             CurrentPacketIndex = startPacketIndex;
             processor = new ReadoProcessor();
@@ -58,7 +56,7 @@ namespace Fetcho
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
             }
             finally
             {
@@ -72,7 +70,7 @@ namespace Fetcho
         {
             while (true)
             {
-                await Task.Delay(Configuration.HowOftenToReportStatusInMilliseconds);
+                await Task.Delay(FetchoConfiguration.Current.HowOftenToReportStatusInMilliseconds);
                 LogStatus("STATUS UPDATE");
             }
         }
@@ -88,7 +86,7 @@ namespace Fetcho
 
         string GetNextFile()
         {
-            var filepath = Path.Combine(Configuration.DataSourcePath, "packet-" + CurrentPacketIndex + ".xml");
+            var filepath = Path.Combine(FetchoConfiguration.Current.DataSourcePath, "packet-" + CurrentPacketIndex + ".xml");
             if (File.Exists(filepath))
             {
                 CurrentPacketIndex++;

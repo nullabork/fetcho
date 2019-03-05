@@ -23,12 +23,11 @@ namespace Fetcho.Common
         /// <param name="lastFetchedDate">Date we last fetched the resource - helps in optimising resources</param>
         /// <returns></returns>
         public override async Task Fetch(
-            Uri referrerUri,
             Uri uri,
-            BufferBlock<WebDataPacketWriter> writerPool,
-            BufferBlock<Database> databasePool,
-            IBlockProvider blockProvider,
-            DateTime? lastFetchedDate)
+            Uri referrerUri,
+            DateTime? lastFetchedDate,
+            BufferBlock<WebDataPacketWriter> writerPool
+            )
         {
 
             // the process is 
@@ -51,9 +50,9 @@ namespace Fetcho.Common
                 base.BeginRequest();
 
                 // get database from the pool
-                var db = await databasePool.ReceiveAsync();
-                await db.SaveWebResource(uri, DateTime.Now.AddDays(Settings.PageCacheExpiryInDays));
-                await databasePool.SendAsync(db);
+                var db = await DatabasePool.GetDatabaseAsync();
+                await db.SaveWebResource(uri, DateTime.Now.AddDays(FetchoConfiguration.Current.PageCacheExpiryInDays));
+                await DatabasePool.GiveBackToPool(db);
 
                 request = CreateRequest(referrerUri, uri, lastFetchedDate);
 
@@ -70,7 +69,7 @@ namespace Fetcho.Common
 
                 response = await netTask as HttpWebResponse;
 
-                if (blockProvider.IsBlocked(request, response, out string block_reason))
+                if (FetchoConfiguration.Current.BlockProvider.IsBlocked(request, response, out string block_reason))
                 {
                     response.Close();
                     throw new FetchoResourceBlockedException(block_reason);
@@ -80,12 +79,11 @@ namespace Fetcho.Common
                     bool firstTime = true;
                     var rspw = WriteOutResponse(writerPool, request, response, startTime);
 
-
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
                     {
                         if (!firstTime)
                             throw new FetchoException("WriteOutResponse timed out");
-                        var wait = Task.Delay(Settings.ResponseReadTimeoutInMilliseconds);
+                        var wait = Task.Delay(FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
                         if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
@@ -143,7 +141,7 @@ namespace Fetcho.Common
             bool wroteOk = false;
 
             // this has a potential to cause memory issues if theres lots of waiting
-            byte[] buffer = new byte[Settings.MaxFileDownloadLengthInBytes]; 
+            byte[] buffer = new byte[FetchoConfiguration.Current.MaxFileDownloadLengthInBytes]; 
             int bytesread = 0;
 
             // Read as much into memory as possible up to the max limit
@@ -157,7 +155,7 @@ namespace Fetcho.Common
                         l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread).ConfigureAwait(false);
                         bytesread += l;
                     }
-                    while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit
+                    while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit and ditch the rest
                 }
             }
             catch(Exception ex)
@@ -202,7 +200,7 @@ namespace Fetcho.Common
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
             // our user agent
-            request.UserAgent = Settings.UserAgent;
+            request.UserAgent = FetchoConfiguration.Current.UserAgent;
             request.Method = "GET";
 
             // we need to check the redirect URL is OK from a robots standpoint
@@ -214,7 +212,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout is not honoured by the framework in async mode, but is implemented manually by this code
-            request.Timeout = Settings.DefaultRequestTimeoutInMilliseconds;
+            request.Timeout = FetchoConfiguration.Current.DefaultRequestTimeoutInMilliseconds;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;

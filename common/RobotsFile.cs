@@ -44,8 +44,6 @@ namespace Fetcho.Common
         /// </summary>
         public List<string> SiteMaps { get; set; }
 
-        private readonly object databasePoolLock = new object();
-        private static BufferBlock<Database> databasePool = null;
 
         public RobotsFile()
         {
@@ -54,11 +52,6 @@ namespace Fetcho.Common
             SiteMaps = new List<string>();
             Malformed = false;
 
-            lock(databasePoolLock)
-            {
-                databasePool = new BufferBlock<Database>();
-                databasePool.SendAsync(new Database());
-            }
         }
 
         public RobotsFile(byte[] data) : this(XmlReader.Create(new MemoryStream(data)))
@@ -79,18 +72,18 @@ namespace Fetcho.Common
         /// <param name="uri"></param>
         /// <param name="userAgent"></param>
         /// <returns></returns>
-        public bool IsNotDisallowed(Uri uri, string userAgent = Settings.UserAgent) => !IsDisallowed(uri, userAgent);
+        public bool IsNotDisallowed(Uri uri, string userAgent = "") => !IsDisallowed(uri, userAgent);
 
         /// <summary>
         /// Returns true if the uri is not allowed to be crawled
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public bool IsDisallowed(Uri uri, string userAgent = Settings.UserAgent)
+        public bool IsDisallowed(Uri uri, string userAgent = "")
         {
             bool rtn = false;
             if (String.IsNullOrWhiteSpace(userAgent))
-                userAgent = Settings.UserAgent;
+                userAgent = FetchoConfiguration.Current.UserAgent;
 
             FiniteStateMachine<FiniteStateMachineBooleanState, char>[] matcher = Disallow.GetState(userAgent);
             FiniteStateMachineBooleanState[] states = null;
@@ -161,7 +154,7 @@ namespace Fetcho.Common
                             if (line.Length > 11)
                                 userAgent = line.Substring(11, line.Length - 11).Trim();
 
-                            if (userAgent == Settings.UserAgent)
+                            if (userAgent == FetchoConfiguration.Current.UserAgent)
                                 log.Error(this.Uri + " has a specific restriction for our user-agent");
 
                             addStringToMatcher(Disallow,
@@ -281,23 +274,20 @@ namespace Fetcho.Common
             Site site = null;
             RobotsFile robotsFile = null;
             var robotsUri = MakeRobotsUri(anyUri);
+            bool needsVisiting = true;
 
             try
             {
-
-                bool needsVisiting = true;
-
-                using (var db = new Database())
+                var db = await DatabasePool.GetDatabaseAsync();
+                site = await db.GetSite(robotsUri);
+                await DatabasePool.GiveBackToPool(db);
+                if (site != null)
                 {
-                    site = await db.GetSite(robotsUri);
-                    if (site != null)
-                    {
-                        needsVisiting = site.RobotsNeedsVisiting;
-                    }
-                    else
-                    {
-                        site = MakeNewSite(anyUri);
-                    }
+                    needsVisiting = site.RobotsNeedsVisiting;
+                }
+                else
+                {
+                    site = MakeNewSite(anyUri);
                 }
 
                 if (needsVisiting)
@@ -311,8 +301,9 @@ namespace Fetcho.Common
                     robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched);
                     site.LastRobotsFetched = DateTime.Now;
                     site.RobotsFile = robotsFile;
-                    using (var db = new Database())
-                        await db.SaveSite(site);
+                    db = await DatabasePool.GetDatabaseAsync();
+                    await db.SaveSite(site);
+                    await DatabasePool.GiveBackToPool(db);
                 }
                 else
                     robotsFile = site.RobotsFile;
@@ -359,16 +350,7 @@ namespace Fetcho.Common
 
             try
             {
-                IPAddress ipAddress = await Utility.GetHostIPAddress(robotsUri);
-
-                if (ipAddress == IPAddress.None)
-                {
-                    log.InfoFormat("Can't find IP Address for {0}", robotsUri);
-                    return null;
-                }
-
                 var bb = new BufferBlock<WebDataPacketWriter>();
-                var db = new BufferBlock<Database>();
 
                 using (var ms = new MemoryStream())
                 {
@@ -377,7 +359,7 @@ namespace Fetcho.Common
                         // this is annoying, I shouldn't have to create a buffer block to get a robots file
                         // or we should put robots into the standard flow of things
                         await bb.SendAsync(packet);
-                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, bb, databasePool, NullBlockProvider.Default, lastFetched);
+                        await (new HttpResourceFetcher()).Fetch(robotsUri, null, lastFetched, bb);
                     }
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(CreateXmlReader(ms));
@@ -395,7 +377,7 @@ namespace Fetcho.Common
         private static XmlWriter CreateXmlWriter(Stream stream) => XmlWriter.Create(stream, new XmlWriterSettings() { ConformanceLevel = ConformanceLevel.Fragment });
 
         private static XmlReader CreateXmlReader(Stream stream) => XmlReader.Create(stream, new XmlReaderSettings() { ConformanceLevel = ConformanceLevel.Fragment });
-
+        
         /// <summary>
         /// Dispose the robots file
         /// </summary>

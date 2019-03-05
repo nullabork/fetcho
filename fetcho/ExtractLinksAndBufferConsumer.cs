@@ -84,7 +84,11 @@ namespace Fetcho
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            if (ContentType.IsUnknownOrNull(ContentType) || ContentType.MediaType == "text")
+            if (ContentType.IsTextContentType(ContentType))
+                return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
+            else if(ContentType.IsUnknownOrNull(ContentType))
+                return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
+            else  if ( ContentType.IsXmlContentType(ContentType))
                 return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
             else
             {
@@ -117,7 +121,7 @@ namespace Fetcho
 
             LinksExtracted += l.Count;
             // effectively block until the URL is accepted
-            while (!PrioritisationBuffer.Post(l)) Task.Delay(10).GetAwaiter().GetResult();
+            PrioritisationBuffer.SendOrWaitAsync(l).GetAwaiter().GetResult();
 
         }
     }

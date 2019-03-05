@@ -11,7 +11,7 @@ namespace Fetcho
 {
     class Program
     {
-        const int DefaultBufferBlockLimit = 10;
+        const int DefaultBufferBlockLimit = 20;
 
         public static void Main(string[] args)
         {
@@ -27,16 +27,17 @@ namespace Fetcho
             // turn on log4net
             log4net.Config.XmlConfigurator.Configure();
 
-            var log = LogManager.GetLogger(typeof(Program));
-
             // catch all errors and log them
-            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => log.Error(eventArgs.ExceptionObject);
+            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => Utility.LogException(eventArgs.ExceptionObject as Exception);
 
             // ignore all certificate validation issues
             ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
 
             // console encoding will now be unicode
             Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            // database init
+            DatabasePool.Initialise();
 
             // configure fetcho
             var cfg = new FetchoConfiguration();
@@ -48,32 +49,39 @@ namespace Fetcho
             // configure queueo
             cfg.QueueOrderingModel = new NaiveQueueOrderingModel();
 
+            // setup host cache manager
+            cfg.HostCache = new HostCacheManager();
+
+            FetchoConfiguration.Current = cfg;
+
             // buffers to connect the seperate tasks together
             BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             // really beef this up since it takes for ever to get here
-            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit*1000);
-            BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
-            BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit*100);
+            //BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            //BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
 
             // fetcho!
-            var readLinko = new ReadLinko(cfg, prioritisationBuffer, startPacketIndex);
-            var queueo = new Queueo(cfg, prioritisationBuffer, fetchQueueBuffer, rejectsBuffer);
-            var fetcho = new Fetcho(cfg, fetchQueueBuffer, requeueBuffer);
-            var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
-            var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", rejectsBuffer);
+            var readLinko = new ReadLinko(prioritisationBuffer, startPacketIndex);
+            var queueo = new Queueo(prioritisationBuffer, fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
+            var fetcho = new Fetcho(fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
+            var controlo = new Controlo();
+            //var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
+            //var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", new NullTarget);
 
             // execute
             var tasks = new List<Task>();
 
             tasks.Add(fetcho.Process());
 
-            Task.Delay(1000).GetAwaiter().GetResult();
-            tasks.Add(requeueWriter.Process());
-            tasks.Add(rejectsWriter.Process());
+            //Task.Delay(1000).GetAwaiter().GetResult();
+            //tasks.Add(requeueWriter.Process());
+            //tasks.Add(rejectsWriter.Process());
             Task.Delay(1000).GetAwaiter().GetResult();
             tasks.Add(queueo.Process());
             Task.Delay(1000).GetAwaiter().GetResult();
             tasks.Add(readLinko.Process());
+            tasks.Add(controlo.Process());
 
             Task.WaitAll(tasks.ToArray());
         }

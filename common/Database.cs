@@ -90,7 +90,8 @@ namespace Fetcho.Common
         {
             DateTime start = DateTime.Now;
             while (!await connPool.WaitAsync(GetWaitTime()).ConfigureAwait(false))
-                log.InfoFormat("Waiting for a database connection for {0}ms", (DateTime.Now - start).TotalMilliseconds);
+                log.InfoFormat("Waiting for a database connection for {0}ms", 
+                    (DateTime.Now - start).TotalMilliseconds);
         }
 
         /// <summary>

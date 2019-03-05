@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,7 +13,7 @@ namespace Fetcho.Common.DataFlow
     /// Consume the objects from the buffer and write them out to writer
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class BufferBlockObjectConsumer<T>
+    public class BufferBlockObjectConsumer<T> : IDisposable
     {
         private BufferBlock<T> InBuffer;
         private bool running = true;
@@ -35,11 +36,41 @@ namespace Fetcho.Common.DataFlow
                         await Writer?.WriteLineAsync(oo.ToString());
                 else
                     await Writer?.WriteLineAsync(o.ToString());
-                if (count++ % 1000 == 0) await Writer?.FlushAsync();
+
+                unchecked
+                {
+                    if (count++ % 1000 == 0)
+                        await Writer?.FlushAsync();
+                }
             }
         }
 
         public void Shutdown() => running = false;
+
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    Writer?.Dispose();
+                }
+
+                Writer = null;
+                disposedValue = true;
+            }
+        }
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+        }
+        #endregion
 
     }
 }

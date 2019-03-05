@@ -124,6 +124,10 @@ namespace Fetcho.Common
 
         public const int BytesRequiredForGuessing = 256;
 
+        public static bool IsXmlContentType(ContentType value) => value.MediaType == "application" && value.SubType.Contains("xml");
+
+        public static bool IsTextContentType(ContentType value) => value.MediaType == "text";
+
         public static ContentType Guess(string fileName)
         {
             if (!File.Exists(fileName))
