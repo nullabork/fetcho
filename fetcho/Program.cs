@@ -1,6 +1,4 @@
 ﻿using Fetcho.Common;
-using Fetcho.Common.DataFlow;
-using log4net;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -15,7 +13,7 @@ namespace Fetcho
 
         public static void Main(string[] args)
         {
-            if ( args.Length < 2 )
+            if (args.Length < 2)
             {
                 Usage();
                 return;
@@ -41,23 +39,26 @@ namespace Fetcho
 
             // configure fetcho
             var cfg = new FetchoConfiguration();
-            cfg.DataSourcePath = path;
-
+            FetchoConfiguration.Current = cfg;
+            cfg.SetConfigurationSetting(() => cfg.DataSourcePath, path);
             // setup the block provider we want to use
             cfg.BlockProvider = new DefaultBlockProvider();
-
             // configure queueo
             cfg.QueueOrderingModel = new NaiveQueueOrderingModel();
-
             // setup host cache manager
             cfg.HostCache = new HostCacheManager();
-
-            FetchoConfiguration.Current = cfg;
+            // log configuration changes
+            cfg.ConfigurationChange += (sender, e) =>
+                                        Utility.LogInfo("Configuration setting {0} changed from {1} to {2}",
+                                            e.PropertyName,
+                                            e.OldValue, 
+                                            e.NewValue
+                                        );
 
             // buffers to connect the seperate tasks together
             BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             // really beef this up since it takes for ever to get here
-            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit*100);
+            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit * 100);
             //BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             //BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
 

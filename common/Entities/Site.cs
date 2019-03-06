@@ -5,7 +5,7 @@ namespace Fetcho.Common.Entities
 {
     public class Site
     {
-        public MD5Hash Hash { get { return MD5Hash.Compute(HostName); } }
+        public MD5Hash Hash { get => MD5Hash.Compute(HostName);  }
 
         public string HostName { get; set; }
 
@@ -15,9 +15,9 @@ namespace Fetcho.Common.Entities
 
         public RobotsFile RobotsFile { get; set; }
 
-        public DateTime NextRobotsFetch { get { return !LastRobotsFetched.HasValue ? DateTime.MinValue : LastRobotsFetched.Value.AddMinutes(FetchoConfiguration.Current.RobotsCacheTimeoutMinutes); } }
+        public DateTime NextRobotsFetch { get => !LastRobotsFetched.HasValue ? DateTime.MinValue : LastRobotsFetched.Value.AddDays(FetchoConfiguration.Current.RobotsCacheTimeoutDays);  }
 
-        public bool RobotsNeedsVisiting { get { return DateTime.Now > NextRobotsFetch; } }
+        public bool RobotsNeedsVisiting { get => DateTime.Now > NextRobotsFetch;  }
 
         public Site()
         {

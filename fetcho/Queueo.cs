@@ -16,7 +16,6 @@ namespace Fetcho
     public class Queueo
     {
         public const int FastCacheSize = 10000;
-        public const int MaxBufferSize = 50000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Queueo));
 
@@ -34,7 +33,7 @@ namespace Fetcho
         // prevents running out of memory whilst roughly eliminating duplicates cheaply
         // later stages of the process will properly limit dupes, but are more expensive
         // ie. have we recently visited the link?
-        private FastLookupCache<Uri> lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+        private FastLookupCache<Uri> lookupCache;
 
         public bool Running { get; set; }
 
@@ -61,11 +60,13 @@ namespace Fetcho
             PrioritisationBufferIn = prioritisationBufferIn;
             RejectsBufferOut = rejectsBufferOut;
             FetchQueueBufferOut = fetchQueueBufferOut;
-            buffer = new QueueBuffer<IPAddress, QueueItem>(
-                FetchoConfiguration.Current.MaxQueueBufferQueues,
-                FetchoConfiguration.Current.MaxQueueBufferQueueLength);
-            recentips = new FastLookupCache<string>(FetchoConfiguration.Current.WindowForIPsSeenRecently);
+
+            buffer = BuildQueueBuffer();
+            recentips = BuildRecentIPsCache();
             TaskPool = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentTasks);
+            lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+
+            FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
         }
 
         public Queueo() => Running = true;
@@ -396,7 +397,7 @@ namespace Fetcho
         /// Returns true if we've reached the maximum accepted links
         /// </summary>
         /// <returns></returns>
-        bool QuotaReached() => FetchoConfiguration.Current.QuotaEnabled && LinksAccepted >= FetchoConfiguration.Current.MaximumLinkQuota;
+        bool QuotaReached() => FetchoConfiguration.Current.QuotaEnabled && LinksAccepted >= FetchoConfiguration.Current.MaxLinkQuota;
 
         /// <summary>
         /// Returns true if the queue item is malformed and of no use to us
@@ -411,14 +412,14 @@ namespace Fetcho
         /// <param name="item"></param>
         /// <returns></returns>
         /// <remarks>A high sequence number means the item has probably been visited recently or is not valid</remarks>
-        bool IsPriorityTooLow(QueueItem item) => item.Priority > FetchoConfiguration.Current.MaximumPriorityValueForLinks;
+        bool IsPriorityTooLow(QueueItem item) => item.Priority > FetchoConfiguration.Current.MaxPriorityValueForLinks;
 
         /// <summary>
         /// Throw out items when the queue for an IP gets too large
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > FetchoConfiguration.Current.MaximumChunkSize;
+        bool IsChunkSequenceTooHigh(QueueItem item) => item.ChunkSequence > FetchoConfiguration.Current.MaxQueueBufferQueueLength;
 
         // the function for the size of this window needs to be determined. *4 times the number of concurrent fetches is not correct
         // its probably relative to the number of unique IPs in a fetch window times the max-min length of their queues and a bunch 
@@ -465,6 +466,41 @@ namespace Fetcho
 
             return rtn;
         }
+
+        private FastLookupCache<string> BuildRecentIPsCache()
+            => new FastLookupCache<string>(FetchoConfiguration.Current.WindowForIPsSeenRecently);
+
+        private QueueBuffer<IPAddress, QueueItem> BuildQueueBuffer() 
+            => new QueueBuffer<IPAddress, QueueItem>(
+                 FetchoConfiguration.Current.MaxQueueBufferQueues,
+                 FetchoConfiguration.Current.MaxQueueBufferQueueLength
+               );
+
+        private void UpdateConfigurationSettings(ConfigurationChangeEventArgs e)
+        {
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.MaxConcurrentTasks,
+                 () => UpdateTaskPoolConfiguration(e)
+            );
+
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.WindowForIPsSeenRecently,
+                 () => recentips = BuildRecentIPsCache()
+            );
+
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.MaxQueueBufferQueues,
+                 () => buffer = BuildQueueBuffer()
+            );
+
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.MaxQueueBufferQueueLength,
+                 () => buffer = BuildQueueBuffer()
+            );
+        }
+
+        private void UpdateTaskPoolConfiguration(ConfigurationChangeEventArgs e)
+            => TaskPool.ReleaseOrReduce((int)e.OldValue, (int)e.NewValue).GetAwaiter().GetResult();
 
     }
 }

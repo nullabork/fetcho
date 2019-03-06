@@ -15,7 +15,7 @@ namespace Fetcho.Common
     {
         static readonly ILog log = LogManager.GetLogger(typeof(HostCacheManager));
 
-        readonly IndexableQueue<string> recencyQueue = null;
+        IndexableQueue<string> recencyQueue = null;
         readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
         readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
         readonly SemaphoreSlim can_i_fetch_lock = new SemaphoreSlim(1);
@@ -23,7 +23,8 @@ namespace Fetcho.Common
 
         public HostCacheManager()
         {
-            recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords); 
+            FetchoConfiguration.Current.ConfigurationChange += (sender, e) 
+                => e.IfPropertyIs(() => FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords, RebuildRecencyQueue);
         }
 
         /// <summary>
@@ -143,6 +144,8 @@ namespace Fetcho.Common
             recencyQueue.Enqueue(host);
         }
 
+        void RebuildRecencyQueue() => recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords);
+
         /// <summary>
         /// Retrives a record from the cache or creates a new one
         /// </summary>
@@ -218,7 +221,7 @@ namespace Fetcho.Common
 
             public HostCacheManagerRecord()
             {
-                MaxFetchSpeedInMilliseconds = FetchoConfiguration.Current.MaximumFetchSpeedMilliseconds;
+                MaxFetchSpeedInMilliseconds = FetchoConfiguration.Current.MaxFetchSpeedInMilliseconds;
                 LastCall = DateTime.MinValue;
                 UpdateWaitHandle = new SemaphoreSlim(1);
                 FetchWaitHandle = new SemaphoreSlim(1);

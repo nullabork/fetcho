@@ -1,5 +1,4 @@
-﻿using log4net;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,8 +12,6 @@ namespace Fetcho
     /// <remarks>This is useful for turning a random stream of data into a semi-ordered stream of serial chunks</remarks>
     public class QueueBuffer<TKey, TItem>
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(QueueBuffer<TKey, TItem>));
-
         /// <summary>
         /// Maximum number of queues this can contain
         /// </summary>

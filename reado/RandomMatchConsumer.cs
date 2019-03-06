@@ -4,7 +4,6 @@ using Fetcho.FetchoAPI.Controllers;
 using System;
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 using System.Web;
 
 namespace Fetcho

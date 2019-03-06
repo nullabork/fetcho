@@ -4,10 +4,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using Fetcho.Common;
 using log4net;
 
-namespace Fetcho
+namespace Fetcho.Common
 {
     /// <summary>
     /// Assigns a random number to the queue item adjusts slightly for common hosts and IP addresses

@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
-using System.Xml;
 using Fetcho.Common;
 using log4net;
 
@@ -33,7 +30,7 @@ namespace Fetcho
         public bool Running { get; set; }
 
         public Fetcho(
-            ISourceBlock<IEnumerable<QueueItem>> fetchQueueIn, 
+            ISourceBlock<IEnumerable<QueueItem>> fetchQueueIn,
             ITargetBlock<IEnumerable<QueueItem>> requeueOut)
         {
             Running = true;
@@ -41,6 +38,8 @@ namespace Fetcho
             FetchQueueIn = fetchQueueIn;
             RequeueOut = requeueOut;
             fetchLock = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentFetches);
+            FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
+
         }
 
         public async Task Process()
@@ -91,7 +90,7 @@ namespace Fetcho
                 }
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Utility.LogException(ex);
             }
@@ -103,7 +102,7 @@ namespace Fetcho
         /// <returns></returns>
         private async Task<QueueItem> NextQueueItem()
         {
-            while ( queueItemEnum == null || !queueItemEnum.MoveNext())
+            while (queueItemEnum == null || !queueItemEnum.MoveNext())
             {
                 queueItemEnum = (await FetchQueueIn.ReceiveAsync().ConfigureAwait(false)).GetEnumerator();
             }
@@ -149,7 +148,7 @@ namespace Fetcho
                 {
                     await FetchQueueItem(item);
                     Interlocked.Increment(ref waitingForFetchTimeout);
-                    await Task.Delay(FetchoConfiguration.Current.MaximumFetchSpeedMilliseconds + 10);
+                    await Task.Delay(FetchoConfiguration.Current.MaxFetchSpeedInMilliseconds + 10);
                     Interlocked.Decrement(ref waitingForFetchTimeout);
                 }
             }
@@ -233,7 +232,7 @@ namespace Fetcho
 
         private WebDataPacketWriter ReplaceDataPacketWriterIfQuotaReached(WebDataPacketWriter writer)
         {
-            if (writer.ResourcesWritten > FetchoConfiguration.Current.MaximumResourcesPerDataPacket)
+            if (writer.ResourcesWritten > FetchoConfiguration.Current.MaxResourcesPerDataPacket)
                 return ReplaceDataPacketWriter(writer);
             return writer;
         }
@@ -288,6 +287,25 @@ namespace Fetcho
                 FetchoConfiguration.Current.MinPressureReliefValveWaitTimeInMilliseconds,
                 FetchoConfiguration.Current.MaxPressureReliefValveWaitTimeInMilliseconds
                 );
+
+        private void UpdateConfigurationSettings(ConfigurationChangeEventArgs e)
+        {
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.MaxConcurrentFetches,
+                 () => UpdateFetchLockConfiguration(e)
+            );
+
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.PressureReliefThreshold,
+                 () => UpdateValveConfiguration(e)
+            );
+        }
+
+        private void UpdateFetchLockConfiguration(ConfigurationChangeEventArgs e)
+            => fetchLock.ReleaseOrReduce((int)e.OldValue, (int)e.NewValue).GetAwaiter().GetResult();
+
+        private void UpdateValveConfiguration(ConfigurationChangeEventArgs e)
+            => valve.WaitingThreshold = (int)e.NewValue;
 
         private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
             item.TargetIP != null && !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);

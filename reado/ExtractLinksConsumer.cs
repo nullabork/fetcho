@@ -3,7 +3,6 @@ using Fetcho.ContentReaders;
 using log4net;
 using System;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace Fetcho
 {

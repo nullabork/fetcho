@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Cache;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using log4net;
@@ -212,7 +211,7 @@ namespace Fetcho.Common
               DecompressionMethods.Deflate;
 
             // timeout is not honoured by the framework in async mode, but is implemented manually by this code
-            request.Timeout = FetchoConfiguration.Current.DefaultRequestTimeoutInMilliseconds;
+            request.Timeout = FetchoConfiguration.Current.RequestTimeoutInMilliseconds;
 
             // dont want keepalive as we'll be connecting to lots of servers and we're unlikely to get back to this one anytime soon
             request.KeepAlive = false;

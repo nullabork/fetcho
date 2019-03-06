@@ -1,99 +1,111 @@
-﻿using Fetcho.Common;
-using Fetcho.Common.Configuration;
+﻿using Fetcho.Common.Configuration;
+using System;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Fetcho.Common
 {
     public class FetchoConfiguration
     {
-        const int MaxConcurrentFetchesDefault = 1000;
-        const int MaximumFetchSpeedInMillisecondsDefault = 10000;
+        public event EventHandler<ConfigurationChangeEventArgs> ConfigurationChange;
 
-        [ConfigurationSetting]
-        public string UserAgent = "ResearchBot 0.2";
+        protected void OnConfigurationChange(string propertyName, Type propertyType, object oldValue, object newValue)
+        {
+            var eventHandler = ConfigurationChange;
 
-        [ConfigurationSetting]
-        public int HostCacheManagerMaxInMemoryDomainRecords = 10000;
+            if ( eventHandler != null )
+                ConfigurationChange(this, new ConfigurationChangeEventArgs(propertyName, propertyType, oldValue, newValue));
+        }
 
-        [ConfigurationSetting]
-        public int MaximumFetchSpeedMilliseconds = MaximumFetchSpeedInMillisecondsDefault;
+        const int DefaultMaxFetchSpeedInMilliseconds = 10000;
+        const int DefaultMaxConcurrentFetches = 1000;
 
-        [ConfigurationSetting]
-        public int RobotsCacheTimeoutMinutes = 60 * 24 * 28; // 4 weeks
+        [ConfigurationSetting("ResearchBot 0.2")]
+        public string UserAgent { get; private set; }
 
-        [ConfigurationSetting]
-        public int MaxFileDownloadLengthInBytes = 1 * 1024 * 1024;
+        [ConfigurationSetting(10000)]
+        public int HostCacheManagerMaxInMemoryDomainRecords { get; private set; }
 
-        [ConfigurationSetting]
-        public int ResponseReadTimeoutInMilliseconds = 120000;
+        [ConfigurationSetting(10000)]
+        public int MaxFetchSpeedInMilliseconds { get; private set; }
 
-        [ConfigurationSetting]
-        public int PageCacheExpiryInDays = 7;
+        [ConfigurationSetting(28)]
+        public int RobotsCacheTimeoutDays { get; private set; }
 
-        [ConfigurationSetting]
-        public int DefaultRequestTimeoutInMilliseconds = 30000;
+        [ConfigurationSetting(1 * 1024 * 1024)]
+        public int MaxFileDownloadLengthInBytes { get; private set; }
+
+        [ConfigurationSetting(120000)]
+        public int ResponseReadTimeoutInMilliseconds { get; private set; }
+
+        [ConfigurationSetting(28)]
+        public int PageCacheExpiryInDays { get; private set; }
+
+        [ConfigurationSetting(30000)]
+        public int RequestTimeoutInMilliseconds { get; private set; }
 
 
-        [ConfigurationSetting]
-        public int HowOftenToReportStatusInMilliseconds = 30000;
+        [ConfigurationSetting(30000)]
+        public int HowOftenToReportStatusInMilliseconds { get; private set; }
 
-        [ConfigurationSetting]
-        public int TaskStartupWaitTimeInMilliseconds = 360000;
+        [ConfigurationSetting(360000)]
+        public int TaskStartupWaitTimeInMilliseconds { get; private set; }
 
-        [ConfigurationSetting]
-        public int MinPressureReliefValveWaitTimeInMilliseconds = MaximumFetchSpeedInMillisecondsDefault * 2;
+        [ConfigurationSetting(DefaultMaxFetchSpeedInMilliseconds * 2)]
+        public int MinPressureReliefValveWaitTimeInMilliseconds { get; private set; }
 
-        [ConfigurationSetting]
-        public int MaxPressureReliefValveWaitTimeInMilliseconds = MaximumFetchSpeedInMillisecondsDefault * 12;
+        [ConfigurationSetting(DefaultMaxFetchSpeedInMilliseconds * 12)]
+        public int MaxPressureReliefValveWaitTimeInMilliseconds { get; private set; }
 
-        [ConfigurationSetting]
-        public int MaximumResourcesPerDataPacket = 100000;
+        [ConfigurationSetting(100000)]
+        public int MaxResourcesPerDataPacket { get; private set; }
 
         /// <summary>
         /// Init all lists to this
         /// </summary>
-        [ConfigurationSetting]
-        public int MaxConcurrentTasks = 500;
+        [ConfigurationSetting(500)]
+        public int MaxConcurrentTasks { get; private set; }
 
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
         /// </summary>
-        [ConfigurationSetting]
-        public uint MaximumPriorityValueForLinks = 740 * 1000 * 1000;
+        [ConfigurationSetting((uint)740 * 1000 * 1000)]
+        public uint MaxPriorityValueForLinks { get; private set; }
 
-        [ConfigurationSetting]
-        public int MaxQueueBufferQueueLength = 1000;
+        [ConfigurationSetting(1000)]
+        public int MaxQueueBufferQueueLength { get; private set; }
 
-        [ConfigurationSetting]
-        public int MaxQueueBufferQueues = 50;
+        [ConfigurationSetting(50)]
+        public int MaxQueueBufferQueues { get; private set; }
 
 
-        [ConfigurationSetting]
-        public int MaxConcurrentFetches = MaxConcurrentFetchesDefault;
+        [ConfigurationSetting(DefaultMaxConcurrentFetches)]
+        public int MaxConcurrentFetches { get; private set; }
 
-        [ConfigurationSetting]
-        public int PressureReliefThreshold = MaxConcurrentFetchesDefault * 5 / 10; // 50% of max
+        [ConfigurationSetting(DefaultMaxConcurrentFetches * 5 / 10)] // 50% of max
+        public int PressureReliefThreshold { get; private set; }
 
         /// <summary>
         /// Maximum number of concurrent fetches, times the number of items able to be fetched before the fetch timeout
         /// Coupled with some fuziness for half queues meaning the IP may arrive in two queues sooner
         /// </summary>
-        [ConfigurationSetting]
-        public int WindowForIPsSeenRecently = MaxConcurrentFetchesDefault * 6;
+        [ConfigurationSetting(DefaultMaxConcurrentFetches * 6)]
+        public int WindowForIPsSeenRecently { get; private set; }
 
         /// <summary>
         /// Maximum links that can be output
         /// </summary>
-        [ConfigurationSetting]
-        public int MaximumLinkQuota = 400000;
+        [ConfigurationSetting(400000)]
+        public int MaxLinkQuota { get; private set; }
 
         /// <summary>
         /// Enable the quota
         /// </summary>
-        [ConfigurationSetting]
-        public bool QuotaEnabled = false;
+        [ConfigurationSetting(false)]
+        public bool QuotaEnabled { get; private set; }
 
         [ConfigurationSetting]
-        public string DataSourcePath;
+        public string DataSourcePath { get; private set; }
 
         public IBlockProvider BlockProvider { get; set; }
 
@@ -101,12 +113,46 @@ namespace Fetcho.Common
 
         public HostCacheManager HostCache { get; set; }
 
-        public FetchoConfiguration() { }
+        public FetchoConfiguration()
+        {
+            InitialiseToDefaults();
+        }
 
         /// <summary>
         /// Current configuration in force
         /// </summary>
         public static FetchoConfiguration Current { get; set; }
+
+        public void InitialiseToDefaults()
+        {
+            var props = GetType().GetProperties();
+            foreach (var prop in props)
+            {
+                var attrs = prop.GetCustomAttributes(typeof(ConfigurationSettingAttribute), false);
+                if (attrs.Length > 0)
+                {
+                    var attr = attrs[0] as ConfigurationSettingAttribute;
+                    if (attr.Default != null)
+                        prop.SetValue(this, attr.Default);
+                }
+            }
+        }
+
+        public void SetConfigurationSetting(string propertyName, object value)
+        {
+            var prop = this.GetType().GetProperty(propertyName);
+            if (prop == null)
+                throw new FetchoException("Property does't exist");
+            if (value.GetType() != prop.PropertyType)
+                throw new FetchoException("Value type doesn't match property type");
+
+            var oldValue = prop.GetValue(this);
+            prop.SetValue(this, value);
+            OnConfigurationChange(propertyName, prop.PropertyType, oldValue, value);
+        }
+
+        public void SetConfigurationSetting<T>(Expression<Func<T>> propertyLambda, T value) =>
+            SetConfigurationSetting(Utility.GetPropertyName(propertyLambda), value);
     }
 }
 

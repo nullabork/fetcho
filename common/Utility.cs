@@ -1,9 +1,12 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -307,6 +310,29 @@ namespace Fetcho.Common
         public static void LogException(Exception ex) => log.Error(ex);
 
         public static void LogInfo(string format, params object[] args) => log.InfoFormat(format, args);
+
+        // <summary>
+        // Get the name of a static or instance property from a property access lambda.
+        // </summary>
+        // <typeparam name="T">Type of the property</typeparam>
+        // <param name="propertyLambda">lambda expression of the form: '() => Class.Property' or '() => object.Property'</param>
+        // <returns>The name of the property</returns>
+        public static string GetPropertyName<T>(Expression<Func<T>> propertyLambda)
+        {
+            if (!(propertyLambda.Body is MemberExpression me))
+            {
+                throw new ArgumentException("You must pass a lambda of the form: '() => Class.Property' or '() => object.Property'");
+            }
+
+            return me.Member.Name;
+        }
+
+        public static T TryParse<T>(string inValue)
+        {
+            TypeConverter converter = TypeDescriptor.GetConverter(typeof(T));
+
+            return (T)converter.ConvertFromString(null, CultureInfo.InvariantCulture, inValue);
+        }
 
     }
 }

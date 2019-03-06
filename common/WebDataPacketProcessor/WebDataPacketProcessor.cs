@@ -1,6 +1,5 @@
 ﻿using log4net;
 using System;
-using System.Threading.Tasks;
 
 namespace Fetcho.Common
 {

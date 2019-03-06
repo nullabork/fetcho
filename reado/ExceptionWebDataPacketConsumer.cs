@@ -1,7 +1,6 @@
 ﻿using Fetcho.Common;
 using System;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace Fetcho
 {

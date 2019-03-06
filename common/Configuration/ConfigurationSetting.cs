@@ -1,12 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fetcho.Common.Configuration
 {
     public class ConfigurationSettingAttribute : Attribute
     {
+        public object Default { get; set; }
+
+        public ConfigurationSettingAttribute(object defaultValue) => Default = defaultValue;
+
+        public ConfigurationSettingAttribute() => Default = null;
     }
 }

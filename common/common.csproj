@@ -128,6 +128,7 @@
     <Compile Include="..\Grammars\obj\Debug\HTMLParserVisitor.cs">
       <Link>ContentReader\GeneratedFiles\HTMLParserVisitor.cs</Link>
     </Compile>
+    <Compile Include="ConfigurationChangeEventArgs.cs" />
     <Compile Include="Configuration\ConfigurationSetting.cs" />
     <Compile Include="DatabasePool.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsoleWriter.cs" />
@@ -147,6 +148,7 @@
     <Compile Include="FetchoConfiguration.cs" />
     <Compile Include="FetchoResourceBlockedException.cs" />
     <Compile Include="IQueueCalculationModel.cs" />
+    <Compile Include="NaiveQueueOrderingModel.cs" />
     <Compile Include="PressureReliefValve.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -177,6 +179,7 @@
     <Compile Include="ResourceFetchers\HttpResourceFetcher.cs" />
     <Compile Include="ResourceFetchers\ResourceFetcher.cs" />
     <Compile Include="RobotsFile.cs" />
+    <Compile Include="SemaphoreSlimEx.cs" />
     <Compile Include="TypeExtensions.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="WebDataPacketProcessor\IWebDataPacketConsumer.cs" />
