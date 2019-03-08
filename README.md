@@ -42,17 +42,22 @@ Use this for server facing tools
 
 ## Models
 
-### AccessKey ### - A code for accessing workspaces  
+### AccessKey 
+Keys for accessing workspaces  
 
+```
 AccessKey:
 {
 	"Key": "PurpleMonkeyDishwasher",
 	"Created": "2019-02-15T14:25:06.639414+08:00",  
 	"IsActive": true
 }
+```
 
-### WorkspaceAccessKey ### - security keys connecting AccessKeys to Workspaces 
+### WorkspaceAccessKey 
+An access key to a Workspace Workspaces 
 
+```
 WorkspaceAccessKey:
 {  
       "Id":"8cd40e60-5749-480a-a0e3-77d66f3bb5d6",  
@@ -63,10 +68,12 @@ WorkspaceAccessKey:
       "IsRevoked":false,  
       "Created":"2019-02-15T14:25:06.639414+08:00"  
 }  
+```
 
-### Workspace ### - A group of a query, results and other configuration for a persistent search  
+### Workspace 
+Details of a running search query and it's results and other configuration for a persistent search  
 
-Workspace: 
+```Workspace: 
 {  
    "WorkspaceId":"f5201ff7-ea59-4e00-87b9-af4a0a9c8e2e",  
    "Name":"random stuff",  
@@ -96,10 +103,12 @@ Workspace:
       }  
    ]  
 }  
+```
 
-### WorkspaceResult ### - Individual items searched for  
+### WorkspaceResult 
+Individual search results  
 
-WorkspaceResult:  
+```WorkspaceResult:  
 {   
     "Hash":"DDD2291FFF76A7209D5F8BF2FD5EFAA6",  
     "ReferrerUri":"",  
@@ -113,3 +122,4 @@ WorkspaceResult:
     "PageSize":62985,  
     "Sequence":9241  
 }
+```
