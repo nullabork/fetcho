@@ -46,7 +46,6 @@ Use this for server facing tools
 Keys for accessing workspaces  
 
 ```
-AccessKey:
 {
 	"Key": "PurpleMonkeyDishwasher",
 	"Created": "2019-02-15T14:25:06.639414+08:00",  
@@ -58,7 +57,6 @@ AccessKey:
 An access key to a Workspace Workspaces 
 
 ```
-WorkspaceAccessKey:
 {  
       "Id":"8cd40e60-5749-480a-a0e3-77d66f3bb5d6",  
       "AccessKey":"PurpleMonkeyDishwasher",  
@@ -73,7 +71,7 @@ WorkspaceAccessKey:
 ### Workspace 
 Details of a running search query and it's results and other configuration for a persistent search  
 
-```Workspace: 
+``` 
 {  
    "WorkspaceId":"f5201ff7-ea59-4e00-87b9-af4a0a9c8e2e",  
    "Name":"random stuff",  
@@ -108,7 +106,7 @@ Details of a running search query and it's results and other configuration for a
 ### WorkspaceResult 
 Individual search results  
 
-```WorkspaceResult:  
+```  
 {   
     "Hash":"DDD2291FFF76A7209D5F8BF2FD5EFAA6",  
     "ReferrerUri":"",  
