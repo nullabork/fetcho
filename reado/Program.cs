@@ -27,9 +27,8 @@ namespace Fetcho
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
-
-            // args1 = Packet Procssor
-            // args2 = Packet Path
+            var cfg = new FetchoConfiguration();
+            FetchoConfiguration.Current = cfg;
 
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();

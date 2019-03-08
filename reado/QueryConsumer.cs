@@ -5,8 +5,9 @@ using Fetcho.FetchoAPI.Controllers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BracketPipe;
+using System.Linq;
 using System.Text;
-using System.Web;
 
 namespace Fetcho
 {
@@ -18,53 +19,98 @@ namespace Fetcho
         List<WorkspaceQuery> Queries { get; }
 
         public Uri CurrentUri;
+        public Uri ReferrerUri;
 
-        public string Name { get => "Extract Links that match"; }
+        public string Name { get => "Processes workspace queries"; }
         public bool ProcessesRequest { get => true; }
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
 
-        WorkspacesController controller = null;
-
         public QueryConsumer(params string[] args)
         {
-            controller = new WorkspacesController();
             Queries = new List<WorkspaceQuery>();
         }
 
-        public void ProcessException(string exception)
-        {
-        }
+        public void ProcessException(string exception) { }
 
-        public void ProcessRequest(string request) => CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
+        public void ProcessRequest(string request)
+        {
+            CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
+            ReferrerUri = WebDataPacketReader.GetReferrerUriFromRequestString(request);
+        }
 
         public void ProcessResponseHeaders(string responseHeaders)
         {
         }
 
-        public async void ProcessResponseStream(Stream dataStream)
+        private List<Guid> postTo = new List<Guid>();
+        private WorkspaceResult result = null;
+        private StringBuilder evaluationText = new StringBuilder();
+
+        public void ProcessResponseStream(Stream dataStream)
         {
             try
             {
+                postTo.Clear();
+                evaluationText.Clear();
                 if (dataStream == null) return;
 
-                using (var reader = new StreamReader(dataStream))
+                result = new WorkspaceResult
                 {
-                    while (!reader.EndOfStream)
+                    Hash = MD5Hash.Compute(CurrentUri).ToString(),
+                    ReferrerUri = ReferrerUri?.ToString(),
+                    Uri = CurrentUri.ToString(),
+                    Title = "",
+                    Description = "",
+                    Created = DateTime.Now,
+                    PageSize = 0
+                };
+
+
+                using (var reader = new HtmlReader(dataStream))
+                {
+                    while (!reader.EOF)
                     {
-                        string line = reader.ReadLine();
-                        foreach (var wq in Queries)
+                        var node = reader.NextNode();
+                        if (node.Type == HtmlTokenType.Text)
+                            Evaluate(node.Value);
+
+                        if (node.Value == "script")
+                            ReadToEndTag(reader, "script");
+
+                        if (node.Value == "style")
+                            ReadToEndTag(reader, "style");
+
+                        if (node.Value == "title")
+                            result.Title = ReadTitle(reader);
+
+                        if (node.Value == "meta")
                         {
-                            var r = wq.Query.Evaluate(CurrentUri, line);
-                            if (r.Action == EvaluationResultAction.Include)
-                            {
-                                var result = ReadNextWebResource(new StreamReader(dataStream));
-                                if (AddToTheWorkspace(result))
-                                    await controller.PostResultsByWorkspace(wq.WorkspaceId, new WorkspaceResult[] { result });
-                            }
+                            var desc = ReadDesc(reader);
+                            if (!String.IsNullOrWhiteSpace(desc))
+                                result.Description = desc;
                         }
                     }
                 }
+
+                foreach (var wq in Queries)
+                {
+                    var r = wq.Query.Evaluate(CurrentUri, evaluationText.ToString());
+                    if (r.Action == EvaluationResultAction.Include)
+                    {
+                        result.Tags.AddRange(r.Tags);
+                        postTo.Add(wq.WorkspaceId);
+                    }
+                }
+
+                foreach (var workspaceId in postTo.ToArray())
+                {
+                    if (AddToTheWorkspace(result))
+                        using (var db = new Database())
+                            db.AddWorkspaceResults(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                }
+
+
             }
             catch (Exception ex)
             {
@@ -75,12 +121,10 @@ namespace Fetcho
         public void NewResource()
         {
             CurrentUri = null;
+            ReferrerUri = null;
         }
 
-        public void PacketClosed()
-        {
-
-        }
+        public void PacketClosed() { }
 
         public void PacketOpened()
         {
@@ -88,7 +132,7 @@ namespace Fetcho
             {
                 db.UpdateWorkspaceStatistics().GetAwaiter().GetResult();
                 var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
-                foreach (var workspace in workspaces)
+                foreach (var workspace in workspaces.Distinct())
                     if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
                         Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
             }
@@ -96,73 +140,51 @@ namespace Fetcho
 
         public void ReadingException(Exception ex) { }
 
+        void Evaluate(string fragment)
+        {
+            evaluationText.Append(fragment);
+            evaluationText.Append(' ');
+        }
+
         bool AddToTheWorkspace(WorkspaceResult result) =>
             result != null &&
             !String.IsNullOrWhiteSpace(result.Title);
 
-        WorkspaceResult ReadNextWebResource(TextReader reader)
+
+        string ReadDesc(HtmlReader reader)
         {
-            var r = new WorkspaceResult
+            if (reader.GetAttribute("name").Contains("description"))
+                return reader.GetAttribute("content");
+            return String.Empty;
+        }
+
+        string ReadTitle(HtmlReader reader)
+        {
+            string title = "";
+
+            while ( !reader.EOF )
             {
-                Hash = MD5Hash.Compute(CurrentUri).ToString(),
-                ReferrerUri = "",
-                Uri = CurrentUri.ToString(),
-                Title = "",
-                Description = "",
-                Created = DateTime.Now,
-                PageSize = 0
-            };
+                var node = reader.NextNode();
 
-            string line = reader.ReadLine();
-            if (line == null)
-                return r;
-            else
-            {
+                if (node.Type == HtmlTokenType.Text)
+                    title += node.Value;
 
-                r.PageSize += line.Length;
-                while (reader.Peek() > 0)
-                {
-                    if (String.IsNullOrWhiteSpace(r.Title) && line.ToLower().Contains("<title")) r.Title = ReadTitle(line);
-                    else if (String.IsNullOrWhiteSpace(r.Description) && line.ToLower().Contains("description")) r.Description = ReadDesc(line).Truncate(100);
-                    line = reader.ReadLine();
-                    r.PageSize += line.Length;
-                }
-
-                return r;
+                if (node.Type == HtmlTokenType.EndTag && node.Value == "title")
+                    return title;
             }
+
+            return title;
         }
 
-        string ReadDesc(string line)
+        void ReadToEndTag(HtmlReader reader, string endTag)
         {
-            const string StartPoint = "content=\"";
-            var sb = new StringBuilder();
+            while (!reader.EOF)
+            {
+                var n = reader.NextNode();
 
-            int start = line.ToLower().IndexOf(StartPoint);
-            if (start == -1) return "";
-            start += StartPoint.Length - 1;
-            while (++start < line.Length && line[start] != '"') // </meta >
-                sb.Append(line[start]);
-
-            return HttpUtility.HtmlDecode(sb.ToString().Trim());
-        }
-
-
-        string ReadTitle(string line)
-        {
-            var sb = new StringBuilder();
-
-            int start = line.ToLower().IndexOf("<title");
-            while (++start < line.Length && line[start] != '>') ;
-            while (++start < line.Length && line[start] != '<') // </title>
-                sb.Append(line[start]);
-
-            return HttpUtility.HtmlDecode(sb.ToString().Trim());
-        }
-
-        string ReadUri(string line)
-        {
-            if (line.Length < 5) return "";
-            return line.Substring(5).Trim();
+                if (n.Value == endTag && n.Type == HtmlTokenType.EndTag)
+                    return;
+            }
         }
 
         private struct WorkspaceQuery

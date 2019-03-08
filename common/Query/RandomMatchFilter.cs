@@ -2,7 +2,7 @@
 
 namespace Fetcho.Common
 {
-    public class RandomMatchFilter : IFilter
+    public class RandomMatchFilter : Filter
     {
         public const double DefaultMatchProbability = MaxMatchProbability;
         public const double MaxMatchProbability = 1.0 / 10000.0;
@@ -12,7 +12,7 @@ namespace Fetcho.Common
 
         public double MatchProbability { get; set; }
 
-        public string Name => "RandomMatchFilter";
+        public override string Name => "RandomMatchFilter";
 
         private Uri lastUri = null;
 
@@ -23,16 +23,22 @@ namespace Fetcho.Common
 
         public RandomMatchFilter() => MatchProbability = DefaultMatchProbability;
 
-        public bool IsMatch(Uri uri, string fragment)
+        public override string[] IsMatch(Uri uri, string fragment)
         {
             bool rtn = lastUri != uri && random.NextDouble() < MatchProbability;
             lastUri = uri;
-            return rtn;
+
+            if (rtn)
+                return new string[1];
+            else
+                return new string[0];
         }
 
-        public string GetQueryText() => string.Format("-random:{0}", MatchProbability);
+        public override string GetQueryText()
+            => string.Format("random:{0}", MatchProbability);
 
-        public static bool TokenIsFilter(string token) => token.StartsWith("-random");
+        public static bool TokenIsFilter(string token) 
+            => token.StartsWith("random:");
 
         public static RandomMatchFilter Parse(string token)
         {

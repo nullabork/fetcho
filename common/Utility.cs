@@ -334,5 +334,8 @@ namespace Fetcho.Common
             return (T)converter.ConvertFromString(null, CultureInfo.InvariantCulture, inValue);
         }
 
+        public static string MakeTag(string token)
+            => token?.Trim().Replace(' ', '_');
+
     }
 }

@@ -1,15 +1,20 @@
-﻿namespace Fetcho.Common.QueryEngine
+﻿using System.Collections.Generic;
+
+namespace Fetcho.Common.QueryEngine
 {
     public class EvaluationResult
     {
         public EvaluationResultAction Action { get; set; }
 
-        public string[] Tags { get; set; }
+        public IEnumerable<string> Tags { get; set; }
 
-        public EvaluationResult(EvaluationResultAction action, string[] tags)
+        public long Cost { get; set; }
+
+        public EvaluationResult(EvaluationResultAction action, IEnumerable<string> tags, long cost)
         {
             Action = action;
             Tags = tags;
+            Cost = cost;
         }
 
     }

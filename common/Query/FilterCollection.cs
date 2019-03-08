@@ -5,29 +5,42 @@ using System.Linq;
 
 namespace Fetcho.Common
 {
-    public class FilterCollection : IEnumerable<IFilter>
+    public class FilterCollection : IEnumerable<Filter>
     {
-        private List<IFilter> Filters { get; }
+        private List<Filter> Filters { get; }
 
         public int Count { get => Filters.Count; }
 
         public FilterCollection()
         {
-            Filters = new List<IFilter>();
+            Filters = new List<Filter>();
         }
 
-        public void Add(IFilter filter) => Filters.Add(filter);
+        public void Add(Filter filter)
+            => Filters.Add(filter);
 
-        public void Remove(IFilter filter) => Filters.Remove(filter);
+        public void Remove(Filter filter)
+            => Filters.Remove(filter);
 
         public void Clear() => Filters.Clear();
 
-        public bool AllMatch(Uri uri, string fragment) => Filters.All(x => x.IsMatch(uri, fragment));
+        public bool AllMatch(Uri uri, string fragment) 
+            => Filters.All(x => x.IsMatch(uri, fragment).Any());
 
-        public bool AnyMatch(Uri uri, string fragment) => Filters.Any(x => x.IsMatch(uri, fragment));
+        public bool AnyMatch(Uri uri, string fragment) 
+            => Filters.Any(x => x.IsMatch(uri, fragment).Any());
 
-        public IEnumerator<IFilter> GetEnumerator() => Filters.GetEnumerator();
+        public IEnumerable<string> GetTags(Uri uri, string fragment)
+        {
+            var l = new List<string>();
+            foreach (var filter in Filters)
+                l.AddRange(filter.IsMatch(uri, fragment));
+            return l;
+        }
+        public IEnumerator<Filter> GetEnumerator() 
+            => Filters.GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator() => Filters.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() 
+            => Filters.GetEnumerator();
     }
 }

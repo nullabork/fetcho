@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using log4net;
 
 namespace Fetcho.Common
 {
@@ -13,7 +12,6 @@ namespace Fetcho.Common
     /// </summary>
     public class NaiveQueueOrderingModel : IQueuePriorityCalculationModel
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(NaiveQueueOrderingModel));
         static readonly Random rand = new Random(DateTime.Now.Millisecond);
 
         const int MinHostsAreEqualPriority = 10 * 1000 * 1000;

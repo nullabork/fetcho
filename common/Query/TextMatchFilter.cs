@@ -5,7 +5,7 @@ namespace Fetcho.Common
     /// <summary>
     /// Simple text match filter to include results
     /// </summary>
-    public class TextMatchFilter : IFilter
+    public class TextMatchFilter : Filter
     {
         /// <summary>
         /// Text to match
@@ -15,16 +15,14 @@ namespace Fetcho.Common
         /// <summary>
         /// Name of this filter
         /// </summary>
-        public string Name { get => "TextMatchFilter";  }
+        public override string Name { get => "TextMatchFilter";  }
 
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="searchText"></param>
-        public TextMatchFilter(string searchText)
-        {
-            SearchText = searchText;
-        }
+        public TextMatchFilter(string searchText) 
+            => SearchText = searchText;
 
         /// <summary>
         /// Can't create using the default constructor
@@ -36,21 +34,26 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public bool IsMatch(Uri uri, string fragment) => fragment.ToLower().Contains(SearchText.ToLower());
+        public override string[] IsMatch(Uri uri, string fragment) 
+            => fragment.ToLower().Contains(SearchText.ToLower()) ? new string[1] : new string[0];
+
+        /// <summary>
+        /// Output as string
+        /// </summary>
+        /// <returns></returns>
+        public override string GetQueryText() 
+            => string.Format("{0}", SearchText);
 
         /// <summary>
         /// Parse some text into a TextMatchFilter
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static IFilter Parse(string queryText) => new TextMatchFilter(queryText);
+        public static Filter Parse(string queryText)
+            => new TextMatchFilter(queryText);
 
-        /// <summary>
-        /// Output as string
-        /// </summary>
-        /// <returns></returns>
-        public string GetQueryText() => string.Format("{0}", SearchText);
-
-        public static bool TokenIsFilter(string token) => true;
+        public static bool TokenIsFilter(string token)
+            => !token.Contains(":");
     }
+
 }

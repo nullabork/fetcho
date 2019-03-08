@@ -1,7 +1,6 @@
 ﻿using Fetcho.Common.Configuration;
 using System;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace Fetcho.Common
 {
@@ -106,6 +105,9 @@ namespace Fetcho.Common
 
         [ConfigurationSetting]
         public string DataSourcePath { get; private set; }
+
+        [ConfigurationSetting(@"G:\fetcho\data\GeoLite2-City.mmdb")]
+        public string GeoIP2CityDatabasePath { get; private set; }
 
         public IBlockProvider BlockProvider { get; set; }
 

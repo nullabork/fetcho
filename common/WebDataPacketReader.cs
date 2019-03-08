@@ -157,10 +157,31 @@ namespace Fetcho.Common
             if (String.IsNullOrWhiteSpace(requestString)) return null;
             if (!requestString.StartsWith(UriPrefix)) return null;
 
-            int i = requestString.IndexOf("\n");
+            int i = requestString.IndexOf("\n", StringComparison.InvariantCultureIgnoreCase);
             if (i < 0) return null;
 
             string uri = requestString.Substring(UriPrefix.Length, i - UriPrefix.Length).Trim();
+
+            return new Uri(uri);
+        }
+        
+        /// <summary>
+        /// Extract the Referrer URI from the raw request string
+        /// </summary>
+        /// <param name="requestString"></param>
+        /// <returns></returns>
+        public static Uri GetReferrerUriFromRequestString(string requestString)
+        {
+            const string ReferrerPrefix = "Referrer:";
+
+            if (String.IsNullOrWhiteSpace(requestString)) return null;
+            if (requestString.IndexOf(ReferrerPrefix, StringComparison.InvariantCultureIgnoreCase) < 0) return null;
+
+            requestString = requestString.Substring(requestString.IndexOf(ReferrerPrefix, StringComparison.InvariantCultureIgnoreCase));
+            int i = requestString.IndexOf("\n", StringComparison.InvariantCultureIgnoreCase);
+            if (i < 0) return null;
+
+            string uri = requestString.Substring(ReferrerPrefix.Length, i - ReferrerPrefix.Length).Trim();
 
             return new Uri(uri);
         }

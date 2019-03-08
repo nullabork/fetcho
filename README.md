@@ -7,6 +7,42 @@ If you don't know where you're going, this is a great place to start.
 Useful concepts to understand it:
 1. How do you carve an elephant out of marble? Start with a block of marble and cut away everything that doesn't look like an elephant.
 
+# Search Queries Examples
+
+Traditional word search
+```
+burger
+```
+
+Include a random page for every 10000 looked at
+```
+random:0.0001 
+```
+
+Search for burgers and filter by city
+```
+burger geo-ip-city:Austin
+```
+
+Filter by language
+```
+lang:en
+```
+
+Tag the resuls by city where that city is in the United_States
+```
+geo-ip-city:United_States:*
+```
+
+Exclude all english language pages
+```
+-lang:en
+```
+
+Remove 1 in 100000 random pages from the search even if all other pages match
+```
+burger -random:0.00001
+```
 
 # API
 

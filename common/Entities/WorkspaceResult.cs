@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Fetcho.Common.Entities
 {
@@ -35,5 +36,9 @@ namespace Fetcho.Common.Entities
             ReferrerUri = "";
             Hash = "";
         }
+
+        public string GetTagString()
+            => Tags.Aggregate("", (interim, next) => (interim + " " + next).Trim());
+
     }
 }

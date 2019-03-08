@@ -3,24 +3,26 @@ using System;
 
 namespace Fetcho.Common
 {
-    public interface IFilter
+    public abstract class Filter
     {
         /// <summary>
         /// Name of this filter
         /// </summary>
-        string Name { get;  }
+        public abstract string Name { get;  }
+
+        public decimal Cost { get => 1m;  }
 
         /// <summary>
         /// If the fragment is matched by this filter
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        bool IsMatch(Uri uri, string fragment);
+        public abstract string[] IsMatch(Uri uri, string fragment);
 
         /// <summary>
         /// Get the textual representation of this filter
         /// </summary>
         /// <returns></returns>
-        string GetQueryText();
+        public abstract string GetQueryText();
     }
 }

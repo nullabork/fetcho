@@ -65,8 +65,17 @@
     <Reference Include="BracketPipe, Version=0.7.6772.37409, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\BracketPipe.0.7.6772.37409\lib\net40\BracketPipe.dll</HintPath>
     </Reference>
+    <Reference Include="LanguageDetection, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\LanguageDetection.1.2.0\lib\net45\LanguageDetection.dll</HintPath>
+    </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="MaxMind.Db, Version=2.0.0.0, Culture=neutral, PublicKeyToken=66afa4cc5ae853ac, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaxMind.Db.2.4.0\lib\net45\MaxMind.Db.dll</HintPath>
+    </Reference>
+    <Reference Include="MaxMind.GeoIP2, Version=3.0.0.0, Culture=neutral, PublicKeyToken=66afa4cc5ae853ac, processorArchitecture=MSIL">
+      <HintPath>..\packages\MaxMind.GeoIP2.3.0.0\lib\net45\MaxMind.GeoIP2.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
@@ -85,6 +94,9 @@
     </Reference>
     <Reference Include="MimeTypesMap, Version=1.0.3.0, Culture=neutral, PublicKeyToken=1b320cc08ad5aa89, processorArchitecture=MSIL">
       <HintPath>..\packages\MimeTypesMap.1.0.3\lib\net45\MimeTypesMap.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Npgsql">
       <HintPath>..\..\..\..\Desktop\npgsql-4.0.4\src\Npgsql\bin\Debug\net45\Npgsql.dll</HintPath>
@@ -172,8 +184,10 @@
     </Compile>
     <Compile Include="Query\EvaluationResult.cs" />
     <Compile Include="Query\EvaluationResultAction.cs" />
+    <Compile Include="Query\Filter.cs" />
     <Compile Include="Query\FilterCollection.cs" />
-    <Compile Include="Query\IFilter.cs" />
+    <Compile Include="Query\GeoIPCityFilter.cs" />
+    <Compile Include="Query\LanguageFilter.cs" />
     <Compile Include="Query\Query.cs" />
     <Compile Include="Query\RandomMatchFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />

@@ -11,7 +11,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Data.Common;
 using System.Collections.Generic;
-using System.Net.Http;
+using System.Linq;
 
 namespace Fetcho.Common
 {
@@ -91,7 +91,7 @@ namespace Fetcho.Common
         {
             DateTime start = DateTime.Now;
             while (!await connPool.WaitAsync(GetWaitTime()).ConfigureAwait(false))
-                log.InfoFormat("Waiting for a database connection for {0}ms", 
+                log.InfoFormat("Waiting for a database connection for {0}ms",
                     (DateTime.Now - start).TotalMilliseconds);
         }
 
@@ -500,7 +500,7 @@ namespace Fetcho.Common
 
             using (var reader = await cmd.ExecuteReaderAsync())
             {
-                if ( reader.Read() )
+                if (reader.Read())
                 {
                     var ak = new AccessKey()
                     {
@@ -526,7 +526,7 @@ namespace Fetcho.Common
 
         public async Task<IEnumerable<WorkspaceAccessKey>> GetWorkspaceAccessKeys(Guid workspaceId)
         {
-           var l = new List<WorkspaceAccessKey>();
+            var l = new List<WorkspaceAccessKey>();
 
 
             string sql =
@@ -639,7 +639,7 @@ namespace Fetcho.Common
             byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select hash, uri, referrer, title, description, created, page_size, sequence " +
+            "select hash, uri, referrer, title, description, created, page_size, sequence, tags " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
             "       sequence > :from_sequence " +
@@ -659,13 +659,20 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        ReferrerUri = reader.GetString(2),
+                        ReferrerUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
                         Title = reader.GetString(3),
                         Description = reader.GetString(4),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
                         Sequence = reader.GetInt64(7)
                     });
+
+                    if (!reader.IsDBNull(8))
+                    {
+                        string t = reader.GetString(8);
+                        if (!String.IsNullOrWhiteSpace(t))
+                            l[l.Count - 1].Tags.AddRange(t.Trim().Split(' '));
+                    }
                 }
             }
 
@@ -678,11 +685,11 @@ namespace Fetcho.Common
             byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select hash, uri, referrer, title, description, created, page_size, sequence " +
+            "select hash, uri, referrer, title, description, created, page_size, sequence, tags " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
             "       random > :random " +
-            "order  by random " + 
+            "order  by random " +
             "limit  " + count + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -699,13 +706,20 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        ReferrerUri = reader.GetString(2),
+                        ReferrerUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
                         Title = reader.GetString(3),
                         Description = reader.GetString(4),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
                         Sequence = reader.GetInt64(7)
                     });
+
+                    if (!reader.IsDBNull(8))
+                    {
+                        string t = reader.GetString(8);
+                        if (!String.IsNullOrWhiteSpace(t))
+                            l[l.Count - 1].Tags.AddRange(t.Trim().Split(' '));
+                    }
                 }
             }
 
@@ -720,12 +734,13 @@ namespace Fetcho.Common
               "       title = :title, " +
               "       description = :description, " +
               "       page_size = :page_size, " +
-              "       created = :created " +
+              "       created = :created, " +
+              "       tags = :tags " +
               "where  hash = :hash and " +
               "       workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id, page_size) " +
-              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size );";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id, page_size, tags) " +
+              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size, :tags );";
 
             foreach (var result in results)
             {
@@ -752,14 +767,16 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
         }
 
         public async Task UpdateWorkspaceStatistics()
         {
             await ExecuteSqlAgainstConnection(
-                "update \"Workspace\" set result_count = coalesce((select count(*) c "+
-                " from   \"WorkspaceResult\" r "+
-                " where  r.workspace_id = \"Workspace\".workspace_id "+
+                "update \"Workspace\" " +
+                " set result_count = coalesce((select count(*) c " +
+                " from   \"WorkspaceResult\" r " +
+                " where  r.workspace_id = \"Workspace\".workspace_id " +
                 " group  by workspace_id), 0) "
                 );
         }
