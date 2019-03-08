@@ -5,7 +5,7 @@ namespace Fetcho.Common.Entities
 
     public class WorkspaceAccessKey
     {
-        public Guid AccessKeyId { get; set; }
+        public Guid Id { get; set; }
 
         public string AccessKey { get; set; }
 
@@ -25,12 +25,12 @@ namespace Fetcho.Common.Entities
             IsRevoked = false;
             Expiry = DateTime.MaxValue;
             Created = DateTime.Now;
-            AccessKeyId = Guid.NewGuid();
+            Id = Guid.NewGuid();
         }
 
         public static WorkspaceAccessKey Create(bool isOwner = true) => new WorkspaceAccessKey()
         {
-            AccessKeyId = Guid.NewGuid(),
+            Id = Guid.NewGuid(),
             AccessKey = Utility.GetRandomHashString(),
             IsOwner = isOwner
         };

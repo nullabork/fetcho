@@ -62,11 +62,23 @@
     <Reference Include="Antlr4.Runtime, Version=4.6.0.0, Culture=neutral, PublicKeyToken=09abb75b9ed49849, processorArchitecture=MSIL">
       <HintPath>..\packages\Antlr4.Runtime.4.6.6\lib\net45\Antlr4.Runtime.dll</HintPath>
     </Reference>
+    <Reference Include="BracketPipe, Version=0.7.6772.37409, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\BracketPipe.0.7.6772.37409\lib\net40\BracketPipe.dll</HintPath>
+    </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="Microsoft.Threading.Tasks, Version=1.0.12.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Threading.Tasks.Extensions, Version=1.0.12.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Threading.Tasks.Extensions.Desktop, Version=1.0.168.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.Extensions.Desktop.dll</HintPath>
     </Reference>
     <Reference Include="Mime, Version=3.0.2.0, Culture=neutral, PublicKeyToken=1b320cc08ad5aa89, processorArchitecture=MSIL">
       <HintPath>..\packages\Mime.3.0.2\lib\net45\Mime.dll</HintPath>
@@ -83,6 +95,7 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Net" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -130,6 +143,7 @@
     </Compile>
     <Compile Include="ConfigurationChangeEventArgs.cs" />
     <Compile Include="Configuration\ConfigurationSetting.cs" />
+    <Compile Include="ContentReader\BracketPipeTextExtractor.cs" />
     <Compile Include="DatabasePool.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsoleWriter.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsumer.cs" />
@@ -140,6 +154,7 @@
     <Compile Include="ContentReader\TextFileLinkExtractor.cs" />
     <Compile Include="ContentType.cs" />
     <Compile Include="Database.cs" />
+    <Compile Include="Entities\AccessKey.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessKey.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
@@ -212,4 +227,9 @@
     <Error Condition="!Exists('..\packages\Mime.3.0.2\build\Mime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Mime.3.0.2\build\Mime.targets'))" />
   </Target>
   <Import Project="..\packages\Mime.3.0.2\build\Mime.targets" Condition="Exists('..\packages\Mime.3.0.2\build\Mime.targets')" />
+  <Import Project="..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />
+  <Target Name="EnsureBclBuildImported" BeforeTargets="BeforeBuild" Condition="'$(BclBuildImported)' == ''">
+    <Error Condition="!Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=317567." HelpKeyword="BCLBUILD2001" />
+    <Error Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="The build restored NuGet packages. Build the project again to include these packages in the build. For more information, see http://go.microsoft.com/fwlink/?LinkID=317568." HelpKeyword="BCLBUILD2002" />
+  </Target>
 </Project>

@@ -1,5 +1,4 @@
-﻿using log4net;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
@@ -13,8 +12,6 @@ namespace Fetcho.Common
     /// </summary>
     public class HostCacheManager
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(HostCacheManager));
-
         IndexableQueue<string> recencyQueue = null;
         readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
         readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
@@ -23,8 +20,9 @@ namespace Fetcho.Common
 
         public HostCacheManager()
         {
+            BuildRecencyQueue();
             FetchoConfiguration.Current.ConfigurationChange += (sender, e) 
-                => e.IfPropertyIs(() => FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords, RebuildRecencyQueue);
+                => e.IfPropertyIs(() => FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords, BuildRecencyQueue);
         }
 
         /// <summary>
@@ -44,7 +42,7 @@ namespace Fetcho.Common
                     try
                     {
                         while (!await record.UpdateWaitHandle.WaitAsync(60000))
-                            log.InfoFormat("GetRobotsFile() waiting on {0}", fromHost);
+                            Utility.LogInfo("GetRobotsFile() waiting on {0}", fromHost);
 
                         if (record.UpdateRobotsFileRequired)
                         {
@@ -66,7 +64,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.Error(ex);
+                Utility.LogException(ex);
                 return null;
             }
 
@@ -89,7 +87,7 @@ namespace Fetcho.Common
                 try
                 {
                     while (!await host_record.FetchWaitHandle.WaitAsync(360000))
-                        log.InfoFormat("Been waiting a long time to update a record: {0}", host_record.Host);
+                        Utility.LogInfo("Been waiting a long time to update a record: {0}", host_record.Host);
 
                     DateTime n = DateTime.Now;
                     if (host_record.IsFetchable)
@@ -144,7 +142,7 @@ namespace Fetcho.Common
             recencyQueue.Enqueue(host);
         }
 
-        void RebuildRecencyQueue() => recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords);
+        void BuildRecencyQueue() => recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords);
 
         /// <summary>
         /// Retrives a record from the cache or creates a new one
@@ -159,7 +157,7 @@ namespace Fetcho.Common
             try
             {
                 while (!await hosts_lock.WaitAsync(360000))
-                    log.InfoFormat("GetRecord waiting {0}", fromHost);
+                    Utility.LogInfo("GetRecord waiting {0}", fromHost);
 
                 BumpHost(fromHost);
 

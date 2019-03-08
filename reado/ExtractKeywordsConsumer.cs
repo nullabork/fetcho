@@ -7,6 +7,8 @@ namespace Fetcho
 {
     internal class ExtractKeywordsConsumer : IWebDataPacketConsumer
     {
+        private FastLookupCache<string> cache = new FastLookupCache<string>(10000);
+
         public Uri CurrentUri;
         public ContentType ContentType;
 
@@ -15,33 +17,31 @@ namespace Fetcho
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
 
-        public void ProcessException(string exception)
-        {
-        }
+        public ExtractKeywordsConsumer() { }
 
-        public void ProcessRequest(string request)
-        {
+        public void ProcessException(string exception) { }
+
+        public void ProcessRequest(string request) =>
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
-        }
 
-        public void ProcessResponseHeaders(string responseHeaders)
-        {
+        public void ProcessResponseHeaders(string responseHeaders) =>
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
-        }
 
         public void ProcessResponseStream(Stream dataStream)
         {
-            if ( ContentType.MediaType == "text" && ContentType.SubType == "html")
+            if (ContentType.IsTextType || ContentType.IsXmlType)
             {
                 writtenUri = false;
-                var parser = new HTMLKeywordExtractor
+                var parser = new BracketPipeTextExtractor
                 {
-                    MinimumLength = 256,
-                    IncludeChardata = false
+                    Distinct = true,
+                    Granularity = ExtractionGranularity.Raw,
+                    MaximumLength = int.MaxValue,
+                    MinimumLength = int.MinValue,
+                    StopWords = false
                 };
-                parser.Parse(dataStream, WriteKeyword);
+                parser.Parse(dataStream, WriteExtractedText);
             }
-
         }
 
         public void NewResource()
@@ -57,16 +57,20 @@ namespace Fetcho
         public void ReadingException(Exception ex) { }
 
         private bool writtenUri = false;
-        private void WriteKeyword(string keyword)
+        private void WriteExtractedText(string value)
         {
-            if ( !writtenUri)
+            value = value.Trim();
+            if (cache.Contains(value)) return;
+            cache.Enqueue(value);
+
+            if (!writtenUri)
             {
                 writtenUri = true;
                 Console.WriteLine();
                 Console.WriteLine();
                 Console.WriteLine(CurrentUri);
             }
-            Console.Write("{0} ", keyword);
+            Console.Write("{0} ", value);
         }
     }
 

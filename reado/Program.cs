@@ -42,7 +42,7 @@ namespace Fetcho
 
                 if (!packetPath.Contains("*"))
                 {
-                    reado.Process(packetPath);
+                    reado.Process(packetPath).GetAwaiter().GetResult();
                 }
                 else
                 {
@@ -51,16 +51,15 @@ namespace Fetcho
                         path = Environment.CurrentDirectory;
 
                     string searchPattern = "*";
-                    if ( path.Length < packetPath.Length ) searchPattern = packetPath.Substring(path.Length+1);
+                    if (path.Length < packetPath.Length) searchPattern = packetPath.Substring(path.Length + 1);
 
                     foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly))
-                        if (Path.GetFileName(file).StartsWith("packet-"))
-                            reado.Process(file);
+                        reado.Process(file).GetAwaiter().GetResult();
                 }
             }
         }
 
-        static ReadoProcessor CreateReadoProcessor(string processorType, string [] args)
+        static ReadoProcessor CreateReadoProcessor(string processorType, string[] args)
         {
             var reado = new ReadoProcessor();
             reado.Processor.Consumer = GetWebDataPacketProcessor(processorType, GetConsumerArgs(args));

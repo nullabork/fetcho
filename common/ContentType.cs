@@ -20,6 +20,9 @@ namespace Fetcho.Common
 
         public bool IsBlank { get => String.IsNullOrWhiteSpace(Raw); }
 
+        public bool IsTextType { get => ContentType.IsTextContentType(this); }
+        public bool IsXmlType { get => ContentType.IsXmlContentType(this); }
+
         public ContentType(string contentType)
         {
             if (String.IsNullOrWhiteSpace(contentType)) contentType = String.Empty;

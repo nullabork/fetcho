@@ -2,27 +2,79 @@
 using Fetcho.Common.Entities;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace Fetcho.FetchoAPI.Controllers
 {
-    // TODO: Alter this so you access all workspaces by accesskey
-    // need GetWorkspaceIdByAccessKey()
-    // TODO: Access Key you created
-
     public class WorkspacesController : ApiController
     {
+        [Route("api/v1/accesskeys/")]
+        [HttpPost()]
+        public async Task<HttpResponseMessage> PostAccessKey([FromBody]AccessKey accessKey)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    await ThrowIfNotAValidAccessKey(db, accessKey.Key);
+                    await db.SaveAccessKey(accessKey);
+                }
+
+                return CreateNoContentResponse();
+            }
+            catch( Exception ex )
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accesskeys/")]
+        [HttpDelete()]
+        public async Task<HttpResponseMessage> DeleteAccessKey([FromBody]AccessKey accessKey)
+        {
+            try
+            {
+                if (accessKey == null)
+                    throw new InvalidRequestFetchoException("No object passed");
+
+                using (var db = new Database())
+                {
+                    await ThrowIfNotAValidAccessKey(db, accessKey.Key);
+                    await db.DeleteAccessKey(accessKey.Key);
+                }
+
+                return CreateNoContentResponse();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         [Route("api/v1/accesskeys/{accesskey}")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceAccessKey>> Get(string accesskey)
+        public async Task<HttpResponseMessage> Get(string accesskey)
         {
-            IEnumerable<WorkspaceAccessKey> keys = null;
+            try
+            {
+                IEnumerable<WorkspaceAccessKey> keys = null;
 
-            using (var db = new Database())
-                keys = await db.GetWorkspaceAccessKeys(accesskey);
+                using (var db = new Database())
+                {
+                    await ThrowIfNotAValidAccessKey(db, accesskey);
+                    keys = await db.GetWorkspaceAccessKeys(accesskey);
+                }
 
-            return keys;
+                return Request.CreateResponse(HttpStatusCode.OK, keys);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
         }
 
         /// <summary>
@@ -32,16 +84,23 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns></returns>
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}")]
         [HttpGet()]
-        public async Task<Workspace> Get(string accesskey, Guid accessKeyId)
+        public async Task<HttpResponseMessage> Get(string accesskey, Guid accessKeyId)
         {
-            Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+            try
+            {
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
 
-            Workspace workspace = null;
-            using (var db = new Database())
-                workspace = await db.GetWorkspace(guid);
+                Workspace workspace = null;
+                using (var db = new Database())
+                    workspace = await db.GetWorkspace(guid);
 
-            //RemoveSecretInformationIfLowerPermissions(workspace, accessKeyId);
-            return workspace;
+                //RemoveSecretInformationIfLowerPermissions(workspace, accessKeyId);
+                return Request.CreateResponse(HttpStatusCode.OK, workspace);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
         }
 
         /// <summary>
@@ -51,14 +110,23 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns></returns>
         [Route("api/v1/accesskeys/{accesskey}/workspace")]
         [HttpPost()]
-        public async Task Post(string accesskey, [FromBody]Workspace workspace)
+        public async Task<HttpResponseMessage> Post(string accesskey, [FromBody]Workspace workspace)
         {
-            Workspace.Validate(workspace);
-            //            ThrowIfAccessKeyNotEqualWorkspace(accesskey, workspace);
-
-            using (var db = new Database())
+            try
             {
-                await db.SaveWorkspace(workspace);
+                Workspace.Validate(workspace);
+                //            ThrowIfAccessKeyNotEqualWorkspace(accesskey, workspace);
+
+                using (var db = new Database())
+                {
+                    await db.SaveWorkspace(workspace);
+                }
+
+                return CreateNoContentResponse();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
             }
         }
 
@@ -71,15 +139,24 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns></returns>
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}")]
         [HttpPut()]
-        public async Task Put(string accesskey, Guid accessKeyId, [FromBody]Workspace workspace)
+        public async Task<HttpResponseMessage> Put(string accesskey, Guid accessKeyId, [FromBody]Workspace workspace)
         {
-            Workspace.Validate(workspace);
-            Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
-
-            using (var db = new Database())
+            try
             {
-                TestWorkspaceAndGuidMatch(workspace, guid);
-                await db.SaveWorkspace(workspace);
+                Workspace.Validate(workspace);
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+
+                using (var db = new Database())
+                {
+                    TestWorkspaceAndGuidMatch(workspace, guid);
+                    await db.SaveWorkspace(workspace);
+                }
+
+                return CreateNoContentResponse();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
             }
         }
 
@@ -91,20 +168,29 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns></returns>
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}")]
         [HttpDelete()]
-        public async Task Delete(string accesskey, Guid accessKeyId)
+        public async Task<HttpResponseMessage> Delete(string accesskey, Guid accessKeyId)
         {
-            Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
-
-            using (var db = new Database())
+            try
             {
-                await ThrowIfNoWorkspaceAccess(db, guid, accesskey);
-                await db.DeleteWorkspace(guid);
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+
+                using (var db = new Database())
+                {
+                    await ThrowIfNoWorkspaceAccess(db, guid, accesskey);
+                    await db.DeleteWorkspace(guid);
+                }
+
+                return CreateNoContentResponse();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
             }
         }
 
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetResultsByAccessKey(string accesskey, Guid accessKeyId, long fromSequence = 0, int count = 30)
+        public async Task<HttpResponseMessage> GetResultsByWorkspaceAccessKey(string accesskey, Guid accessKeyId, long fromSequence = 0, int count = 30)
         {
             try
             {
@@ -112,12 +198,10 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 return await GetResultsByWorkspace(guid, fromSequence, count);
             }
-            catch( Exception ex)
+            catch (Exception ex)
             {
-                Utility.LogException(ex);
+                return CreateExceptionResponse(ex);
             }
-
-            return null;
         }
 
         /// <summary>
@@ -129,7 +213,7 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results/random")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetRandomResultsByAccessKey(string accesskey, Guid accessKeyId, int count = 1)
+        public async Task<HttpResponseMessage> GetRandomResultsByAccessKey(string accesskey, Guid accessKeyId, int count = 1)
         {
             try
             {
@@ -139,20 +223,25 @@ namespace Fetcho.FetchoAPI.Controllers
             }
             catch (Exception ex)
             {
-                Utility.LogException(ex);
+                return CreateExceptionResponse(ex);
             }
-
-            return null;
         }
 
         [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/results")]
         [HttpPost()]
         [HttpPut()]
-        public async Task PostResultsByAccessKey(string accesskey, Guid accessKeyId, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task<HttpResponseMessage> PostResultsByAccessKey(string accesskey, Guid accessKeyId, [FromBody]IEnumerable<WorkspaceResult> results)
         {
-            Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+            try
+            {
+                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
 
-            await PostResultsByWorkspace(guid, results);
+                return await PostResultsByWorkspace(guid, results);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
         }
 
         /// <summary>
@@ -164,7 +253,7 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetResultsByWorkspace(Guid guid, long fromSequence = 0, int count = 30)
+        public async Task<HttpResponseMessage> GetResultsByWorkspace(Guid guid, long fromSequence = 0, int count = 30)
         {
             try
             {
@@ -174,14 +263,12 @@ namespace Fetcho.FetchoAPI.Controllers
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
                     results = await db.GetWorkspaceResults(guid, fromSequence, count);
-                return results;
+                return Request.CreateResponse(HttpStatusCode.OK, results);
             }
             catch (Exception ex)
             {
-                Utility.LogException(ex);
+                return CreateExceptionResponse(ex);
             }
-
-            return null;
         }
 
         /// <summary>
@@ -193,7 +280,7 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{guid}/results/random")]
         [HttpGet()]
-        public async Task<IEnumerable<WorkspaceResult>> GetRandomResultsByWorkspace(Guid guid, int count = 1)
+        public async Task<HttpResponseMessage> GetRandomResultsByWorkspace(Guid guid, int count = 1)
         {
             try
             {
@@ -202,14 +289,12 @@ namespace Fetcho.FetchoAPI.Controllers
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
                     results = await db.GetWorkspaceResultsByRandom(guid, count);
-                return results;
+                return Request.CreateResponse(HttpStatusCode.OK, results);
             }
             catch (Exception ex)
             {
-                Utility.LogException(ex);
+                return CreateExceptionResponse(ex);
             }
-
-            return null;
         }
 
         /// <summary>
@@ -220,16 +305,18 @@ namespace Fetcho.FetchoAPI.Controllers
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpPost()]
         [HttpPut()]
-        public async Task PostResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task<HttpResponseMessage> PostResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
         {
             try
             {
                 using (var db = new Database())
                     await db.AddWorkspaceResults(guid, results);
+
+                return CreateNoContentResponse();
             }
             catch (Exception ex)
             {
-                Utility.LogException(ex);
+                return CreateExceptionResponse(ex);
             }
         }
 
@@ -240,10 +327,18 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <param name="results"></param>
         [Route("api/v1/workspaces/{guid}/results")]
         [HttpDelete()]
-        public void DeleteResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
+        public HttpResponseMessage DeleteResultsByWorkspace(Guid guid, [FromBody]IEnumerable<WorkspaceResult> results)
         {
-            // using ( var db = new Database())
-            //   db.DeleteWorkspaceResults(guid, results);
+            try
+            {
+                // using ( var db = new Database())
+                //   db.DeleteWorkspaceResults(guid, results);
+                throw new NotImplementedException();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
         }
 
         /// <summary>
@@ -254,7 +349,7 @@ namespace Fetcho.FetchoAPI.Controllers
         private void TestWorkspaceAndGuidMatch(Workspace workspace, Guid guid)
         {
             if (workspace.WorkspaceId != guid)
-                throw new FetchoException("Permission denied");
+                throw new PermissionDeniedFetchoException("Permission denied");
         }
 
         /// <summary>
@@ -267,19 +362,80 @@ namespace Fetcho.FetchoAPI.Controllers
         private async Task ThrowIfNoWorkspaceAccess(Database db, Guid guid, string accesskey)
         {
             if (!await db.HasWorkspaceAccess(guid, accesskey))
-                throw new FetchoException("No access to " + guid + " " + accesskey);
+                throw new PermissionDeniedFetchoException("No access to " + guid + " " + accesskey);
         }
 
         private async Task ThrowIfNotAValidAccessKey(Database db, string accesskey)
         {
             if (!await db.IsValidAccessKey(accesskey))
-                throw new FetchoException("invalid key");
+                throw new PermissionDeniedFetchoException("invalid key");
         }
 
         private async Task<Guid> GetWorkspaceIdOrThrowIfNoAccess(string accesskey)
         {
             using (var db = new Database())
                 return await db.GetWorkspaceIdByAccessKey(accesskey);
+        }
+
+        private HttpResponseMessage CreatePermissionDeniedResponse(PermissionDeniedFetchoException ex)
+            => Request.CreateErrorResponse(HttpStatusCode.Forbidden, ex.Message, ex);
+
+        private HttpResponseMessage CreateNoContentResponse()
+            => Request.CreateResponse(HttpStatusCode.NoContent);
+
+        private HttpResponseMessage CreateNotImplementedResponse(NotImplementedException ex)
+            => Request.CreateResponse(HttpStatusCode.NotImplemented);
+
+        private HttpResponseMessage CreateInvalidRequestResponse(InvalidRequestFetchoException ex)
+            => Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message, ex);
+
+        private HttpResponseMessage CreateExceptionResponse(Exception ex)
+        {
+            if (ex is PermissionDeniedFetchoException permissionDeniedFetchoException)
+                return CreatePermissionDeniedResponse(permissionDeniedFetchoException);
+            if (ex is NotImplementedException notImplementedException)
+                return CreateNotImplementedResponse(notImplementedException);
+            if (ex is InvalidRequestFetchoException invalidRequestFetchoException)
+                return CreateInvalidRequestResponse(invalidRequestFetchoException);
+            return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message, ex);
+        }
+    }
+
+    public class PermissionDeniedFetchoException : FetchoException
+    {
+        public PermissionDeniedFetchoException()
+        {
+        }
+
+        public PermissionDeniedFetchoException(string message) : base(message)
+        {
+        }
+
+        public PermissionDeniedFetchoException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
+        protected PermissionDeniedFetchoException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
+    }
+
+    public class InvalidRequestFetchoException : FetchoException
+    {
+        public InvalidRequestFetchoException()
+        {
+        }
+
+        public InvalidRequestFetchoException(string message) : base(message)
+        {
+        }
+
+        public InvalidRequestFetchoException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
+        protected InvalidRequestFetchoException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
     }
 }
