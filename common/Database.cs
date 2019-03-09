@@ -659,9 +659,9 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        RefererUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                        Title = reader.GetString(3),
-                        Description = reader.GetString(4),
+                        RefererUri = IsNull(reader, 2, ""),
+                        Title = IsNull(reader, 3, ""),
+                        Description = IsNull(reader, 4, ""),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
                         Sequence = reader.GetInt64(7)
@@ -706,9 +706,9 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        RefererUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                        Title = reader.GetString(3),
-                        Description = reader.GetString(4),
+                        RefererUri = IsNull(reader, 2, ""),
+                        Title = IsNull(reader, 3, ""),
+                        Description = IsNull(reader, 4, ""),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
                         Sequence = reader.GetInt64(7)
@@ -766,7 +766,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<string>("description", result.Description));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
-            cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
         }
 
@@ -820,6 +820,9 @@ namespace Fetcho.Common
                 return o;
             }
         }
+
+        T IsNull<T>(DbDataReader dataReader, int ordinal, T defaultValue)
+            => dataReader.IsDBNull(ordinal) ? defaultValue : dataReader.GetFieldValue<T>(ordinal);
 
         /// <summary>
         /// Returns a wait time slightly varied around the timeout to avoid everything ending at once

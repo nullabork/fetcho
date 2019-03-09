@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Fetcho.Common.Entities;
 using LanguageDetection;
 
 namespace Fetcho.Common
@@ -26,7 +27,7 @@ namespace Fetcho.Common
 
         public override string GetQueryText() => string.Format("lang:{0}", Language);
 
-        public override string[] IsMatch(Uri uri, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment)
         {
             var l = detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault();
 

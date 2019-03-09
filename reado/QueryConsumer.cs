@@ -1,7 +1,6 @@
 ﻿using Fetcho.Common;
 using Fetcho.Common.Entities;
 using Fetcho.Common.QueryEngine;
-using Fetcho.FetchoAPI.Controllers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,12 +13,22 @@ namespace Fetcho
     /// <summary>
     /// Used to find links that match specific queries
     /// </summary>
-    internal class QueryConsumer : IWebDataPacketConsumer
+    internal class QueryConsumer : IWebDataPacketConsumer, IWebResource
     {
         List<WorkspaceQuery> Queries { get; }
 
-        public Uri CurrentUri;
-        public Uri RefererUri;
+        private List<Guid> postTo = new List<Guid>();
+        private WorkspaceResult result = null;
+        private StringBuilder evaluationText = new StringBuilder();
+        private string requestString = String.Empty;
+        private string responseHeaders = String.Empty;
+        private Dictionary<string, string> requestProperties = new Dictionary<string, string>();
+        private Dictionary<string, string> responseProperties = new Dictionary<string, string>();
+        private bool _processed = false;
+
+        public Dictionary<string, string> RequestProperties { get { if (!_processed) Process(); return requestProperties; } }
+        public Dictionary<string, string> ResponseProperties { get { if (!_processed) Process(); return responseProperties; } }
+        public Dictionary<string, object> PropertyCache { get; private set; }
 
         public string Name { get => "Processes workspace queries"; }
         public bool ProcessesRequest { get => true; }
@@ -29,43 +38,20 @@ namespace Fetcho
         public QueryConsumer(params string[] args)
         {
             Queries = new List<WorkspaceQuery>();
+            ClearAll();
         }
 
         public void ProcessException(string exception) { }
 
-        public void ProcessRequest(string request)
-        {
-            CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
-            RefererUri = WebDataPacketReader.GetRefererUriFromRequestString(request);
-        }
+        public void ProcessRequest(string request) => this.requestString = request;
 
-        public void ProcessResponseHeaders(string responseHeaders)
-        {
-        }
-
-        private List<Guid> postTo = new List<Guid>();
-        private WorkspaceResult result = null;
-        private StringBuilder evaluationText = new StringBuilder();
+        public void ProcessResponseHeaders(string responseHeaders) => this.responseHeaders = responseHeaders;
 
         public void ProcessResponseStream(Stream dataStream)
         {
             try
             {
-                postTo.Clear();
-                evaluationText.Clear();
                 if (dataStream == null) return;
-
-                result = new WorkspaceResult
-                {
-                    Hash = MD5Hash.Compute(CurrentUri).ToString(),
-                    RefererUri = RefererUri?.ToString(),
-                    Uri = CurrentUri.ToString(),
-                    Title = "",
-                    Description = "",
-                    Created = DateTime.Now,
-                    PageSize = 0
-                };
-
 
                 using (var reader = new HtmlReader(dataStream))
                 {
@@ -82,39 +68,61 @@ namespace Fetcho
                             ReadToEndTag(reader, "style");
 
                         if (node.Value == "title")
-                            result.Title = ReadTitle(reader);
+                        {
+                            string title = ReadTitle(reader);
+                            if (!PropertyCache.ContainsKey("title"))
+                                PropertyCache.Add("title", title);
+                            PropertyCache["title"] = title;
+                        }
 
                         if (node.Value == "meta")
                         {
                             var desc = ReadDesc(reader);
                             if (!String.IsNullOrWhiteSpace(desc))
-                                result.Description = desc;
+                            {
+                                if (!PropertyCache.ContainsKey("description"))
+                                    PropertyCache.Add("description", desc);
+                                PropertyCache["description"] = desc;
+                            }
                         }
                     }
                 }
+
+                result = new WorkspaceResult
+                {
+                    Hash = MD5Hash.Compute(RequestProperties["uri"]).ToString(),
+                    RefererUri = RequestProperties.SafeGet("referer"),
+                    Uri = RequestProperties["uri"],
+                    Title = PropertyCache.SafeGet("title")?.ToString(),
+                    Description = PropertyCache.SafeGet("description")?.ToString(),
+                    Created = DateTime.Now,
+                    PageSize = 0
+                };
+
 
                 foreach (var wq in Queries)
                 {
                     try
                     {
-                        var r = wq.Query.Evaluate(CurrentUri, evaluationText.ToString());
+                        var r = wq.Query.Evaluate(this, evaluationText.ToString());
                         if (r.Action == EvaluationResultAction.Include)
                         {
                             result.Tags.AddRange(r.Tags);
                             postTo.Add(wq.WorkspaceId);
                         }
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         Utility.LogException(ex);
                     }
                 }
 
+                if (!postTo.Any()) return;
+
                 foreach (var workspaceId in postTo.ToArray())
                 {
-                    if (AddToTheWorkspace(result))
-                        using (var db = new Database())
-                            db.AddWorkspaceResults(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                    using (var db = new Database())
+                        db.AddWorkspaceResults(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                 }
 
 
@@ -126,10 +134,7 @@ namespace Fetcho
         }
 
         public void NewResource()
-        {
-            CurrentUri = null;
-            RefererUri = null;
-        }
+            => ClearAll();
 
         public void PacketClosed() { }
 
@@ -150,15 +155,10 @@ namespace Fetcho
             evaluationText.Append(' ');
         }
 
-        bool AddToTheWorkspace(WorkspaceResult result) =>
-            result != null &&
-            !String.IsNullOrWhiteSpace(result.Title);
-
-
         string ReadDesc(HtmlReader reader)
         {
             if (reader.GetAttribute("name").Contains("description"))
-                return reader.GetAttribute("content");
+                return reader.GetAttribute("content").Trim().Replace("\n", " ").Replace("\t", " ").Replace("\r", " ");
             return String.Empty;
         }
 
@@ -177,7 +177,7 @@ namespace Fetcho
                     return title;
             }
 
-            return title;
+            return title.Trim().Replace("\n", " ").Replace("\t", " ").Replace("\r", " ");
         }
 
         void ReadToEndTag(HtmlReader reader, string endTag)
@@ -201,6 +201,55 @@ namespace Fetcho
             foreach (var workspace in workspaces.Distinct())
                 if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
                     Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
+        }
+
+        void ClearAll()
+        {
+            postTo.Clear();
+            evaluationText.Clear();
+            requestProperties = null;
+            responseProperties = null;
+            PropertyCache = new Dictionary<string, object>();
+            requestString = String.Empty;
+            responseHeaders = String.Empty;
+            _processed = false;
+        }
+
+        void Process()
+        {
+            _processed = true;
+            requestProperties = new Dictionary<string, string>();
+            responseProperties = new Dictionary<string, string>();
+
+            if (!String.IsNullOrWhiteSpace(requestString))
+            {
+                var lines = requestString.Split('\n');
+                foreach (var line in lines)
+                {
+                    int idx = line.IndexOf(':');
+                    if (idx < 0) continue;
+                    string key = line.Substring(0, idx).Trim().ToLower();
+                    string value = line.Substring(idx + 1).Trim();
+
+                    if (!String.IsNullOrWhiteSpace(key) && !requestProperties.ContainsKey(key))
+                        requestProperties.Add(key, value);
+                }
+            }
+
+            if (!String.IsNullOrWhiteSpace(responseHeaders))
+            {
+                var lines = responseHeaders.Split('\n');
+                foreach (var line in lines)
+                {
+                    int idx = line.IndexOf(':');
+                    if (idx < 0) continue;
+                    string key = line.Substring(0, idx).Trim().ToLower();
+                    string value = line.Substring(idx + 1).Trim();
+
+                    if (!String.IsNullOrWhiteSpace(key) && !responseProperties.ContainsKey(key))
+                        responseProperties.Add(key, value);
+                }
+            }
         }
 
         private struct WorkspaceQuery

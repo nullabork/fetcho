@@ -189,6 +189,10 @@ namespace Fetcho.Common
 
         public static bool IsWildCardMatch(this string value, string wildCardPattern)
             => Regex.IsMatch(value, wildCardPattern.WildCardToRegex());
+
+
+        public static TValue SafeGet<TKey, TValue>(this Dictionary<TKey, TValue> dict, TKey key)
+            => dict.ContainsKey(key) ? dict[key] : default(TValue);
     }
 
     

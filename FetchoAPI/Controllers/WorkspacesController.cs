@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -72,7 +73,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     keys = await db.GetWorkspaceAccessKeys(accesskey);
                 }
 
-                return Request.CreateResponse(HttpStatusCode.OK, keys);
+                return CreateOKResponse(keys);
             }
             catch (Exception ex)
             {
@@ -98,7 +99,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     workspace = await db.GetWorkspace(guid);
 
                 //RemoveSecretInformationIfLowerPermissions(workspace, accessKeyId);
-                return Request.CreateResponse(HttpStatusCode.OK, workspace);
+                return CreateOKResponse(workspace);
             }
             catch (Exception ex)
             {
@@ -282,7 +283,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
                     results = await db.GetWorkspaceResults(guid, fromSequence, count);
-                return Request.CreateResponse(HttpStatusCode.OK, results);
+                return CreateOKResponse(results);
             }
             catch (Exception ex)
             {
@@ -308,7 +309,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
                     results = await db.GetWorkspaceResultsByRandom(guid, count);
-                return Request.CreateResponse(HttpStatusCode.OK, results);
+                return CreateOKResponse(results);
             }
             catch (Exception ex)
             {
@@ -376,7 +377,7 @@ namespace Fetcho.FetchoAPI.Controllers
                         l.Add(attr.ShortHelp);
                 }
 
-                return Request.CreateResponse(HttpStatusCode.OK, l);
+                return CreateOKResponse(l);
             }
             catch (Exception ex)
             {
@@ -435,6 +436,12 @@ namespace Fetcho.FetchoAPI.Controllers
 
         private HttpResponseMessage CreateInvalidRequestResponse(InvalidRequestFetchoException ex)
             => Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message, ex);
+
+        private HttpResponseMessage CreateOKResponse<T>(T payload)
+        {
+            var resp = Request.CreateResponse(HttpStatusCode.OK, payload, "application/json");
+            return resp;
+        }
 
         private HttpResponseMessage CreateExceptionResponse(Exception ex)
         {

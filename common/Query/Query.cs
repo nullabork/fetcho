@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Fetcho.Common.Entities;
 
 namespace Fetcho.Common.QueryEngine
 {
@@ -23,13 +24,13 @@ namespace Fetcho.Common.QueryEngine
             Console.WriteLine(this.ToString());
         }
 
-        public EvaluationResult Evaluate(Uri uri, string words)
+        public EvaluationResult Evaluate(IWebResource resource, string words)
         {
             var ticks = DateTime.Now.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var inc = IncludeFilters.AllMatch(uri, words);
-            var exc = ExcludeFilters.AnyMatch(uri, words);
+            var inc = IncludeFilters.AllMatch(resource, words);
+            var exc = ExcludeFilters.AnyMatch(resource, words);
 
             if (inc && !exc) action = EvaluationResultAction.Include;
             if (!inc && exc) action = EvaluationResultAction.Exclude;
@@ -38,7 +39,7 @@ namespace Fetcho.Common.QueryEngine
 
             IEnumerable<string> tags = null;
             if (action == EvaluationResultAction.Include)
-                tags = TagFilters.GetTags(uri, words);
+                tags = TagFilters.GetTags(resource, words);
 
             var r = new EvaluationResult(action, tags, DateTime.Now.Ticks - ticks);
             DoBookKeeping(r);
@@ -55,6 +56,7 @@ namespace Fetcho.Common.QueryEngine
                 string filterToken = token;
                 string tagToken = "";
                 FilterMode filterMode = DetermineFilterMode(token);
+                if (filterMode == FilterMode.None) continue;
                 if ((filterMode & FilterMode.Exclude) == FilterMode.Exclude) filterToken = filterToken.Substring(1); // chop off the '-'
                 if ((filterMode & FilterMode.Tag) == FilterMode.Tag)
                 {

@@ -101,6 +101,11 @@ namespace Fetcho.Common
             outStream.WriteStartElement("response");
             outStream.WriteStartElement("header");
 
+            if ( response is HttpWebResponse httpWebResponse)
+            {
+                outStream.WriteString(string.Format("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription));
+            }
+
             foreach (string key in response.Headers)
             {
                 outStream.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));

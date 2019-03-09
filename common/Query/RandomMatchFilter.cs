@@ -1,4 +1,5 @@
 ﻿using System;
+using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
@@ -8,8 +9,6 @@ namespace Fetcho.Common
         public const double DefaultMatchProbability = MaxMatchProbability;
         public const double MaxMatchProbability = 1.0 / 10000.0;
         public const double MinMatchProbability = 1.0 / 10000000.0;
-
-        private Uri lastUri = null;
 
         static readonly Random random = new Random(DateTime.Now.Millisecond);
 
@@ -25,10 +24,9 @@ namespace Fetcho.Common
 
         public RandomMatchFilter() => MatchProbability = DefaultMatchProbability;
 
-        public override string[] IsMatch(Uri uri, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment)
         {
-            bool rtn = lastUri != uri &&  random.NextDouble() < MatchProbability;
-            lastUri = uri;
+            bool rtn = random.NextDouble() < MatchProbability;
 
             if (rtn)
                 return new string[1];

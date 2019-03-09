@@ -20,25 +20,25 @@ namespace Fetcho.Common.Entities
 
         public DateTime Created { get; set; }
 
-        public long PageSize { get; set; }
+        public long? PageSize { get; set; }
 
         public long Sequence { get; set; }
 
         public WorkspaceResult()
         {
             Tags = new List<string>();
-            PageSize = -1;
+            PageSize = null;
             Sequence = -1;
             Created = DateTime.MinValue;
-            Description = "";
-            Title = "";
-            Uri = "";
-            RefererUri = "";
-            Hash = "";
+            Description = String.Empty;
+            Title = String.Empty;
+            Uri = String.Empty;
+            RefererUri = String.Empty;
+            Hash = String.Empty;
         }
 
         public string GetTagString()
-            => Tags.Aggregate("", (interim, next) => (interim + " " + next).Trim());
+            => Tags.Aggregate(String.Empty, (interim, next) => (interim + " " + next).Trim());
 
     }
 }

@@ -167,6 +167,7 @@
     <Compile Include="ContentType.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="Entities\AccessKey.cs" />
+    <Compile Include="Entities\IWebResource.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessKey.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
@@ -193,9 +194,12 @@
     <Compile Include="Query\GeoIPCoordinateFilter.cs" />
     <Compile Include="Query\GeoIPCountryFilter.cs" />
     <Compile Include="Query\GeoIPFilter.cs" />
+    <Compile Include="Query\HasFilter.cs" />
     <Compile Include="Query\LanguageFilter.cs" />
     <Compile Include="Query\Query.cs" />
     <Compile Include="Query\RandomMatchFilter.cs" />
+    <Compile Include="Query\RequestHeaderFilter.cs" />
+    <Compile Include="Query\ResponseHeaderFilter.cs" />
     <Compile Include="Query\SiteFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="Query\UriFilter.cs" />

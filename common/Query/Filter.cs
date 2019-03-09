@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
@@ -28,7 +29,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public abstract string[] IsMatch(Uri uri, string fragment);
+        public abstract string[] IsMatch(IWebResource resource, string fragment);
 
         /// <summary>
         /// Get the textual representation of this filter

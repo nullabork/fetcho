@@ -1,4 +1,5 @@
 ﻿using System;
+using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
@@ -37,7 +38,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public override string[] IsMatch(Uri uri, string fragment) 
+        public override string[] IsMatch(IWebResource resource, string fragment) 
             => fragment.ToLower().Contains(SearchText.ToLower()) ? new string[1] : new string[0];
 
         /// <summary>
