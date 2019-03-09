@@ -4,7 +4,7 @@ using LanguageDetection;
 
 namespace Fetcho.Common
 {
-    [Filter("lang:[lang|*][:lang|*]")]
+    [Filter("lang:", "lang:[lang|*][:lang|*]")]
     public class LanguageFilter : Filter
     {
         private LanguageDetector detector;
@@ -27,7 +27,14 @@ namespace Fetcho.Common
         public override string GetQueryText() => string.Format("lang:{0}", Language);
 
         public override string[] IsMatch(Uri uri, string fragment)
-            => new string[] { detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault()?.Language };
+        {
+            var l = detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault();
+
+            if (l == null) return new string[0];
+            if (String.IsNullOrWhiteSpace(Language)) return new string[] { l.Language };
+            if (l.Language == Language) return new string[] { l.Language };
+            return new string[0];
+        }
 
         /// <summary>
         /// Parse some text into a TextMatchFilter
@@ -47,8 +54,6 @@ namespace Fetcho.Common
 
             return new LanguageFilter(language);
         }
-
-        public static bool TokenIsFilter(string token) => token.StartsWith("lang:");
     }
 
 }

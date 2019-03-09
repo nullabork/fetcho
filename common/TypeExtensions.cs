@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Xml;
@@ -181,6 +182,13 @@ namespace Fetcho.Common
 
         public static IEnumerable<T> Randomise<T>(this IEnumerable<T> items)
             => items.OrderBy(x => random.NextDouble());
+
+        // If you want to implement both "*" and "?"
+        private static string WildCardToRegex(this string value)
+            => "^" + Regex.Escape(value).Replace("\\?", ".").Replace("\\*", ".*") + "$";
+
+        public static bool IsWildCardMatch(this string value, string wildCardPattern)
+            => Regex.IsMatch(value, wildCardPattern.WildCardToRegex());
     }
 
     

@@ -3,7 +3,7 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    [Filter("geo-ip-ll:[[[x,y],[x,y]]|*][:[[x,y],[x,y]]|*]")]
+    [Filter("geo-ip-ll:", "geo-ip-ll:[[[x,y],[x,y]]|*][:[[x,y],[x,y]]|*]")]
     public class GeoIPCoordinateFilter : GeoIPFilter
     {
         public BoundingBox Bounds { get; set; }
@@ -41,8 +41,6 @@ namespace Fetcho.Common
             => new string[] {
                     Utility.MakeTag(string.Format("[{0:0.000},{1:0.000}]", cityResponse.Location.Latitude, cityResponse.Location.Longitude))
                 };
-
-        public static bool TokenIsFilter(string token) => token.StartsWith("geo-ip-ll:");
 
         public class BoundingBox
         {

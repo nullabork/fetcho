@@ -5,7 +5,7 @@ namespace Fetcho.Common
     /// <summary>
     /// Simple text match filter to include results
     /// </summary>
-    [Filter("any_search_term")]
+    [Filter("NOWAYTOMATCHTHIS", "any_search_term")]
     public class TextMatchFilter : Filter
     {
         /// <summary>

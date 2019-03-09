@@ -1,25 +1,26 @@
 ﻿using System;
+using System.Linq;
 
 namespace Fetcho.Common
 {
-    [Filter("site:", "site:[site|*][:site|*]")]
-    public class SiteFilter : Filter
+    [Filter("uri:", "uri:[uri_fragment|*][:uri_fragment|*]")]
+    public class UriFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "Site filter";
+        public override string Name => "URI filter";
 
-        public SiteFilter(string site) : this()
-            => SearchText = site;
+        public UriFilter(string searchText) : this()
+            => SearchText = searchText;
 
-        private SiteFilter() 
+        private UriFilter()
             => CallOncePerPage = true;
 
-        public override string GetQueryText() 
-            => string.Format("site:{0}", SearchText);
+        public override string GetQueryText()
+            => string.Format("uri:{0}", SearchText);
 
         public override string[] IsMatch(Uri uri, string fragment)
-            => uri.Host.Contains(SearchText) ? new string[1] { uri.Host } : new string[0];
+            => uri.OriginalString.Contains(SearchText) ? new string[1] { uri.OriginalString } : new string[0];
 
         /// <summary>
         /// Parse some text to create this object
@@ -37,7 +38,7 @@ namespace Fetcho.Common
                 if (searchText == "*") searchText = String.Empty;
             }
 
-            return new SiteFilter(searchText);
+            return new UriFilter(searchText);
         }
     }
 

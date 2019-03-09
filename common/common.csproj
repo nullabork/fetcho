@@ -187,6 +187,8 @@
     <Compile Include="Query\Filter.cs" />
     <Compile Include="Query\FilterAttribute.cs" />
     <Compile Include="Query\FilterCollection.cs" />
+    <Compile Include="Query\FilterMode.cs" />
+    <Compile Include="Query\FilterReflectionFetchoException.cs" />
     <Compile Include="Query\GeoIPCityFilter.cs" />
     <Compile Include="Query\GeoIPCoordinateFilter.cs" />
     <Compile Include="Query\GeoIPCountryFilter.cs" />
@@ -196,6 +198,7 @@
     <Compile Include="Query\RandomMatchFilter.cs" />
     <Compile Include="Query\SiteFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
+    <Compile Include="Query\UriFilter.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
     <Compile Include="FetchoException.cs" />

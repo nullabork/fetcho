@@ -62,13 +62,14 @@ Use this for user facing tools. You make up your own access keys minimum of 12 c
 * GET /{accesskey}/workspace/{workspaceAccessKeyId} - get a specific `Workspace` by its `WorkspaceAccessKey` id
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results - get the `Workspace` `WorkspaceResults`. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results/random - Get a random result from the `Workspace`;
-* GET /{accesskey}/workspace/{workspaceAccessKeyId}/results/supportedFilters - Get the search and tagging filters supported by this `Workspace`;
+* GET /{accesskey}/workspace/{workspaceAccessKeyId}/supportedFilters - Get the search and tagging filters supported by this `Workspace`;
 
-* POST / - create or update an `AccessKey`
+* POST / - create an `AccessKey`
 * POST /{accesskey}/workspace - create a `Workspace` and owner `WorkspaceAccessKey`
 * PUT /{accesskey}/workspace/{workspaceAccessKeyId} - update a `Workspace`
 * DELETE /accesskeys/{accesskey}/workspace/{workspaceAccessKeyId} - delete a WorkspaceAccessKey. Note the `Workspace` wont delete until all `WorkspaceAccessKey`s that reference it are deleted
 * PUT,POST /{accesskey}/workspace/{workspaceAccessKeyId}/results - add or update `WorkspaceResult`s for a `Workspace`
+* DELETE /{accesskey} - delete an `AccessKey`
 
 ### Workspaces
 
@@ -147,7 +148,7 @@ Individual search results
 ```  
 {   
     "Hash":"DDD2291FFF76A7209D5F8BF2FD5EFAA6",  
-    "ReferrerUri":"",  
+    "RefererUri":"",  
     "Uri":"https://www.alibris.com/",  
     "Title":"Alibris - Buy new and used books, textbooks, music and movies",  
     "Description":"",  

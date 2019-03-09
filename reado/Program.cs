@@ -27,6 +27,7 @@ namespace Fetcho
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
+            Filter.InitaliseFilterTypes();
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
 

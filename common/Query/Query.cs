@@ -37,8 +37,8 @@ namespace Fetcho.Common.QueryEngine
             if (inc && exc) action = EvaluationResultAction.Include;
 
             IEnumerable<string> tags = null;
-            if ( action == EvaluationResultAction.Include)
-              tags = TagFilters.GetTags(uri, words);
+            if (action == EvaluationResultAction.Include)
+                tags = TagFilters.GetTags(uri, words);
 
             var r = new EvaluationResult(action, tags, DateTime.Now.Ticks - ticks);
             DoBookKeeping(r);
@@ -52,65 +52,87 @@ namespace Fetcho.Common.QueryEngine
 
             foreach (var token in tokens)
             {
-                string t = token;
+                string filterToken = token;
+                string tagToken = "";
                 FilterMode filterMode = DetermineFilterMode(token);
-                if (filterMode == FilterMode.Exclude) t = t.Substring(1); // chop off the '-'
-                if (filterMode == FilterMode.Tag) t = t.Substring(0, t.LastIndexOf(':'));
+                if ((filterMode & FilterMode.Exclude) == FilterMode.Exclude) filterToken = filterToken.Substring(1); // chop off the '-'
+                if ((filterMode & FilterMode.Tag) == FilterMode.Tag)
+                {
+                    var ts = filterToken.Split(':');
+                    tagToken = ts[0] + ":" + ts[2];
+                    filterToken = filterToken.Substring(0, filterToken.LastIndexOf(':')); // remove the tag part
+                }
 
-                if (!IsComplexFilter(t))
-                    AddFilter(new TextMatchFilter(t), filterMode);
+                Filter filter = null;
+                Filter tagger = null;
+                if (!IsComplexFilter(filterToken))
+                    filter = new TextMatchFilter(filterToken);
+                else
+                {
+                    filter = Filter.CreateFilter(filterToken);
+                    tagger = Filter.CreateFilter(tagToken);
+                }
 
-                else if (RandomMatchFilter.TokenIsFilter(token))
-                    AddFilter(RandomMatchFilter.Parse(t), filterMode);
+                switch (filterMode)
+                {
+                    case FilterMode.Include:
+                        IncludeFilters.Add(filter);
+                        break;
 
-                else if (LanguageFilter.TokenIsFilter(t))
-                    AddFilter(LanguageFilter.Parse(t), filterMode);
+                    case FilterMode.Exclude:
+                        ExcludeFilters.Add(filter);
+                        break;
 
-                else if (SiteFilter.TokenIsFilter(t))
-                    AddFilter(SiteFilter.Parse(t), filterMode);
+                    case FilterMode.Tag:
+                        TagFilters.Add(filter);
+                        break;
 
-                else if (GeoIPCityFilter.TokenIsFilter(t))
-                    AddFilter(GeoIPCityFilter.Parse(t), filterMode);
+                    case (FilterMode.Tag | FilterMode.Include):
+                        IncludeFilters.Add(filter);
+                        TagFilters.Add(tagger);
+                        break;
 
-                else if (GeoIPCountryFilter.TokenIsFilter(t))
-                    AddFilter(GeoIPCountryFilter.Parse(t), filterMode);
+                    default:
+                        Utility.LogInfo("Unknown filterMode {0}", filterMode);
+                        break;
+                }
 
-                else if (GeoIPCoordinateFilter.TokenIsFilter(t))
-                    AddFilter(GeoIPCoordinateFilter.Parse(t), filterMode);
             }
         }
 
-        private void AddFilter(Filter filter, FilterMode filterMode)
-        {
-            switch (filterMode)
-            {
-                case FilterMode.Include:
-                    IncludeFilters.Add(filter);
-                    break;
-
-                case FilterMode.Exclude:
-                    ExcludeFilters.Add(filter);
-                    break;
-
-                case FilterMode.Tag:
-                    TagFilters.Add(filter);
-                    break;
-
-                default:
-                    Utility.LogInfo("Unknown filterMode {0}", filterMode);
-                    break;
-            }
-        }
 
         private bool IsComplexFilter(string token)
             => token.Contains(":");
 
+        private bool IsWildcardSearch(string token)
+            => token.EndsWith("*");
+
         private bool IsTagFilter(string token)
             => token.Split(':').Length == 3;
 
+        private bool IsDiscriminatingFilter(string token)
+        {
+            var ts = token.Split(':');
+            if (ts.Length < 2) return false;
+            if (ts[1].Trim().Length == 0) return false;
+            if (ts[1].Trim().Length == 1 && ts[1].Trim() == "*") return false;
+            return true;
+        }
+
         private FilterMode DetermineFilterMode(string token)
-            => token.StartsWith("-", StringComparison.InvariantCultureIgnoreCase) ? FilterMode.Exclude :
-               IsTagFilter(token) ? FilterMode.Tag : FilterMode.Include;
+        {
+            FilterMode rtn = FilterMode.None;
+
+            if (token.StartsWith("-", StringComparison.InvariantCultureIgnoreCase))
+                rtn = FilterMode.Exclude;
+            else
+            {
+                if (IsDiscriminatingFilter(token)) rtn |= FilterMode.Include;
+                if (IsTagFilter(token)) rtn |= FilterMode.Tag;
+            }
+
+            return rtn;
+        }
 
         private void DoBookKeeping(EvaluationResult r)
         {
@@ -150,10 +172,5 @@ namespace Fetcho.Common.QueryEngine
             return sb.ToString().Trim();
         }
 
-    }
-
-    public enum FilterMode
-    {
-        Include, Exclude, Tag
     }
 }

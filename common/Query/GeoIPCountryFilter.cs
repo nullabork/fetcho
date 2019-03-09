@@ -3,7 +3,7 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    [Filter("geo-ip-country:[country|*][:country|*]")]
+    [Filter("geo-ip-country:", "geo-ip-country:[country|*][:country|*]")]
     public class GeoIPCountryFilter : GeoIPFilter
     {
         public string Country { get; set; }
@@ -44,7 +44,6 @@ namespace Fetcho.Common
                     Utility.MakeTag(cityResponse.Country.Name)
                 };
 
-        public static bool TokenIsFilter(string token) => token.StartsWith("geo-ip-country:");
     }
 
 }

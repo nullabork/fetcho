@@ -24,11 +24,27 @@ namespace Fetcho.Common
 
         public void Clear() => Filters.Clear();
 
-        public bool AllMatch(Uri uri, string fragment) 
-            => Filters.OrderBy(x => x.Cost).All(x => x.IsMatch(uri, fragment).Any());
+        public bool AllMatch(Uri uri, string fragment)
+            => Filters
+            .OrderBy(x => x.Cost)
+            .All(x => x.IsMatch(uri, fragment).Any());
 
-        public bool AnyMatch(Uri uri, string fragment) 
-            => Filters.OrderBy(x => x.Cost).Any(x => x.IsMatch(uri, fragment).Any());
+        public bool AllMatch(Uri uri, string fragment, FilterCollectionMatchOptions options)
+            => Filters
+            .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
+            .OrderBy(x => x.Cost)
+            .All(x => x.IsMatch(uri, fragment).Any());
+
+        public bool AnyMatch(Uri uri, string fragment)
+            => Filters
+            .OrderBy(x => x.Cost)
+            .Any(x => x.IsMatch(uri, fragment).Any());
+
+        public bool AnyMatch(Uri uri, string fragment, FilterCollectionMatchOptions options)
+            => Filters
+            .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
+            .OrderBy(x => x.Cost)
+            .Any(x => x.IsMatch(uri, fragment).Any());
 
         public IEnumerable<string> GetTags(Uri uri, string fragment)
         {
@@ -37,10 +53,15 @@ namespace Fetcho.Common
                 l.AddRange(filter.IsMatch(uri, fragment));
             return l.Distinct();
         }
-        public IEnumerator<Filter> GetEnumerator() 
+        public IEnumerator<Filter> GetEnumerator()
             => Filters.GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator() 
+        IEnumerator IEnumerable.GetEnumerator()
             => Filters.GetEnumerator();
+    }
+
+    public class FilterCollectionMatchOptions
+    {
+        public bool RunCallOnceFilters = true;
     }
 }

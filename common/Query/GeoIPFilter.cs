@@ -16,6 +16,7 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("geo-ip-{0}:{1}", Property, FilterData);
 
+
         public override string[] IsMatch(Uri uri, string fragment)
         {
             try

@@ -2,7 +2,7 @@
 
 namespace Fetcho.Common
 {
-    [Filter("random:[probability][:*]")]
+    [Filter("random:", "random:[probability][:*]")]
     public class RandomMatchFilter : Filter
     {
         public const double DefaultMatchProbability = MaxMatchProbability;
@@ -38,9 +38,6 @@ namespace Fetcho.Common
 
         public override string GetQueryText()
             => string.Format("random:{0}", MatchProbability);
-
-        public static bool TokenIsFilter(string token) 
-            => token.StartsWith("random:");
 
         public static RandomMatchFilter Parse(string token)
         {

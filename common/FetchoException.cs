@@ -17,6 +17,10 @@ namespace Fetcho.Common
         {
         }
 
+        public FetchoException(string format, params object[] args) : base(string.Format(format, args))
+        {
+        }
+
         public FetchoException(string message, Exception innerException) : base(message, innerException)
         {
         }
