@@ -4,6 +4,7 @@ using LanguageDetection;
 
 namespace Fetcho.Common
 {
+    [Filter("lang:[lang|*][:lang|*]")]
     public class LanguageFilter : Filter
     {
         private LanguageDetector detector;
@@ -11,6 +12,8 @@ namespace Fetcho.Common
         public string Language { get; set; }
 
         public override string Name => "LanguageFilter";
+
+        public override decimal Cost => 50m;
 
         public LanguageFilter(string language) : this()
             => Language = language;

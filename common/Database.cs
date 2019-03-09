@@ -659,7 +659,7 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        ReferrerUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        RefererUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
                         Title = reader.GetString(3),
                         Description = reader.GetString(4),
                         Created = reader.GetDateTime(5),
@@ -706,7 +706,7 @@ namespace Fetcho.Common
                     {
                         Hash = new MD5Hash(buffer).ToString(),
                         Uri = reader.GetString(1),
-                        ReferrerUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        RefererUri = reader.IsDBNull(2) ? "" : reader.GetString(2),
                         Title = reader.GetString(3),
                         Description = reader.GetString(4),
                         Created = reader.GetDateTime(5),
@@ -761,7 +761,7 @@ namespace Fetcho.Common
         {
             cmd.Parameters.Add(new NpgsqlParameter<byte[]>("hash", new MD5Hash(result.Hash).Values));
             cmd.Parameters.Add(new NpgsqlParameter<string>("uri", result.Uri));
-            cmd.Parameters.Add(new NpgsqlParameter<string>("referrer", result.ReferrerUri));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("referrer", result.RefererUri));
             cmd.Parameters.Add(new NpgsqlParameter<string>("title", result.Title));
             cmd.Parameters.Add(new NpgsqlParameter<string>("description", result.Description));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));

@@ -28,7 +28,7 @@ namespace Fetcho.Common.QueryEngine
             var ticks = DateTime.Now.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var inc = IncludeFilters.AnyMatch(uri, words);
+            var inc = IncludeFilters.AllMatch(uri, words);
             var exc = ExcludeFilters.AnyMatch(uri, words);
 
             if (inc && !exc) action = EvaluationResultAction.Include;
@@ -60,14 +60,23 @@ namespace Fetcho.Common.QueryEngine
                 if (!IsComplexFilter(t))
                     AddFilter(new TextMatchFilter(t), filterMode);
 
-                if (RandomMatchFilter.TokenIsFilter(token))
+                else if (RandomMatchFilter.TokenIsFilter(token))
                     AddFilter(RandomMatchFilter.Parse(t), filterMode);
 
                 else if (LanguageFilter.TokenIsFilter(t))
                     AddFilter(LanguageFilter.Parse(t), filterMode);
 
+                else if (SiteFilter.TokenIsFilter(t))
+                    AddFilter(SiteFilter.Parse(t), filterMode);
+
                 else if (GeoIPCityFilter.TokenIsFilter(t))
                     AddFilter(GeoIPCityFilter.Parse(t), filterMode);
+
+                else if (GeoIPCountryFilter.TokenIsFilter(t))
+                    AddFilter(GeoIPCountryFilter.Parse(t), filterMode);
+
+                else if (GeoIPCoordinateFilter.TokenIsFilter(t))
+                    AddFilter(GeoIPCoordinateFilter.Parse(t), filterMode);
             }
         }
 

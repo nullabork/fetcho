@@ -185,11 +185,16 @@
     <Compile Include="Query\EvaluationResult.cs" />
     <Compile Include="Query\EvaluationResultAction.cs" />
     <Compile Include="Query\Filter.cs" />
+    <Compile Include="Query\FilterAttribute.cs" />
     <Compile Include="Query\FilterCollection.cs" />
     <Compile Include="Query\GeoIPCityFilter.cs" />
+    <Compile Include="Query\GeoIPCoordinateFilter.cs" />
+    <Compile Include="Query\GeoIPCountryFilter.cs" />
+    <Compile Include="Query\GeoIPFilter.cs" />
     <Compile Include="Query\LanguageFilter.cs" />
     <Compile Include="Query\Query.cs" />
     <Compile Include="Query\RandomMatchFilter.cs" />
+    <Compile Include="Query\SiteFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />

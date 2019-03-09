@@ -2,9 +2,9 @@
 using Fetcho.Common.Entities;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -12,6 +12,9 @@ namespace Fetcho.FetchoAPI.Controllers
 {
     public class WorkspacesController : ApiController
     {
+
+        #region AccessKeys
+
         [Route("api/v1/accesskeys/")]
         [HttpPost()]
         public async Task<HttpResponseMessage> PostAccessKey([FromBody]AccessKey accessKey)
@@ -194,9 +197,23 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                Guid guid = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+                return await GetResultsByWorkspace(workspaceId, fromSequence, count);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
 
-                return await GetResultsByWorkspace(guid, fromSequence, count);
+        [Route("api/v1/accesskeys/{accesskey}/workspace/{accessKeyId}/supportedFilters")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWorkspaceSupportedFiltersByAccessKey(string accesskey, Guid accessKeyId)
+        {
+            try
+            {
+                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accesskey);
+                return GetWorkspaceSupportedFilters(workspaceId);
             }
             catch (Exception ex)
             {
@@ -243,7 +260,9 @@ namespace Fetcho.FetchoAPI.Controllers
                 return CreateExceptionResponse(ex);
             }
         }
+        #endregion
 
+        #region Workspaces
         /// <summary>
         /// Get some results from a workspace
         /// </summary>
@@ -341,6 +360,34 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/workspaces/{guid}/supportedFilters")]
+        [HttpGet()]
+        public HttpResponseMessage GetWorkspaceSupportedFilters(Guid guid)
+        {
+            try
+            {
+                var filterTypes = Filter.GetAllFilterTypes();
+
+                var l = new List<string>();
+                foreach( var filterType in filterTypes )
+                {
+                    var attr = filterType.GetCustomAttributes(typeof(FilterAttribute), false).FirstOrDefault() as FilterAttribute;
+                    if (attr != null && !attr.Hidden)
+                        l.Add(attr.ShortHelp);
+                }
+
+                return Request.CreateResponse(HttpStatusCode.OK, l);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        #endregion
+
+        #region helper methods
+
         /// <summary>
         /// Test that the GUID and workspace match - throw if not
         /// </summary>
@@ -399,43 +446,8 @@ namespace Fetcho.FetchoAPI.Controllers
                 return CreateInvalidRequestResponse(invalidRequestFetchoException);
             return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message, ex);
         }
-    }
 
-    public class PermissionDeniedFetchoException : FetchoException
-    {
-        public PermissionDeniedFetchoException()
-        {
-        }
+        #endregion
 
-        public PermissionDeniedFetchoException(string message) : base(message)
-        {
-        }
-
-        public PermissionDeniedFetchoException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected PermissionDeniedFetchoException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
-    }
-
-    public class InvalidRequestFetchoException : FetchoException
-    {
-        public InvalidRequestFetchoException()
-        {
-        }
-
-        public InvalidRequestFetchoException(string message) : base(message)
-        {
-        }
-
-        public InvalidRequestFetchoException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected InvalidRequestFetchoException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
     }
 }

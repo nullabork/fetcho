@@ -19,7 +19,7 @@ namespace Fetcho
         List<WorkspaceQuery> Queries { get; }
 
         public Uri CurrentUri;
-        public Uri ReferrerUri;
+        public Uri RefererUri;
 
         public string Name { get => "Processes workspace queries"; }
         public bool ProcessesRequest { get => true; }
@@ -36,7 +36,7 @@ namespace Fetcho
         public void ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
-            ReferrerUri = WebDataPacketReader.GetReferrerUriFromRequestString(request);
+            RefererUri = WebDataPacketReader.GetRefererUriFromRequestString(request);
         }
 
         public void ProcessResponseHeaders(string responseHeaders)
@@ -58,7 +58,7 @@ namespace Fetcho
                 result = new WorkspaceResult
                 {
                     Hash = MD5Hash.Compute(CurrentUri).ToString(),
-                    ReferrerUri = ReferrerUri?.ToString(),
+                    RefererUri = RefererUri?.ToString(),
                     Uri = CurrentUri.ToString(),
                     Title = "",
                     Description = "",
@@ -95,11 +95,18 @@ namespace Fetcho
 
                 foreach (var wq in Queries)
                 {
-                    var r = wq.Query.Evaluate(CurrentUri, evaluationText.ToString());
-                    if (r.Action == EvaluationResultAction.Include)
+                    try
                     {
-                        result.Tags.AddRange(r.Tags);
-                        postTo.Add(wq.WorkspaceId);
+                        var r = wq.Query.Evaluate(CurrentUri, evaluationText.ToString());
+                        if (r.Action == EvaluationResultAction.Include)
+                        {
+                            result.Tags.AddRange(r.Tags);
+                            postTo.Add(wq.WorkspaceId);
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        Utility.LogException(ex);
                     }
                 }
 
@@ -121,7 +128,7 @@ namespace Fetcho
         public void NewResource()
         {
             CurrentUri = null;
-            ReferrerUri = null;
+            RefererUri = null;
         }
 
         public void PacketClosed() { }
@@ -130,11 +137,8 @@ namespace Fetcho
         {
             using (var db = new Database())
             {
-                db.UpdateWorkspaceStatistics().GetAwaiter().GetResult();
-                var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
-                foreach (var workspace in workspaces.Distinct())
-                    if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
-                        Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
+                UpdateStatistics(db);
+                SetupQueries(db);
             }
         }
 
@@ -162,7 +166,7 @@ namespace Fetcho
         {
             string title = "";
 
-            while ( !reader.EOF )
+            while (!reader.EOF)
             {
                 var node = reader.NextNode();
 
@@ -185,6 +189,18 @@ namespace Fetcho
                 if (n.Value == endTag && n.Type == HtmlTokenType.EndTag)
                     return;
             }
+        }
+
+        void UpdateStatistics(Database db)
+            => db.UpdateWorkspaceStatistics().GetAwaiter().GetResult();
+
+        void SetupQueries(Database db)
+        {
+            Queries.Clear();
+            var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
+            foreach (var workspace in workspaces.Distinct())
+                if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
+                    Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
         }
 
         private struct WorkspaceQuery

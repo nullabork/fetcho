@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -11,6 +13,8 @@ namespace Fetcho.Common
     /// </summary>
     public static class TypeExtensions
     {
+        static Random random = new Random(DateTime.Now.Millisecond);
+
         /// <summary>
         /// Appends another array to this array
         /// </summary>
@@ -174,6 +178,9 @@ namespace Fetcho.Common
             while (!await target.SendAsync(item))
                 await Task.Delay(waitTime);
         }
+
+        public static IEnumerable<T> Randomise<T>(this IEnumerable<T> items)
+            => items.OrderBy(x => random.NextDouble());
     }
 
     

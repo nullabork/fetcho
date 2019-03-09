@@ -1,4 +1,4 @@
-# fetcho
+# Fetcho
 
 It's for searching the internet
 
@@ -7,7 +7,7 @@ If you don't know where you're going, this is a great place to start.
 Useful concepts to understand it:
 1. How do you carve an elephant out of marble? Start with a block of marble and cut away everything that doesn't look like an elephant.
 
-# Search Queries Examples
+# Search query examples
 
 Traditional word search
 ```
@@ -29,7 +29,7 @@ Filter by language
 lang:en
 ```
 
-Tag the resuls by city where that city is in the United_States
+Tag the results by city where that city is in the United_States
 ```
 geo-ip-city:United_States:*
 ```
@@ -61,6 +61,8 @@ Use this for user facing tools. You make up your own access keys minimum of 12 c
 * GET /{accesskey} - list all the `WorkspaceAccessKey`s for an `AccessKey`
 * GET /{accesskey}/workspace/{workspaceAccessKeyId} - get a specific `Workspace` by its `WorkspaceAccessKey` id
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results - get the `Workspace` `WorkspaceResults`. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
+* GET /{accesskey}/workspace/{workspaceAccessKeyId}/results/random - Get a random result from the `Workspace`;
+* GET /{accesskey}/workspace/{workspaceAccessKeyId}/results/supportedFilters - Get the search and tagging filters supported by this `Workspace`;
 
 * POST / - create or update an `AccessKey`
 * POST /{accesskey}/workspace - create a `Workspace` and owner `WorkspaceAccessKey`
@@ -149,8 +151,10 @@ Individual search results
     "Uri":"https://www.alibris.com/",  
     "Title":"Alibris - Buy new and used books, textbooks, music and movies",  
     "Description":"",  
-    "Tags":[    
-	  
+    "Tags":[ 
+		"en",
+		"Austin",
+		"United_States"
     ],  
     "Created":"2019-03-07T20:17:38.838743+08:00",  
     "PageSize":62985,  

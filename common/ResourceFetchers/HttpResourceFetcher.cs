@@ -190,11 +190,11 @@ namespace Fetcho.Common
         /// <summary>
         /// Create a web request with all the usual suspect configurations
         /// </summary>
-        /// <param name="referrerUri"></param>
+        /// <param name="refererUri"></param>
         /// <param name="uri"></param>
         /// <param name="lastFetchedDate"></param>
         /// <returns></returns>
-        private HttpWebRequest CreateRequest(Uri referrerUri, Uri uri, DateTime? lastFetchedDate)
+        private HttpWebRequest CreateRequest(Uri refererUri, Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
@@ -229,12 +229,12 @@ namespace Fetcho.Common
             request.CookieContainer = new CookieContainer();
 
             // fill in the referrer if its set
-            TrySetReferrer(request, referrerUri);
+            TrySetReferer(request, refererUri);
 
             return request;
         }
 
-        private void TrySetReferrer(HttpWebRequest request, Uri uri)
+        private void TrySetReferer(HttpWebRequest request, Uri uri)
         {
             try
             {

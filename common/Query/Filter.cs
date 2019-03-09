@@ -1,5 +1,7 @@
 ﻿
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Fetcho.Common
 {
@@ -10,7 +12,9 @@ namespace Fetcho.Common
         /// </summary>
         public abstract string Name { get;  }
 
-        public decimal Cost { get => 1m;  }
+        public virtual decimal Cost { get => 1m;  } // relative to the cheapest filter (Site)
+
+        public bool CallOncePerPage { get; set; }
 
         /// <summary>
         /// If the fragment is matched by this filter
@@ -24,5 +28,8 @@ namespace Fetcho.Common
         /// </summary>
         /// <returns></returns>
         public abstract string GetQueryText();
+
+        public static IEnumerable<Type> GetAllFilterTypes()
+            => typeof(Filter).Assembly.GetTypes().Where(x => x.IsSubclassOf(typeof(Filter)));
     }
 }

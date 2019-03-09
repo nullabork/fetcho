@@ -87,7 +87,7 @@ namespace Fetcho
             var r = new WorkspaceResult
             {
                 Hash = MD5Hash.Compute(CurrentUri).ToString(),
-                ReferrerUri = "",
+                RefererUri = "",
                 Uri = CurrentUri.ToString(),
                 Title = "",
                 Description = "",

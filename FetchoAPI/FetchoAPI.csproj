@@ -91,6 +91,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Controllers\InvalidRequestFetchoException.cs" />
+    <Compile Include="Controllers\PermissionDeniedFetchoException.cs" />
     <Compile Include="Controllers\WorkspacesController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>

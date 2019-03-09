@@ -1,35 +1,22 @@
 ﻿using System;
-using MaxMind.GeoIP2.Exceptions;
 using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    public class GeoIPCityFilter : Filter
+    [Filter("geo-ip-city:[city|*][:city|*]")]
+    public class GeoIPCityFilter : GeoIPFilter
     {
-        public static MaxMind.GeoIP2.DatabaseReader database =
-            new MaxMind.GeoIP2.DatabaseReader(FetchoConfiguration.Current.GeoIP2CityDatabasePath);
-
         public string City { get; set; }
 
         public override string Name => "Geo IP City";
 
+        public override string Property => "city";
+
+        public override string FilterData => City;
+
+        public override decimal Cost => 1000m;
+
         public GeoIPCityFilter(string city) => City = city;
-
-        public override string GetQueryText() => string.Format("geo-ip-city:{0}", City);
-
-        public override string[] IsMatch(Uri uri, string fragment)
-        {
-            try
-            {
-                var c = database.City(Utility.GetHostIPAddress(uri).GetAwaiter().GetResult());
-
-                return GetTags(c);
-            }
-            catch (AddressNotFoundException ex)
-            {
-                return new string[] { };
-            }
-        }
 
         /// <summary>
         /// Parse some text into a TextMatchFilter
@@ -50,15 +37,13 @@ namespace Fetcho.Common
             return new GeoIPCityFilter(city);
         }
 
-        public static bool TokenIsFilter(string token) => token.StartsWith("geo-ip-city:");
-
-        private string[] GetTags(CityResponse cityResponse)
-        {
-            return new string[] {
+        protected override string[] GetTags(CityResponse cityResponse)
+            => new string[] {
                     Utility.MakeTag(cityResponse.City.Name),
                     Utility.MakeTag(cityResponse.Country.Name)
                 };
-        }
+
+        public static bool TokenIsFilter(string token) => token.StartsWith("geo-ip-city:");
     }
 
 }

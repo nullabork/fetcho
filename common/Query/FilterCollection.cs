@@ -25,17 +25,17 @@ namespace Fetcho.Common
         public void Clear() => Filters.Clear();
 
         public bool AllMatch(Uri uri, string fragment) 
-            => Filters.All(x => x.IsMatch(uri, fragment).Any());
+            => Filters.OrderBy(x => x.Cost).All(x => x.IsMatch(uri, fragment).Any());
 
         public bool AnyMatch(Uri uri, string fragment) 
-            => Filters.Any(x => x.IsMatch(uri, fragment).Any());
+            => Filters.OrderBy(x => x.Cost).Any(x => x.IsMatch(uri, fragment).Any());
 
         public IEnumerable<string> GetTags(Uri uri, string fragment)
         {
             var l = new List<string>();
             foreach (var filter in Filters)
                 l.AddRange(filter.IsMatch(uri, fragment));
-            return l;
+            return l.Distinct();
         }
         public IEnumerator<Filter> GetEnumerator() 
             => Filters.GetEnumerator();

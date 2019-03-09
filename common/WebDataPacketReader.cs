@@ -170,18 +170,18 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="requestString"></param>
         /// <returns></returns>
-        public static Uri GetReferrerUriFromRequestString(string requestString)
+        public static Uri GetRefererUriFromRequestString(string requestString)
         {
-            const string ReferrerPrefix = "Referrer:";
+            const string RefererPrefix = "referer:";
 
             if (String.IsNullOrWhiteSpace(requestString)) return null;
-            if (requestString.IndexOf(ReferrerPrefix, StringComparison.InvariantCultureIgnoreCase) < 0) return null;
+            if (requestString.IndexOf(RefererPrefix, StringComparison.InvariantCultureIgnoreCase) < 0) return null;
 
-            requestString = requestString.Substring(requestString.IndexOf(ReferrerPrefix, StringComparison.InvariantCultureIgnoreCase));
+            requestString = requestString.Substring(requestString.IndexOf(RefererPrefix, StringComparison.InvariantCultureIgnoreCase));
             int i = requestString.IndexOf("\n", StringComparison.InvariantCultureIgnoreCase);
             if (i < 0) return null;
 
-            string uri = requestString.Substring(ReferrerPrefix.Length, i - ReferrerPrefix.Length).Trim();
+            string uri = requestString.Substring(RefererPrefix.Length, i - RefererPrefix.Length).Trim();
 
             return new Uri(uri);
         }

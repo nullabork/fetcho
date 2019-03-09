@@ -2,11 +2,14 @@
 
 namespace Fetcho.Common
 {
+    [Filter("random:[probability][:*]")]
     public class RandomMatchFilter : Filter
     {
         public const double DefaultMatchProbability = MaxMatchProbability;
         public const double MaxMatchProbability = 1.0 / 10000.0;
         public const double MinMatchProbability = 1.0 / 10000000.0;
+
+        private Uri lastUri = null;
 
         static readonly Random random = new Random(DateTime.Now.Millisecond);
 
@@ -14,10 +17,9 @@ namespace Fetcho.Common
 
         public override string Name => "RandomMatchFilter";
 
-        private Uri lastUri = null;
-
         public RandomMatchFilter(double probability)
         {
+            CallOncePerPage = true;
             MatchProbability = probability.RangeConstraint(MinMatchProbability, MaxMatchProbability);
         }
 
@@ -25,7 +27,7 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(Uri uri, string fragment)
         {
-            bool rtn = lastUri != uri && random.NextDouble() < MatchProbability;
+            bool rtn = lastUri != uri &&  random.NextDouble() < MatchProbability;
             lastUri = uri;
 
             if (rtn)

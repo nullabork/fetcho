@@ -52,7 +52,7 @@ namespace Fetcho
                     string searchPattern = "*";
                     if (path.Length < packetPath.Length) searchPattern = packetPath.Substring(path.Length + 1);
 
-                    foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly))
+                    foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly).Randomise())
                         reado.Process(file).GetAwaiter().GetResult();
                 }
             }

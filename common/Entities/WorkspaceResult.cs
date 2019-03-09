@@ -8,7 +8,7 @@ namespace Fetcho.Common.Entities
     {
         public string Hash { get; set; }
 
-        public string ReferrerUri { get; set; }
+        public string RefererUri { get; set; }
 
         public string Uri { get; set; }
 
@@ -33,7 +33,7 @@ namespace Fetcho.Common.Entities
             Description = "";
             Title = "";
             Uri = "";
-            ReferrerUri = "";
+            RefererUri = "";
             Hash = "";
         }
 
