@@ -59,6 +59,27 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/accesskeys/wellknown")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWellknownAccessKeys()
+        {
+            try
+            {
+                IEnumerable<WorkspaceAccessKey> keys = null;
+
+                using (var db = new Database())
+                {
+                    keys = await db.GetWorkspaceAccessKeys();
+                }
+
+                return CreateOKResponse(keys.Where(x => x.IsWellKnown));
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         [Route("api/v1/accesskeys/{accesskey}")]
         [HttpGet()]
         public async Task<HttpResponseMessage> Get(string accesskey)

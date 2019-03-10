@@ -534,7 +534,7 @@ namespace Fetcho.Common
 
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry " +
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_id = :workspace_id;";
 
@@ -552,6 +552,7 @@ namespace Fetcho.Common
                         Created = reader.GetDateTime(5),
                         Expiry = reader.GetDateTime(6),
                         IsActive = reader.GetBoolean(3),
+                        IsWellKnown = reader.GetBoolean(7),
                         Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
                     });
                 }
@@ -560,17 +561,21 @@ namespace Fetcho.Common
             return l;
         }
 
-        public async Task<IEnumerable<WorkspaceAccessKey>> GetWorkspaceAccessKeys(string accessKey)
+        public async Task<IEnumerable<WorkspaceAccessKey>> GetWorkspaceAccessKeys(string accessKey = "")
         {
             var l = new List<WorkspaceAccessKey>();
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry " +
-                "from   \"WorkspaceAccessKey\" " +
-                "where  access_key = :access_key;";
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown " +
+                "from   \"WorkspaceAccessKey\" ";
+
+            if ( !String.IsNullOrWhiteSpace(accessKey))
+                sql += "where  access_key = :access_key;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
-            cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey));
+
+            if (!String.IsNullOrWhiteSpace(accessKey)) 
+                cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey));
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
@@ -583,6 +588,7 @@ namespace Fetcho.Common
                         Created = reader.GetDateTime(5),
                         Expiry = reader.GetDateTime(6),
                         IsActive = reader.GetBoolean(3),
+                        IsWellKnown = reader.GetBoolean(7),
                         Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
                     });
                 }
@@ -603,11 +609,12 @@ namespace Fetcho.Common
               "set    is_active = :is_active, " +
               "       permissions = :permissions, " +
               "       created = :created, " +
-              "       expiry = :expiry " +
+              "       expiry = :expiry, " +
+              "       is_wellknown = :is_wellknown " +
               "where  workspace_id = :workspace_id and access_key = :access_key;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry) " +
-              "values ( :workspace_access_key_id, :workspace_id, :access_key, :is_active, :permissions, :created, :expiry);";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown) " +
+              "values ( :workspace_access_key_id, :workspace_id, :access_key, :is_active, :permissions, :created, :expiry, :is_wellknown);";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             _saveWorkspaceAccessKeysSetParams(cmd, workspaceId, workspaceAccessKey);
@@ -631,6 +638,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", wak.IsActive));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", wak.Created));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("expiry", wak.Expiry));
+            cmd.Parameters.Add(new NpgsqlParameter<bool>("is_wellknown", wak.IsWellKnown));
         }
 
         public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long fromSequence, int count)

@@ -6,6 +6,9 @@ namespace Fetcho.Common.Entities
     public enum WorkspaceAccessPermissions
     {
         None = 0,
-        Owner = 1
+        Owner = 1,
+        Manage = 2,
+        Read = 4,
+        Write = 8
     }
 }
