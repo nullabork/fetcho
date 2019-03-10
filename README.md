@@ -58,7 +58,7 @@ Use workspaces if you're building a server facing tool
 
 Use this for user facing tools. You make up your own access keys minimum of 12 chars.
 
-* GET /wellknown - get all well known 'WorkspaceAccessKey's
+* GET /wellknown - get all well known 'WorkspaceAccessKey's  
 * GET /{accesskey} - list all the `WorkspaceAccessKey`s for an `AccessKey`
 * GET /{accesskey}/workspace/{workspaceAccessKeyId} - get a specific `Workspace` by its `WorkspaceAccessKey` id
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results - get the `Workspace` `WorkspaceResults`. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
@@ -76,7 +76,7 @@ Use this for user facing tools. You make up your own access keys minimum of 12 c
 
 Use this for server facing tools
 
-* GET /wellknown - get all well known `Workspace`s. Useful for publicly accessible workspaces and community workspaces
+* GET /wellknown - get all well known `Workspace`s. Useful for publicly accessible workspaces and community workspaces  
 * GET /{workspaceId}/results - get `WorkspaceResult` records. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
 * PUT,POST /{workspaceId}/results - add or update `WorkspaceResult` records
 * DELETE /{workspaceId}/results - delete `WorkspaceResult` records
