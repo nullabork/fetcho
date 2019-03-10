@@ -43,7 +43,7 @@ namespace Fetcho.Common.Entities
         /// Is the workspace a well known workspace
         /// </summary>
         /// <remarks>Used for public work spaces</remarks>
-        public bool IsWellKnown { get; set; }
+        public bool IsWellknown { get; set; }
 
         /// <summary>
         /// Number of results in the workspace
@@ -53,25 +53,35 @@ namespace Fetcho.Common.Entities
         /// <summary>
         /// list of revokable keys that can access this workspace
         /// </summary>
-        public List<WorkspaceAccessKey> AccessKeys { get;  }
+        public List<AccessKey> AccessKeys { get; }
 
         public Workspace()
         {
-            AccessKeys = new List<WorkspaceAccessKey>();
+            WorkspaceId = Guid.NewGuid();
+            Name = "";
+            Description = "";
+            QueryText = "";
+            IsActive = true;
+            Created = DateTime.UtcNow;
+            ResultCount = 0;
+            IsWellknown = false;
+            AccessKeys = new List<AccessKey>();
         }
 
         /// <summary>
         /// Get the owner's access key
         /// </summary>
         /// <returns></returns>
-        public WorkspaceAccessKey GetOwnerAccessKey() => AccessKeys.FirstOrDefault(x => (x.Permissions & WorkspaceAccessPermissions.Owner) == WorkspaceAccessPermissions.Owner);
+        public AccessKey GetOwnerWorkspaceAccessKey()
+            => AccessKeys.FirstOrDefault(x => x.HasPermissionFlag(WorkspaceAccessPermissions.Owner));
 
         /// <summary>
         /// Determine if an access key has access to this workspace
         /// </summary>
         /// <param name="accessKey"></param>
         /// <returns></returns>
-        public bool HasAccess(string accessKey) => AccessKeys.Any(x => x.AccessKey == accessKey);
+        public bool HasAccess(string accessKey)
+            => AccessKeys.Any(x => x.AccountName == accessKey);
 
         /// <summary>
         /// Create a workspace object
@@ -82,15 +92,12 @@ namespace Fetcho.Common.Entities
         {
             var w = new Workspace()
             {
-                WorkspaceId = Guid.NewGuid(),
                 Name = name,
-                Description = "",
-                QueryText = "",
-                IsActive = true,
-                Created = DateTime.UtcNow,
-                ResultCount = 0
             };
-            w.AccessKeys.Add(WorkspaceAccessKey.Create(WorkspaceAccessPermissions.Owner));
+            w.AccessKeys.Add(new AccessKey
+            {
+                Permissions = WorkspaceAccessPermissions.Owner
+            });
 
             return w;
         }
@@ -102,11 +109,11 @@ namespace Fetcho.Common.Entities
         public static void Validate(Workspace workspace)
         {
             if (String.IsNullOrWhiteSpace(workspace?.Name))
-                throw new ArgumentException("Name not set");
+                throw new InvalidObjectFetchoException("Name not set");
             if (workspace.WorkspaceId == Guid.Empty)
-                throw new ArgumentException("WorkspaceId is not set");
+                throw new InvalidObjectFetchoException("WorkspaceId is not set");
             if (workspace.Created == DateTime.MinValue)
-                throw new ArgumentException("Created is not set");
+                throw new InvalidObjectFetchoException("Created is not set");
         }
     }
 }

@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Formatting;
 using System.Threading.Tasks;
 using Fetcho.Common.Entities;
 using Fetcho.FetchoAPI.Controllers;
@@ -18,9 +21,14 @@ namespace FetchoAPI.Test
             var controller = new WorkspacesController();
             //await controller.Post(workspace.GetOwnerAccessKey().AccessKey, workspace);
 
-            var httpResponse = await controller.GetResultsByWorkspaceAccessKey("woot-is-awesome", new Guid("8cd40e60-5749-480a-a0e3-77d66f3bb5d6"), 0, 30);
+            var guid = new Guid("f5201ff7-ea59-4e00-87b9-af4a0a9c8e2e");
+            var httpResponse = await controller.GetResultsByWorkspace(guid, 0, 30);
 
             Assert.IsNotNull(httpResponse);
+            var results = await httpResponse.Content.ReadAsAsync<IEnumerable<WorkspaceResult>>(new[] { new JsonMediaTypeFormatter() });
+
+            await controller.PostResultsByWorkspace(guid, results);
+
             //Assert.IsTrue(results.Any());
             //Assert.IsTrue(results.Count() <= 30);
 

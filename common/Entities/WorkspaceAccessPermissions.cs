@@ -9,6 +9,7 @@ namespace Fetcho.Common.Entities
         Owner = 1,
         Manage = 2,
         Read = 4,
-        Write = 8
+        Write = 8,
+        Max = 16
     }
 }

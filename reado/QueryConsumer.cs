@@ -37,6 +37,8 @@ namespace Fetcho
         public bool ProcessesResponse { get => true; }
         public bool ProcessesException { get => false; }
 
+        public int ResourcesSeen = 0;
+
         public QueryConsumer(params string[] args)
         {
             fetchoClient = new FetchoAPIV1Client(new Uri(FetchoConfiguration.Current.FetchoWorkspaceServerBaseUri));
@@ -132,10 +134,22 @@ namespace Fetcho
                 {
                     fetchoClient.PostResultsByWorkspaceAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                 }
+
             }
             catch (Exception ex)
             {
                 Utility.LogException(ex);
+            }
+            finally
+            {
+                if (ResourcesSeen++ % 100 == 0)
+                {
+                    using (var db = new Database())
+                    {
+                        UpdateStatistics(db);
+                        SetupQueries(db);
+                    }
+                }
             }
         }
 
@@ -146,11 +160,6 @@ namespace Fetcho
 
         public void PacketOpened()
         {
-            using (var db = new Database())
-            {
-                UpdateStatistics(db);
-                SetupQueries(db);
-            }
         }
 
         public void ReadingException(Exception ex) { }

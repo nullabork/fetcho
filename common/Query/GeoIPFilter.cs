@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using Fetcho.Common.Entities;
 using MaxMind.GeoIP2.Exceptions;
@@ -34,7 +35,7 @@ namespace Fetcho.Common
 
                 var c = database.City(ip);
 
-                return GetTags(c);
+                return GetTags(c).Where(x => String.IsNullOrWhiteSpace(FilterData) || x.Contains(FilterData)).ToArray();
             }
             catch (AddressNotFoundException ex)
             {

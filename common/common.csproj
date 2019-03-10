@@ -170,9 +170,10 @@
     <Compile Include="ContentType.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="Entities\AccessKey.cs" />
+    <Compile Include="Entities\Account.cs" />
+    <Compile Include="Entities\InvalidObjectFetchoException.cs" />
     <Compile Include="Entities\IWebResource.cs" />
     <Compile Include="Entities\Workspace.cs" />
-    <Compile Include="Entities\WorkspaceAccessKey.cs" />
     <Compile Include="Entities\WorkspaceAccessPermissions.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
     <Compile Include="ExceptionClassifier.cs" />

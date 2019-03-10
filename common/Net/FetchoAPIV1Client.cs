@@ -11,6 +11,7 @@ namespace Fetcho.Common.Net
     {
         private const string BaseEndpoint = "api/v1";
         private const string AccessKeysEndPoint = BaseEndpoint + "/accesskeys";
+        private const string AccountsEndPoint = BaseEndpoint + "/accounts";
         private const string WorkspaceEndPoint = BaseEndpoint + "/workspaces";
         private const string JsonContentType = "application/json";
 

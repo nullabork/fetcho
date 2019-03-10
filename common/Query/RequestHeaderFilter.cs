@@ -16,8 +16,8 @@ namespace Fetcho.Common
 
         public RequestHeaderFilter(string headerKey, string searchText) : this()
         {
-            SearchText = searchText;
-            HeaderKey = headerKey;
+            SearchText = searchText.ToLower();
+            HeaderKey = headerKey.ToLower();
         }
 
         private RequestHeaderFilter()
@@ -28,7 +28,7 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(IWebResource resource, string fragment)
             => resource.RequestProperties.ContainsKey(HeaderKey) 
-               && resource.RequestProperties[HeaderKey].Contains(SearchText) ? 
+               && (String.IsNullOrWhiteSpace(SearchText) || resource.RequestProperties[HeaderKey].Contains(SearchText)) ? 
                     new string[1] { Utility.MakeTag(resource.RequestProperties[HeaderKey]) } : new string[0];
 
         /// <summary>

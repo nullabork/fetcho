@@ -127,6 +127,8 @@ namespace Fetcho.Common.Tests
         public async Task<bool> VerifyUrlIsBlocked(Uri uri)
         {
             var robots = await RobotsFile.GetFile(uri);
+            if (robots == null)
+                return false;
             return robots.IsDisallowed(uri);
         }
 

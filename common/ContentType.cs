@@ -8,6 +8,7 @@ namespace Fetcho.Common
 {
     public class ContentType : IEqualityComparer<ContentType>, IComparer<ContentType>
     {
+        public const string ApplicationJson = "application/json";
         public const string ApplicationXEmpty = "application/x-empty";
 
         public string Raw { get; private set; }

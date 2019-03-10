@@ -58,7 +58,7 @@ Use workspaces if you're building a server facing tool
 
 Use this for user facing tools. You make up your own access keys minimum of 12 chars.
 
-* GET /wellknown - get all well known 'WorkspaceAccessKey's  
+* GET /wellknown - get all well known `WorkspaceAccessKey`s  
 * GET /{accesskey} - list all the `WorkspaceAccessKey`s for an `AccessKey`
 * GET /{accesskey}/workspace/{workspaceAccessKeyId} - get a specific `Workspace` by its `WorkspaceAccessKey` id
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results - get the `Workspace` `WorkspaceResults`. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
