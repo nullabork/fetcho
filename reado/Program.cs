@@ -1,6 +1,7 @@
 using Fetcho.Common;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 
@@ -30,6 +31,10 @@ namespace Fetcho
             Filter.InitaliseFilterTypes();
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
+            cfg.SetConfigurationSetting(
+                () => cfg.FetchoWorkspaceServerBaseUri,
+                ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
+                );
 
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();

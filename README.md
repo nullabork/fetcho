@@ -76,6 +76,7 @@ Use this for user facing tools. You make up your own access keys minimum of 12 c
 Use this for server facing tools
 
 * GET /{workspaceId}/results - get `WorkspaceResult` records. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
+* GET /wellknown - get `Workspace`s that are well known. Useful for publicly accessible workspaces and community workspaces
 * PUT,POST /{workspaceId}/results - add or update `WorkspaceResult` records
 * DELETE /{workspaceId}/results - delete `WorkspaceResult` records
 
@@ -99,10 +100,9 @@ An access key to a Workspace Workspaces
 {  
       "Id":"8cd40e60-5749-480a-a0e3-77d66f3bb5d6",  
       "AccessKey":"PurpleMonkeyDishwasher",  
-      "IsOwner":true,  
       "Expiry":"9999-12-31T00:00:00",  
       "IsActive":true,  
-      "IsRevoked":false,  
+      "Permissions":1, // flags 0 = none, 1 = owner 
       "Created":"2019-02-15T14:25:06.639414+08:00"  
 }  
 ```
@@ -118,24 +118,23 @@ Details of a running search query and it's results and other configuration for a
    "QueryText":"-random",  
    "Created":"2019-02-15T06:25:06.639414+08:00",  
    "IsActive":true,  
+   "IsWellKnown":false,
    "ResultCount":206,  
    "AccessKeys":[    
       {  
          "Id":"8cd40e60-5749-480a-a0e3-77d66f3bb5d6",  
          "AccessKey":"PurpleMonkeyDishwasher",  
-         "IsOwner":true,  
          "Expiry":"9999-12-31T00:00:00",  
          "IsActive":true,  
-         "IsRevoked":false,  
-         "Created":"2019-02-15T14:25:06.639414+08:00"  
+         "Permissions":1,
+		 "Created":"2019-02-15T14:25:06.639414+08:00"  
       },  
       {    
          "Id":"ab57d44d-2e6b-4404-adfa-0a8e393ffd45",  
          "AccessKey":"FaxesFavouriteKey",  
-         "IsOwner":false,  
          "Expiry":"9999-12-31T00:00:00",  
          "IsActive":true,  
-         "IsRevoked":false,  
+         "Permissions":1,
          "Created":"2019-03-08T17:39:50.25246+08:00"  
       }  
    ]  

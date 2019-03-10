@@ -9,30 +9,27 @@ namespace Fetcho.Common.Entities
 
         public string AccessKey { get; set; }
 
-        public bool IsOwner { get; set; }
-
         public DateTime Expiry { get; set; }
 
         public bool IsActive { get; set; }
 
-        public bool IsRevoked { get; set; }
-
         public DateTime Created { get; set; }
+
+        public WorkspaceAccessPermissions Permissions { get; set; }
 
         public WorkspaceAccessKey()
         {
             IsActive = true;
-            IsRevoked = false;
             Expiry = DateTime.MaxValue;
             Created = DateTime.Now;
+            Permissions = WorkspaceAccessPermissions.None;
             Id = Guid.NewGuid();
         }
 
-        public static WorkspaceAccessKey Create(bool isOwner = true) => new WorkspaceAccessKey()
+        public static WorkspaceAccessKey Create(WorkspaceAccessPermissions permissions) => new WorkspaceAccessKey()
         {
             Id = Guid.NewGuid(),
             AccessKey = Utility.GetRandomHashString(),
-            IsOwner = isOwner
         };
     }
 }

@@ -115,7 +115,7 @@ namespace Fetcho.Common.QueryEngine
         private bool IsDiscriminatingFilter(string token)
         {
             var ts = token.Split(':');
-            if (ts.Length < 2) return false;
+            if (ts.Length < 2) return true;
             if (ts[1].Trim().Length == 0) return false;
             if (ts[1].Trim().Length == 1 && ts[1].Trim() == "*") return false;
             return true;

@@ -109,6 +109,9 @@ namespace Fetcho.Common
         [ConfigurationSetting(@"G:\fetcho\data\GeoLite2-City.mmdb")]
         public string GeoIP2CityDatabasePath { get; private set; }
 
+        [ConfigurationSetting]
+        public string FetchoWorkspaceServerBaseUri { get; private set; }
+
         public IBlockProvider BlockProvider { get; set; }
 
         public IQueuePriorityCalculationModel QueueOrderingModel { get; set; }

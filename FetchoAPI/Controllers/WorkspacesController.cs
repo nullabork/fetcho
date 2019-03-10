@@ -126,7 +126,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     await db.SaveWorkspace(workspace);
                 }
 
-                return CreateNoContentResponse();
+                return CreateCreatedResponse();
             }
             catch (Exception ex)
             {
@@ -332,7 +332,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 using (var db = new Database())
                     await db.AddWorkspaceResults(guid, results);
 
-                return CreateNoContentResponse();
+                return CreateCreatedResponse();
             }
             catch (Exception ex)
             {
@@ -385,6 +385,25 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/workspaces/wellknown")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWellknownWorkspaces()
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    var results = await db.GetWorkspaces();
+
+                    return CreateOKResponse(results.Where(x => x.IsWellKnown));
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         #endregion
 
         #region helper methods
@@ -428,6 +447,9 @@ namespace Fetcho.FetchoAPI.Controllers
         private HttpResponseMessage CreatePermissionDeniedResponse(PermissionDeniedFetchoException ex)
             => Request.CreateErrorResponse(HttpStatusCode.Forbidden, ex.Message, ex);
 
+        private HttpResponseMessage CreateCreatedResponse()
+            => Request.CreateResponse(HttpStatusCode.Created);
+
         private HttpResponseMessage CreateNoContentResponse()
             => Request.CreateResponse(HttpStatusCode.NoContent);
 
@@ -436,6 +458,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
         private HttpResponseMessage CreateInvalidRequestResponse(InvalidRequestFetchoException ex)
             => Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message, ex);
+
 
         private HttpResponseMessage CreateOKResponse<T>(T payload)
         {

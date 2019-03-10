@@ -7,6 +7,7 @@ using System.IO;
 using BracketPipe;
 using System.Linq;
 using System.Text;
+using Fetcho.Common.Net;
 
 namespace Fetcho
 {
@@ -17,6 +18,7 @@ namespace Fetcho
     {
         List<WorkspaceQuery> Queries { get; }
 
+        private FetchoAPIV1Client fetchoClient;
         private List<Guid> postTo = new List<Guid>();
         private WorkspaceResult result = null;
         private StringBuilder evaluationText = new StringBuilder();
@@ -37,15 +39,18 @@ namespace Fetcho
 
         public QueryConsumer(params string[] args)
         {
+            fetchoClient = new FetchoAPIV1Client(new Uri(FetchoConfiguration.Current.FetchoWorkspaceServerBaseUri));
             Queries = new List<WorkspaceQuery>();
             ClearAll();
         }
 
         public void ProcessException(string exception) { }
 
-        public void ProcessRequest(string request) => this.requestString = request;
+        public void ProcessRequest(string request) 
+            => this.requestString = request;
 
-        public void ProcessResponseHeaders(string responseHeaders) => this.responseHeaders = responseHeaders;
+        public void ProcessResponseHeaders(string responseHeaders) 
+            => this.responseHeaders = responseHeaders;
 
         public void ProcessResponseStream(Stream dataStream)
         {
@@ -59,7 +64,10 @@ namespace Fetcho
                     {
                         var node = reader.NextNode();
                         if (node.Type == HtmlTokenType.Text)
-                            Evaluate(node.Value);
+                        {
+                            evaluationText.Append(node.Value);
+                            evaluationText.Append(' ');
+                        }
 
                         if (node.Value == "script")
                             ReadToEndTag(reader, "script");
@@ -99,7 +107,7 @@ namespace Fetcho
                     PageSize = 0
                 };
 
-
+                // evaluate against the queries
                 foreach (var wq in Queries)
                 {
                     try
@@ -117,15 +125,13 @@ namespace Fetcho
                     }
                 }
 
+                // if no matches, move onto the next resource
                 if (!postTo.Any()) return;
 
                 foreach (var workspaceId in postTo.ToArray())
                 {
-                    using (var db = new Database())
-                        db.AddWorkspaceResults(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                    fetchoClient.PostResultsByWorkspaceAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                 }
-
-
             }
             catch (Exception ex)
             {
@@ -149,16 +155,11 @@ namespace Fetcho
 
         public void ReadingException(Exception ex) { }
 
-        void Evaluate(string fragment)
-        {
-            evaluationText.Append(fragment);
-            evaluationText.Append(' ');
-        }
 
         string ReadDesc(HtmlReader reader)
         {
             if (reader.GetAttribute("name").Contains("description"))
-                return reader.GetAttribute("content").Trim().Replace("\n", " ").Replace("\t", " ").Replace("\r", " ");
+                return reader.GetAttribute("content").Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(1024) ;
             return String.Empty;
         }
 
@@ -174,10 +175,10 @@ namespace Fetcho
                     title += node.Value;
 
                 if (node.Type == HtmlTokenType.EndTag && node.Value == "title")
-                    return title;
+                    return title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim();
             }
 
-            return title.Trim().Replace("\n", " ").Replace("\t", " ").Replace("\r", " ");
+            return title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(128);
         }
 
         void ReadToEndTag(HtmlReader reader, string endTag)

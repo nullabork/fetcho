@@ -40,6 +40,12 @@ namespace Fetcho.Common.Entities
         public bool IsActive { get; set; }
 
         /// <summary>
+        /// Is the workspace a well known workspace
+        /// </summary>
+        /// <remarks>Used for public work spaces</remarks>
+        public bool IsWellKnown { get; set; }
+
+        /// <summary>
         /// Number of results in the workspace
         /// </summary>
         public long ResultCount { get; set; }
@@ -58,7 +64,7 @@ namespace Fetcho.Common.Entities
         /// Get the owner's access key
         /// </summary>
         /// <returns></returns>
-        public WorkspaceAccessKey GetOwnerAccessKey() => AccessKeys.FirstOrDefault(x => x.IsOwner);
+        public WorkspaceAccessKey GetOwnerAccessKey() => AccessKeys.FirstOrDefault(x => (x.Permissions & WorkspaceAccessPermissions.Owner) == WorkspaceAccessPermissions.Owner);
 
         /// <summary>
         /// Determine if an access key has access to this workspace
@@ -84,7 +90,7 @@ namespace Fetcho.Common.Entities
                 Created = DateTime.UtcNow,
                 ResultCount = 0
             };
-            w.AccessKeys.Add(WorkspaceAccessKey.Create(true));
+            w.AccessKeys.Add(WorkspaceAccessKey.Create(WorkspaceAccessPermissions.Owner));
 
             return w;
         }
