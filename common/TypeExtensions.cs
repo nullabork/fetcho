@@ -159,6 +159,28 @@ namespace Fetcho.Common
         }
 
         /// <summary>
+        /// Based on an index, return a some chars before and after that index
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="index"></param>
+        /// <param name="charsBefore"></param>
+        /// <param name="charsAfter"></param>
+        /// <returns></returns>
+        public static string Fragment(this string value, int index, int charsBefore, int charsAfter )
+        {
+            if (index < 0) throw new ArgumentException("Invalid string index");
+            if (index >= value.Length) throw new ArgumentException("Invalid string index");
+
+            int startIndex = index - charsBefore;
+            int endIndex = index + charsAfter;
+
+            if (startIndex < 0) startIndex = 0;
+            if (endIndex >= value.Length) endIndex = value.Length;
+
+            return value.Substring(startIndex, endIndex - startIndex);
+        }
+
+        /// <summary>
         /// Strip non-XML chars from the provided string
         /// </summary>
         /// <param name="value"></param>

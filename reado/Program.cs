@@ -73,20 +73,20 @@ namespace Fetcho
 
         static IEnumerable<string> GetConsumerArgs(string[] args) => new ArraySegment<string>(args, 2, args.Length - 2);
 
-        static IWebDataPacketConsumer GetWebDataPacketProcessor(string typeName, IEnumerable<string> args)
+        static WebDataPacketConsumer GetWebDataPacketProcessor(string typeName, IEnumerable<string> args)
         {
             var type = GetWebDataPacketConsumerTypes().FirstOrDefault(x => x.Name == typeName);
 
             if (type == null)
                 throw new FetchoException("Can't find type with name " + typeName);
 
-            return Activator.CreateInstance(type, args.ToArray()) as IWebDataPacketConsumer;
+            return Activator.CreateInstance(type, args.ToArray()) as WebDataPacketConsumer;
         }
 
         static IEnumerable<Type> GetWebDataPacketConsumerTypes()
         {
             var types = typeof(Program).Assembly.GetTypes().
-                        Where(t => typeof(IWebDataPacketConsumer).IsAssignableFrom(t));
+                        Where(t => typeof(WebDataPacketConsumer).IsSubclassOf(t));
             return types;
         }
 

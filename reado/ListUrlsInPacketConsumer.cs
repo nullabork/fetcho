@@ -5,52 +5,26 @@ using System.IO;
 
 namespace reado
 {
-    public class ListUrisInPacketConsumer : IWebDataPacketConsumer
+    public class ListUrisInPacketConsumer : WebDataPacketConsumer
     {
         static readonly ILog log = LogManager.GetLogger(typeof(ListUrisInPacketConsumer));
 
         public Uri CurrentUri;
         public ContentType ContentType;
 
-        public string Name { get => "List URIs"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => false; }
-        public bool ProcessesException { get => false; }
+        public override string Name { get => "List URIs"; }
+        public override bool ProcessesRequest { get => true; }
 
-        public void ProcessException(string exception)
-        {
-        }
-
-        public void ProcessRequest(string request)
+        public override void ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
             Console.WriteLine(CurrentUri);
         }
 
-        public void ProcessResponseHeaders(string responseHeaders)
-        {
-        }
-
-        public void ProcessResponseStream(Stream dataStream)
-        {
-        }
-
-        public void NewResource()
+        public override void NewResource()
         {
             CurrentUri = null;
             ContentType = null;
         }
-
-        public void PacketClosed()
-        {
-
-        }
-
-        public void PacketOpened()
-        {
-
-        }
-
-        public void ReadingException(Exception ex) { }
     }
 }

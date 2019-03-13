@@ -3,37 +3,37 @@ using System.IO;
 
 namespace Fetcho.Common
 {
-    public interface IWebDataPacketConsumer
+    public abstract class WebDataPacketConsumer
     {
-        string Name { get;  }
+        public virtual string Name { get;  }
 
-        bool ProcessesRequest { get;  }
-        bool ProcessesResponse { get; }
-        bool ProcessesException { get; }
+        public virtual bool ProcessesRequest { get;  }
+        public virtual bool ProcessesResponse { get; }
+        public virtual bool ProcessesException { get; }
 
         /// <summary>
         /// Called each time a new resource is loaded
         /// </summary>
-        void NewResource();
+        public virtual void NewResource() { }
 
         /// <summary>
         /// When the file starts being processed
         /// </summary>
-        void PacketOpened();
-        void ProcessRequest(string request);
-        void ProcessResponseHeaders(string responseHeaders);
-        void ProcessResponseStream(Stream dataStream);
-        void ProcessException(string exception);
+        public virtual void PacketOpened() { }
+        public virtual void ProcessRequest(string request) { }
+        public virtual void ProcessResponseHeaders(string responseHeaders) { }
+        public virtual void ProcessResponseStream(Stream dataStream) { }
+        public virtual void ProcessException(string exception) { }
 
         /// <summary>
         /// If something goes wrong reading the file
         /// </summary>
         /// <param name="ex"></param>
-        void ReadingException(Exception ex);
+        public virtual void ReadingException(Exception ex) { }
 
         /// <summary>
         /// Once the file is complete
         /// </summary>
-        void PacketClosed();
+        public virtual void PacketClosed() { }
     }
 }

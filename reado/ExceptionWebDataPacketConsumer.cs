@@ -5,14 +5,13 @@ using System.IO;
 namespace Fetcho
 {
 
-    internal class ExceptionWebDataPacketConsumer : IWebDataPacketConsumer
+    internal class ExceptionWebDataPacketConsumer : WebDataPacketConsumer
     {
         public Uri CurrentUri;
 
-        public string Name { get => "Extract Exceptions"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => false; }
-        public bool ProcessesException { get => true; }
+        public override string Name { get => "Extract Exceptions"; }
+        public override bool ProcessesRequest { get => true; }
+        public override bool ProcessesException { get => true; }
 
         public ExceptionClassification Filter { get; set; }
 
@@ -24,7 +23,7 @@ namespace Fetcho
 
         }
 
-        public void ProcessException(string exception)
+        public override void ProcessException(string exception)
         {
             if (!WebDataPacketReader.IsException(exception)) return;
 
@@ -35,26 +34,13 @@ namespace Fetcho
             Console.WriteLine();
         }
 
-        public void ProcessRequest(string request) => CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
+        public override void ProcessRequest(string request) 
+            => CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
-        public void ProcessResponseHeaders(string responseHeaders)
-        {
-        }
-
-        public void ProcessResponseStream(Stream dataStream)
-        {
-        }
-
-        public void NewResource()
+        public override void NewResource()
         {
             CurrentUri = null;
         }
-
-        public void PacketClosed() { }
-
-        public void PacketOpened() { }
-
-        public void ReadingException(Exception ex) { }
 
         private bool IncludeThisOne(string exception)
         {

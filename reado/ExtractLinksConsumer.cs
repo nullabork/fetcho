@@ -6,33 +6,28 @@ using System.IO;
 
 namespace Fetcho
 {
-    internal class ExtractLinksConsumer : IWebDataPacketConsumer
+    internal class ExtractLinksConsumer : WebDataPacketConsumer
     {
         static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksConsumer));
 
         public Uri CurrentUri;
         public ContentType ContentType;
 
-        public string Name { get => "Extract Links"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => true; }
-        public bool ProcessesException { get => false; }
+        public override string Name { get => "Extract Links"; }
+        public override bool ProcessesRequest { get => true; }
+        public override bool ProcessesResponse { get => true; }
 
-        public void ProcessException(string exception)
-        {
-        }
-
-        public void ProcessRequest(string request)
+        public override void ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
         }
 
-        public void ProcessResponseHeaders(string responseHeaders)
+        public override void ProcessResponseHeaders(string responseHeaders)
         {
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
         }
 
-        public void ProcessResponseStream(Stream dataStream)
+        public override void ProcessResponseStream(Stream dataStream)
         {
             if (dataStream == null) return;
             var extractor = GuessLinkExtractor(dataStream);
@@ -40,23 +35,11 @@ namespace Fetcho
                 OutputUris(extractor);
         }
 
-        public void NewResource()
+        public override void NewResource()
         {
             CurrentUri = null;
             ContentType = null;
         }
-
-        public void PacketClosed()
-        {
-
-        }
-
-        public void PacketOpened()
-        {
-
-        }
-
-        public void ReadingException(Exception ex) { }
 
         private ILinkExtractor GuessLinkExtractor(Stream dataStream)
         {

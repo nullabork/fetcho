@@ -9,6 +9,8 @@ namespace Fetcho.Common
     [Filter("NOWAYTOMATCHTHIS", "any_search_term")]
     public class TextMatchFilter : Filter
     {
+        private FastLookupCache<string> seenFragments = new FastLookupCache<string>(1000);
+
         /// <summary>
         /// Text to match
         /// </summary>
@@ -38,8 +40,32 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public override string[] IsMatch(IWebResource resource, string fragment) 
-            => fragment.ToLower().Contains(SearchText.ToLower()) ? new string[1] : new string[0];
+        public override string[] IsMatch(IWebResource resource, string fragment)
+        {
+            var idx = fragment.IndexOf(SearchText, StringComparison.InvariantCultureIgnoreCase);
+            if ( idx > -1 )
+            {
+                var frag = fragment.Fragment(idx, 20, SearchText.Length + 20);
+                if (seenFragments.Contains(frag))
+                {
+                    // we've seen this fragment recently, nerf it even if it matches
+                    // should get rid of menu links referring to the same link over and over
+                    seenFragments.Enqueue(frag);
+                    return new string[0];
+                }
+                else
+                {
+                    // we haven't seen this yet
+                    seenFragments.Enqueue(frag);
+                    return new string[1];
+                }
+            }
+            else
+            {
+                // no matches
+                return new string[0];
+            }
+        }
 
         /// <summary>
         /// Output as string

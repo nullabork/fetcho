@@ -5,29 +5,26 @@ using System.IO;
 
 namespace Fetcho
 {
-    internal class ExtractKeywordsConsumer : IWebDataPacketConsumer
+    internal class ExtractKeywordsConsumer : WebDataPacketConsumer
     {
         private FastLookupCache<string> cache = new FastLookupCache<string>(10000);
 
         public Uri CurrentUri;
         public ContentType ContentType;
 
-        public string Name { get => "Extract Keywords"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => true; }
-        public bool ProcessesException { get => false; }
+        public override string Name { get => "Extract Keywords"; }
+        public override bool ProcessesRequest { get => true; }
+        public override bool ProcessesResponse { get => true; }
 
         public ExtractKeywordsConsumer() { }
 
-        public void ProcessException(string exception) { }
-
-        public void ProcessRequest(string request) =>
+        public override void ProcessRequest(string request) =>
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
-        public void ProcessResponseHeaders(string responseHeaders) =>
+        public override void ProcessResponseHeaders(string responseHeaders) =>
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
-        public void ProcessResponseStream(Stream dataStream)
+        public override void ProcessResponseStream(Stream dataStream)
         {
             if (ContentType.IsTextType || ContentType.IsXmlType)
             {
@@ -44,17 +41,11 @@ namespace Fetcho
             }
         }
 
-        public void NewResource()
+        public override void NewResource()
         {
             CurrentUri = null;
             ContentType = null;
         }
-
-        public void PacketClosed() { }
-
-        public void PacketOpened() { }
-
-        public void ReadingException(Exception ex) { }
 
         private bool writtenUri = false;
         private void WriteExtractedText(string value)

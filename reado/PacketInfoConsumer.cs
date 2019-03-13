@@ -7,15 +7,15 @@ using System.Linq;
 
 namespace Fetcho
 {
-    internal class PacketInfoConsumer : IWebDataPacketConsumer
+    internal class PacketInfoConsumer : WebDataPacketConsumer
     {
         public Uri CurrentUri;
         public ContentType ContentType;
 
-        public string Name { get => "PacketInfoConsumer"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => true; }
-        public bool ProcessesException { get => true; }
+        public override string Name { get => "PacketInfoConsumer"; }
+        public override bool ProcessesRequest { get => true; }
+        public override bool ProcessesResponse { get => true; }
+        public override bool ProcessesException { get => true; }
 
         public bool Summarise { get; set; }
 
@@ -43,7 +43,7 @@ namespace Fetcho
                 Summarise = false;
         }
 
-        public void ProcessException(string exception)
+        public override void ProcessException(string exception)
         {
             if (WebDataPacketReader.IsException(exception))
             {
@@ -55,7 +55,7 @@ namespace Fetcho
             }
         }
 
-        public void ProcessRequest(string request)
+        public override void ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
@@ -68,44 +68,48 @@ namespace Fetcho
             CountOfRequestBytes += (ulong)request.Length;
         }
 
-        public void ProcessResponseHeaders(string responseHeaders)
+        public override void ProcessResponseHeaders(string responseHeaders)
         {
             CountOfHeaderBytes += (ulong)responseHeaders.Length;
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
         }
 
-        public void ProcessResponseStream(Stream dataStream)
+        public override void ProcessResponseStream(Stream dataStream)
         {
-            bool guess = false;
-            if (dataStream != null && ContentType.IsUnknownOrNull(ContentType))
+            using (var ms = new MemoryStream())
             {
-                guess = true;
-                ContentType = ContentType.Guess(dataStream);
+                dataStream?.CopyTo(ms);
+
+                ms.Seek(0, SeekOrigin.Begin);
+
+                CountOfDataBytes += (ulong)ms.Length;
+
+                bool guess = false;
+                if (ContentType.IsUnknownOrNull(ContentType))
+                {
+                    guess = true;
+                    ContentType = ContentType.Guess(ms);
+                }
+
+                var ct = (ContentType ?? ContentType.Unknown);
+                string key = String.Format("{0}{1}/{2}", guess ? "(GUESS) " : "", ct.MediaType, ct.SubType);
+
+                Increment(ContentTypes, key);
             }
-
-            var ct = (ContentType ?? ContentType.Unknown);
-            string key = String.Format("{0}{1}/{2}", guess ? "(GUESS) " : "", ct.MediaType, ct.SubType);
-
-            Increment(ContentTypes, key);
         }
 
-        public void NewResource()
+        public override void NewResource()
         {
             CurrentUri = null;
         }
 
-        public void PacketClosed()
+        public override void PacketClosed()
         {
             OutputDetails();
         }
 
-        public void PacketOpened()
-        {
-
-        }
-
-        public void ReadingException(Exception ex)
+        public override void ReadingException(Exception ex)
         {
             PacketIsMalformed = true;
             MalformedException = ex;
@@ -131,7 +135,9 @@ namespace Fetcho
             Console.WriteLine("Sizes");
             Console.WriteLine("\tRequests: \t{0} bytes", CountOfRequestBytes);
             Console.WriteLine("\tHeaders:  \t{0} bytes", CountOfHeaderBytes);
-            Console.WriteLine("\tData:     \t{0} bytes", CountOfDataBytes);
+            Console.WriteLine("\tData:     \t{0} bytes\t{1} avg bytes/resource",
+                                CountOfDataBytes,
+                                ResourceCount == 0 ? 0 : CountOfDataBytes / (ulong)(ResourceCount - ExceptionCount));
             Console.WriteLine();
 
             OutputDictionary(ExceptionCounts, "Exceptions", 0); // don't summarise any of the data for exceptions
@@ -153,10 +159,10 @@ namespace Fetcho
             foreach (var kvp in dict.OrderByDescending(x => x.Value))
                 if (kvp.Value > threshold || !Summarise)
                     Console.WriteLine(
-                        "\t{0}\t{1}", 
-                        kvp.Value, 
+                        "\t{0}\t{1}",
+                        kvp.Value,
                         String.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
-            if ( Summarise)
+            if (Summarise)
                 Console.WriteLine("\t...");
             Console.WriteLine("\t{0}\tTotal", dict.Count);
             Console.WriteLine();

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Fetcho.Common.Entities;
 
@@ -17,9 +16,11 @@ namespace Fetcho.Common.QueryEngine
         public long AvgCost { get => NumberOfEvaluations == 0 ? 0 : TotalCost / NumberOfEvaluations; }
         public long TotalCost { get; set; }
         public int NumberOfEvaluations { get; set; }
+        public string OriginalQueryText { get; set; }
 
         public Query(string queryText)
         {
+            OriginalQueryText = queryText;  
             ParseQueryText(queryText);
             Console.WriteLine(this.ToString());
         }

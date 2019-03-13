@@ -14,9 +14,9 @@ namespace Fetcho
     /// <summary>
     /// Used to find links that match specific queries
     /// </summary>
-    internal class QueryConsumer : IWebDataPacketConsumer, IWebResource
+    internal class QueryConsumer : WebDataPacketConsumer, IWebResource
     {
-        List<WorkspaceQuery> Queries { get; }
+        Dictionary<Guid, Query> Queries { get; }
 
         private FetchoAPIV1Client fetchoClient;
         private List<Guid> postTo = new List<Guid>();
@@ -32,29 +32,27 @@ namespace Fetcho
         public Dictionary<string, string> ResponseProperties { get { if (!_processed) Process(); return responseProperties; } }
         public Dictionary<string, object> PropertyCache { get; private set; }
 
-        public string Name { get => "Processes workspace queries"; }
-        public bool ProcessesRequest { get => true; }
-        public bool ProcessesResponse { get => true; }
-        public bool ProcessesException { get => false; }
+        public override string Name { get => "Processes workspace queries"; }
+        public override bool ProcessesRequest { get => true; }
+        public override bool ProcessesResponse { get => true; }
 
         public int ResourcesSeen = 0;
 
         public QueryConsumer(params string[] args)
         {
+
             fetchoClient = new FetchoAPIV1Client(new Uri(FetchoConfiguration.Current.FetchoWorkspaceServerBaseUri));
-            Queries = new List<WorkspaceQuery>();
+            Queries = new Dictionary<Guid, Query>();
             ClearAll();
         }
 
-        public void ProcessException(string exception) { }
-
-        public void ProcessRequest(string request) 
+        public override void ProcessRequest(string request)
             => this.requestString = request;
 
-        public void ProcessResponseHeaders(string responseHeaders) 
+        public override void ProcessResponseHeaders(string responseHeaders)
             => this.responseHeaders = responseHeaders;
 
-        public void ProcessResponseStream(Stream dataStream)
+        public override void ProcessResponseStream(Stream dataStream)
         {
             try
             {
@@ -110,15 +108,15 @@ namespace Fetcho
                 };
 
                 // evaluate against the queries
-                foreach (var wq in Queries)
+                foreach (var qry in Queries)
                 {
                     try
                     {
-                        var r = wq.Query.Evaluate(this, evaluationText.ToString());
+                        var r = qry.Value.Evaluate(this, evaluationText.ToString());
                         if (r.Action == EvaluationResultAction.Include)
                         {
                             result.Tags.AddRange(r.Tags);
-                            postTo.Add(wq.WorkspaceId);
+                            postTo.Add(qry.Key);
                         }
                     }
                     catch (Exception ex)
@@ -153,22 +151,13 @@ namespace Fetcho
             }
         }
 
-        public void NewResource()
+        public override void NewResource()
             => ClearAll();
-
-        public void PacketClosed() { }
-
-        public void PacketOpened()
-        {
-        }
-
-        public void ReadingException(Exception ex) { }
-
 
         string ReadDesc(HtmlReader reader)
         {
             if (reader.GetAttribute("name").Contains("description"))
-                return reader.GetAttribute("content").Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(1024) ;
+                return reader.GetAttribute("content").Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(1024);
             return String.Empty;
         }
 
@@ -206,11 +195,27 @@ namespace Fetcho
 
         void SetupQueries(Database db)
         {
-            Queries.Clear();
             var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
             foreach (var workspace in workspaces.Distinct())
-                if (!String.IsNullOrWhiteSpace(workspace.QueryText) && workspace.IsActive)
-                    Queries.Add(new WorkspaceQuery { Query = new Query(workspace.QueryText), WorkspaceId = workspace.WorkspaceId });
+            {
+                if (!workspace.IsActive || String.IsNullOrWhiteSpace(workspace.QueryText))
+                {
+                    if (Queries.ContainsKey(workspace.WorkspaceId))
+                        Queries.Remove(workspace.WorkspaceId);
+                }
+                else if (!Queries.ContainsKey(workspace.WorkspaceId))
+                {
+                    Queries.Add(
+                        workspace.WorkspaceId,
+                        new Query(workspace.QueryText)
+                        );
+                }
+                else if(Queries[workspace.WorkspaceId].OriginalQueryText != workspace.QueryText)
+                {
+                    Queries[workspace.WorkspaceId] = new Query(workspace.QueryText);
+                }
+
+            }
         }
 
         void ClearAll()
@@ -260,12 +265,6 @@ namespace Fetcho
                         responseProperties.Add(key, value);
                 }
             }
-        }
-
-        private struct WorkspaceQuery
-        {
-            public Guid WorkspaceId;
-            public Query Query;
         }
     }
 

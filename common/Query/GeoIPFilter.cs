@@ -35,7 +35,7 @@ namespace Fetcho.Common
 
                 var c = database.City(ip);
 
-                return GetTags(c).Where(x => String.IsNullOrWhiteSpace(FilterData) || x.Contains(FilterData)).ToArray();
+                return GetTags(c).Where(x => !String.IsNullOrWhiteSpace(x) && ( String.IsNullOrWhiteSpace(FilterData) || x.Contains(FilterData))).ToArray();
             }
             catch (AddressNotFoundException ex)
             {

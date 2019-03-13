@@ -10,7 +10,7 @@ namespace Fetcho.Common
     {
         public static readonly ILog log = LogManager.GetLogger(typeof(WebDataPacketProcessor));
 
-        public IWebDataPacketConsumer Consumer { get; set; }
+        public WebDataPacketConsumer Consumer { get; set; }
 
         public int ResourcesProcessedCount { get; set; }
 
