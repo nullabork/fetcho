@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -40,7 +41,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             var idx = fragment.IndexOf(SearchText, StringComparison.InvariantCultureIgnoreCase);
             if ( idx > -1 )
@@ -51,7 +52,7 @@ namespace Fetcho.Common
                     // we've seen this fragment recently, nerf it even if it matches
                     // should get rid of menu links referring to the same link over and over
                     seenFragments.Enqueue(frag);
-                    return new string[0];
+                    return EmptySet;
                 }
                 else
                 {
@@ -63,7 +64,7 @@ namespace Fetcho.Common
             else
             {
                 // no matches
-                return new string[0];
+                return EmptySet;
             }
         }
 

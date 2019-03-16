@@ -58,81 +58,86 @@ namespace Fetcho
             {
                 if (dataStream == null) return;
 
-                using (var reader = new HtmlReader(dataStream))
+                using (Stream stream = new MemoryStream())
                 {
-                    while (!reader.EOF)
+                    dataStream.CopyTo(stream);
+
+                    using (var reader = new HtmlReader(stream))
                     {
-                        var node = reader.NextNode();
-                        if (node.Type == HtmlTokenType.Text)
+                        while (!reader.EOF)
                         {
-                            evaluationText.Append(node.Value);
-                            evaluationText.Append(' ');
-                        }
-
-                        if (node.Value == "script")
-                            ReadToEndTag(reader, "script");
-
-                        if (node.Value == "style")
-                            ReadToEndTag(reader, "style");
-
-                        if (node.Value == "title")
-                        {
-                            string title = ReadTitle(reader);
-                            if (!PropertyCache.ContainsKey("title"))
-                                PropertyCache.Add("title", title);
-                            PropertyCache["title"] = title;
-                        }
-
-                        if (node.Value == "meta")
-                        {
-                            var desc = ReadDesc(reader);
-                            if (!String.IsNullOrWhiteSpace(desc))
+                            var node = reader.NextNode();
+                            if (node.Type == HtmlTokenType.Text)
                             {
-                                if (!PropertyCache.ContainsKey("description"))
-                                    PropertyCache.Add("description", desc);
-                                PropertyCache["description"] = desc;
+                                evaluationText.Append(node.Value);
+                                evaluationText.Append(' ');
+                            }
+
+                            if (node.Value == "script")
+                                ReadToEndTag(reader, "script");
+
+                            if (node.Value == "style")
+                                ReadToEndTag(reader, "style");
+
+                            if (node.Value == "title")
+                            {
+                                string title = ReadTitle(reader);
+                                if (!PropertyCache.ContainsKey("title"))
+                                    PropertyCache.Add("title", title);
+                                PropertyCache["title"] = title;
+                            }
+
+                            if (node.Value == "meta")
+                            {
+                                var desc = ReadDesc(reader);
+                                if (!String.IsNullOrWhiteSpace(desc))
+                                {
+                                    if (!PropertyCache.ContainsKey("description"))
+                                        PropertyCache.Add("description", desc);
+                                    PropertyCache["description"] = desc;
+                                }
                             }
                         }
                     }
-                }
 
-                result = new WorkspaceResult
-                {
-                    Hash = MD5Hash.Compute(RequestProperties["uri"]).ToString(),
-                    RefererUri = RequestProperties.SafeGet("referer"),
-                    Uri = RequestProperties["uri"],
-                    Title = PropertyCache.SafeGet("title")?.ToString(),
-                    Description = PropertyCache.SafeGet("description")?.ToString(),
-                    Created = DateTime.Now,
-                    PageSize = 0
-                };
-
-                // evaluate against the queries
-                foreach (var qry in Queries)
-                {
-                    try
+                    result = new WorkspaceResult
                     {
-                        var r = qry.Value.Evaluate(this, evaluationText.ToString());
-                        if (r.Action == EvaluationResultAction.Include)
+                        Hash = MD5Hash.Compute(RequestProperties["uri"]).ToString(),
+                        RefererUri = RequestProperties.SafeGet("referer"),
+                        Uri = RequestProperties["uri"],
+                        Title = PropertyCache.SafeGet("title")?.ToString(),
+                        Description = PropertyCache.SafeGet("description")?.ToString(),
+                        Created = DateTime.Now,
+                        PageSize = 0
+                    };
+
+                    // evaluate against the queries
+                    foreach (var qry in Queries)
+                    {
+                        try
                         {
-                            result.Tags.AddRange(r.Tags);
-                            postTo.Add(qry.Key);
+                            stream.Seek(0, SeekOrigin.Begin);
+                            var r = qry.Value.Evaluate(this, evaluationText.ToString(), stream);
+                            if (r.Action == EvaluationResultAction.Include)
+                            {
+                                result.Tags.AddRange(r.Tags);
+                                postTo.Add(qry.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Utility.LogException(ex);
                         }
                     }
-                    catch (Exception ex)
+
+                    // if no matches, move onto the next resource
+                    if (!postTo.Any()) return;
+
+                    foreach (var workspaceId in postTo.ToArray())
                     {
-                        Utility.LogException(ex);
+                        fetchoClient.PostResultsByWorkspaceAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                     }
                 }
-
-                // if no matches, move onto the next resource
-                if (!postTo.Any()) return;
-
-                foreach (var workspaceId in postTo.ToArray())
-                {
-                    fetchoClient.PostResultsByWorkspaceAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
-                }
-
             }
             catch (Exception ex)
             {

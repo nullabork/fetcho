@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -24,14 +25,14 @@ namespace Fetcho.Common
 
         public RandomMatchFilter() => MatchProbability = DefaultMatchProbability;
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             bool rtn = random.NextDouble() < MatchProbability;
 
             if (rtn)
                 return new string[1];
             else
-                return new string[0];
+                return EmptySet;
         }
 
         public override string GetQueryText()

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Fetcho.Common.Entities;
 
@@ -25,33 +26,33 @@ namespace Fetcho.Common
 
         public void Clear() => Filters.Clear();
 
-        public bool AllMatch(IWebResource resource, string fragment)
+        public bool AllMatch(IWebResource resource, string fragment, Stream stream)
             => Filters
             .OrderBy(x => x.Cost)
-            .All(x => x.IsMatch(resource, fragment).Any());
+            .All(x => x.IsMatch(resource, fragment, stream).Any());
 
-        public bool AllMatch(IWebResource resource, string fragment, FilterCollectionMatchOptions options)
-            => Filters
-            .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
-            .OrderBy(x => x.Cost)
-            .All(x => x.IsMatch(resource, fragment).Any());
-
-        public bool AnyMatch(IWebResource resource, string fragment)
-            => Filters
-            .OrderBy(x => x.Cost)
-            .Any(x => x.IsMatch(resource, fragment).Any());
-
-        public bool AnyMatch(IWebResource resource, string fragment, FilterCollectionMatchOptions options)
+        public bool AllMatch(IWebResource resource, string fragment, Stream stream, FilterCollectionMatchOptions options)
             => Filters
             .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
             .OrderBy(x => x.Cost)
-            .Any(x => x.IsMatch(resource, fragment).Any());
+            .All(x => x.IsMatch(resource, fragment, stream).Any());
 
-        public IEnumerable<string> GetTags(IWebResource resource, string fragment)
+        public bool AnyMatch(IWebResource resource, string fragment, Stream stream)
+            => Filters
+            .OrderBy(x => x.Cost)
+            .Any(x => x.IsMatch(resource, fragment, stream).Any());
+
+        public bool AnyMatch(IWebResource resource, string fragment, Stream stream, FilterCollectionMatchOptions options)
+            => Filters
+            .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
+            .OrderBy(x => x.Cost)
+            .Any(x => x.IsMatch(resource, fragment, stream).Any());
+        
+        public IEnumerable<string> GetTags(IWebResource resource, string fragment, Stream stream)
         {
             var l = new List<string>();
             foreach (var filter in Filters)
-                l.AddRange(filter.IsMatch(resource, fragment));
+                l.AddRange(filter.IsMatch(resource, fragment, stream));
             return l.Distinct();
         }
         public IEnumerator<Filter> GetEnumerator()

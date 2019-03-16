@@ -159,6 +159,7 @@
     <Compile Include="ConfigurationChangeEventArgs.cs" />
     <Compile Include="Configuration\ConfigurationSetting.cs" />
     <Compile Include="ContentReader\BracketPipeTextExtractor.cs" />
+    <Compile Include="ContentReader\HtmlFileLinkExtractor.cs" />
     <Compile Include="DatabasePool.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsoleWriter.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsumer.cs" />
@@ -189,6 +190,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Query\DataHashFilter.cs" />
     <Compile Include="Query\EvaluationResult.cs" />
     <Compile Include="Query\EvaluationResultAction.cs" />
     <Compile Include="Query\Filter.cs" />
@@ -209,6 +211,7 @@
     <Compile Include="Query\SiteFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="Query\UriFilter.cs" />
+    <Compile Include="Query\XPathFilter.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
     <Compile Include="FetchoException.cs" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Fetcho.Common.Entities;
 
@@ -25,13 +26,13 @@ namespace Fetcho.Common.QueryEngine
             Console.WriteLine(this.ToString());
         }
 
-        public EvaluationResult Evaluate(IWebResource resource, string words)
+        public EvaluationResult Evaluate(IWebResource resource, string words, Stream stream)
         {
             var ticks = DateTime.Now.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var inc = IncludeFilters.AllMatch(resource, words);
-            var exc = ExcludeFilters.AnyMatch(resource, words);
+            var inc = IncludeFilters.AllMatch(resource, words, stream);
+            var exc = ExcludeFilters.AnyMatch(resource, words, stream);
 
             if (inc && !exc) action = EvaluationResultAction.Include;
             if (!inc && exc) action = EvaluationResultAction.Exclude;
@@ -40,7 +41,7 @@ namespace Fetcho.Common.QueryEngine
 
             IEnumerable<string> tags = null;
             if (action == EvaluationResultAction.Include)
-                tags = TagFilters.GetTags(resource, words);
+                tags = TagFilters.GetTags(resource, words, stream);
 
             var r = new EvaluationResult(action, tags, DateTime.Now.Ticks - ticks);
             DoBookKeeping(r);

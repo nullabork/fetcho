@@ -51,8 +51,11 @@ burger -random:0.00001
 Use accesskeys if you're building a user facing tool  
 Use workspaces if you're building a server facing tool
 
-* /api/v1/accesskeys - access all the data by an AccessKey  
-* /api/v1/workspaces - access all the data for a Workspace
+* /api/v1/accounts - access all the data for an `Account`  
+* /api/v1/accesskeys - access all the data by an `AccessKey`  
+* /api/v1/workspaces - access all the data for a `Workspace`
+
+### Accounts
 
 ### AccessKeys
 
@@ -60,7 +63,7 @@ Use this for user facing tools. You make up your own access keys minimum of 12 c
 
 * GET /wellknown - get all well known `WorkspaceAccessKey`s  
 * GET /{accesskey} - list all the `WorkspaceAccessKey`s for an `AccessKey`
-* GET /{accesskey}/workspace/{workspaceAccessKeyId} - get a specific `Workspace` by its `WorkspaceAccessKey` id
+* GET /{accesskey}/workspace/{Id} - get a specific `Workspace` by its `WorkspaceAccessKey` id
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results - get the `Workspace` `WorkspaceResults`. Optional ?fromSequence=&lt;number greater than 0&gt;&count=&lt;number:0-50&gt;
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/results/random - Get a random result from the `Workspace`;
 * GET /{accesskey}/workspace/{workspaceAccessKeyId}/supportedFilters - Get the search and tagging filters supported by this `Workspace`;

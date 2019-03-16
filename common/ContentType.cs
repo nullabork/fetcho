@@ -20,9 +20,10 @@ namespace Fetcho.Common
         public KeyValuePair<string, string>[] Attributes { get; private set; }
 
         public bool IsBlank { get => String.IsNullOrWhiteSpace(Raw); }
-
         public bool IsTextType { get => ContentType.IsTextContentType(this); }
         public bool IsXmlType { get => ContentType.IsXmlContentType(this); }
+        public bool IsBinaryType { get => ContentType.IsBinaryContentType(this); }
+        public bool IsHtmlType { get => ContentType.IsHtmlContentType(this); }
 
         public ContentType(string contentType)
         {
@@ -83,24 +84,16 @@ namespace Fetcho.Common
         }
 
         public override int GetHashCode()
-        {
-            return GetHashCode(this);
-        }
+            => GetHashCode(this);
 
         public bool Equals(ContentType x, ContentType y)
-        {
-            return x.Raw == y.Raw;
-        }
+            => x.Raw == y.Raw;
 
         public int GetHashCode(ContentType obj)
-        {
-            return Raw.GetHashCode();
-        }
+            => Raw.GetHashCode();
 
         public int Compare(ContentType x, ContentType y)
-        {
-            return x.Raw.CompareTo(y);
-        }
+            => x.Raw.CompareTo(y);
 
         public static bool operator ==(ContentType lhs, ContentType rhs) => lhs.Equals(rhs);
 
@@ -128,9 +121,17 @@ namespace Fetcho.Common
 
         public const int BytesRequiredForGuessing = 256;
 
-        public static bool IsXmlContentType(ContentType value) => value.MediaType == "application" && value.SubType.Contains("xml");
+        public static bool IsXmlContentType(ContentType value) 
+            => value.MediaType == "application" && value.SubType.Contains("xml");
 
-        public static bool IsTextContentType(ContentType value) => value.MediaType == "text";
+        public static bool IsTextContentType(ContentType value) 
+            => value.MediaType == "text";
+
+        public static bool IsBinaryContentType(ContentType value)
+            => value.MediaType == "binary";
+
+        public static bool IsHtmlContentType(ContentType value) 
+            => value.MediaType == "text" && value.SubType == "html";
 
         public static ContentType Guess(string fileName)
         {

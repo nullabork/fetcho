@@ -132,6 +132,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ExceptionWebDataPacketConsumer.cs" />
+    <Compile Include="ExtractAllLinksConsumer.cs" />
     <Compile Include="ExtractKeywordsConsumer.cs" />
     <Compile Include="ExtractLinksConsumer.cs" />
     <Compile Include="ListUrlsInPacketConsumer.cs" />

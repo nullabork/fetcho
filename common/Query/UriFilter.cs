@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -19,8 +20,8 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("uri:{0}", SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
-            => resource.RequestProperties["uri"].Contains(SearchText) ? new string[1] { resource.RequestProperties["uri"] } : new string[0];
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+            => resource.RequestProperties["uri"].Contains(SearchText) ? new string[1] { resource.RequestProperties["uri"] } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object

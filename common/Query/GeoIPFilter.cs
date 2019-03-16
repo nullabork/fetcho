@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using Fetcho.Common.Entities;
@@ -20,7 +21,7 @@ namespace Fetcho.Common
             => string.Format("geo-ip-{0}:{1}", Property, FilterData);
 
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             const string HostIPCacheKey = "hostip";
 
@@ -39,7 +40,7 @@ namespace Fetcho.Common
             }
             catch (AddressNotFoundException ex)
             {
-                return new string[] { };
+                return EmptySet;
             }
         }
 

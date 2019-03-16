@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using Fetcho.Common.Entities;
 
@@ -27,10 +28,10 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("{0}{1}:{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
             => resource.ResponseProperties.ContainsKey(HeaderKey)
                && (String.IsNullOrWhiteSpace(SearchText) || resource.ResponseProperties[HeaderKey].Contains(SearchText)) ?
-                      new string[1] { Utility.MakeTag(resource.ResponseProperties[HeaderKey]) } : new string[0];
+                      new string[1] { Utility.MakeTag(resource.ResponseProperties[HeaderKey]) } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object

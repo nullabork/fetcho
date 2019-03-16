@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -17,7 +18,7 @@ namespace Fetcho.Common
 
         public HasFilter(string propertyName) => PropertyName = propertyName.ToLower();
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             if (resource.PropertyCache.ContainsKey(PropertyName))
             {
@@ -26,7 +27,7 @@ namespace Fetcho.Common
                 return new string[1] { "has-" + PropertyName };
             }
             else
-                return new string[0];
+                return EmptySet; 
         }
 
         public static Filter Parse(string queryText)

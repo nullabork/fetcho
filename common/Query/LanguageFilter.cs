@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using Fetcho.Common.Entities;
 using LanguageDetection;
@@ -27,14 +28,14 @@ namespace Fetcho.Common
 
         public override string GetQueryText() => string.Format("lang:{0}", Language);
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             var l = detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault();
 
-            if (l == null) return new string[0];
+            if (l == null) return EmptySet;
             if (String.IsNullOrWhiteSpace(Language)) return new string[] { l.Language };
             if (l.Language == Language) return new string[] { l.Language };
-            return new string[0];
+            return EmptySet; 
         }
 
         /// <summary>

@@ -59,7 +59,16 @@ namespace Fetcho
                     if (path.Length < packetPath.Length) searchPattern = packetPath.Substring(path.Length + 1);
 
                     foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly).Randomise())
-                        reado.Process(file).GetAwaiter().GetResult();
+                    {
+                        try
+                        {
+                            reado.Process(file).GetAwaiter().GetResult();
+                        }
+                        catch( Exception ex)
+                        {
+                            Utility.LogException(ex);
+                        }
+                    }
                 }
             }
         }
@@ -86,7 +95,7 @@ namespace Fetcho
         static IEnumerable<Type> GetWebDataPacketConsumerTypes()
         {
             var types = typeof(Program).Assembly.GetTypes().
-                        Where(t => typeof(WebDataPacketConsumer).IsSubclassOf(t));
+                        Where(t => t.IsSubclassOf(typeof(WebDataPacketConsumer)));
             return types;
         }
 

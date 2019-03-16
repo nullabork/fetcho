@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -19,10 +20,10 @@ namespace Fetcho.Common
         public override string GetQueryText() 
             => string.Format("site:{0}", SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment)
+        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             var uri = new Uri(resource.RequestProperties["uri"]);
-            return uri.Host.Contains(SearchText) ? new string[1] { uri.Host } : new string[0];
+            return uri.Host.Contains(SearchText) ? new string[1] { uri.Host } : EmptySet;
         }
 
         /// <summary>
@@ -44,5 +45,4 @@ namespace Fetcho.Common
             return new SiteFilter(searchText);
         }
     }
-
 }

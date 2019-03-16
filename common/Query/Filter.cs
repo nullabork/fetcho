@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Fetcho.Common.Entities;
@@ -25,11 +26,9 @@ namespace Fetcho.Common
         public bool CallOncePerPage { get; set; }
 
         /// <summary>
-        /// If the fragment is matched by this filter
+        /// If the resource is matched by this filter
         /// </summary>
-        /// <param name="fragment"></param>
-        /// <returns></returns>
-        public abstract string[] IsMatch(IWebResource resource, string fragment);
+        public abstract string[] IsMatch(IWebResource resource, string fragment, Stream stream);
 
         /// <summary>
         /// Get the textual representation of this filter
@@ -94,5 +93,10 @@ namespace Fetcho.Common
             return method.Invoke(null, new[] { token }) as Filter;
         }
 
+        /// <summary>
+        /// No matches
+        /// </summary>
+        /// <remarks>Since we'll be returning lots of these lets reduce the footprint here by using one object to represent all of them</remarks>
+        public static readonly string[] EmptySet = new string[0];
     }
 }

@@ -45,6 +45,8 @@ namespace Fetcho.Common
             // block image/video/audio since we can't do anything with it
             else if (response.ContentType.StartsWith("image/") ||
                      response.ContentType.StartsWith("video/") ||
+                     response.ContentType.StartsWith("binary/") ||
+                     response.ContentType.StartsWith("application/vnd.") ||
                      response.ContentType.StartsWith("audio/"))
             {
                 block_reason = "Content type '" + response.ContentType + "' is blocked from downloading";
