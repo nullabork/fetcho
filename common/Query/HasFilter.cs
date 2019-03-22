@@ -4,7 +4,10 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("has:", "has:[property_name|*][:property_name|*]")]
+    [Filter(
+        "has:", 
+        "has:[property_name|*][:property_name|*]",
+        Description = "Filter or tag by if the result has this property. eg. 'title', 'description'")]
     public class HasFilter : Filter
     {
         public string PropertyName { get; set; }
@@ -23,7 +26,7 @@ namespace Fetcho.Common
             if (resource.PropertyCache.ContainsKey(PropertyName))
             {
                 var o = resource.PropertyCache[PropertyName];
-                if ( o == null || String.IsNullOrWhiteSpace(o.ToString())) return new string[0];
+                if ( o == null || String.IsNullOrWhiteSpace(o.ToString())) return EmptySet;
                 return new string[1] { "has-" + PropertyName };
             }
             else

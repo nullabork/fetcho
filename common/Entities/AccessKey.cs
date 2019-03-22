@@ -24,27 +24,27 @@ namespace Fetcho.Common.Entities
         public Workspace Workspace { get; set; }
 
         [JsonIgnore]
-        public bool IsOwner { get => HasPermissionFlag(WorkspaceAccessPermissions.Owner); }
+        public bool IsOwner { get => HasPermissionFlags(WorkspaceAccessPermissions.Owner); }
 
         [JsonIgnore]
         public bool CanRead
         {
-            get =>  HasPermissionFlag(WorkspaceAccessPermissions.Owner)
-                    || HasPermissionFlag(WorkspaceAccessPermissions.Read);
+            get =>  HasPermissionFlags(WorkspaceAccessPermissions.Owner)
+                    || HasPermissionFlags(WorkspaceAccessPermissions.Read);
         }
 
         [JsonIgnore]
         public bool CanWrite
         {
-            get =>  HasPermissionFlag(WorkspaceAccessPermissions.Owner)
-                    || HasPermissionFlag(WorkspaceAccessPermissions.Write);
+            get =>  HasPermissionFlags(WorkspaceAccessPermissions.Owner)
+                    || HasPermissionFlags(WorkspaceAccessPermissions.Write);
         }
 
         [JsonIgnore]
         public bool CanManage
         {
-            get => HasPermissionFlag(WorkspaceAccessPermissions.Owner)
-                   || HasPermissionFlag(WorkspaceAccessPermissions.Manage);
+            get => HasPermissionFlags(WorkspaceAccessPermissions.Owner)
+                   || HasPermissionFlags(WorkspaceAccessPermissions.Manage);
         }
 
         [JsonIgnore]
@@ -62,20 +62,20 @@ namespace Fetcho.Common.Entities
             AccountName = String.Empty;
         }
 
-        public bool HasPermissionFlag(WorkspaceAccessPermissions flag)
-            => (Permissions & flag) == flag;
+        public bool HasPermissionFlags(WorkspaceAccessPermissions flags)
+            => (Permissions & flags) != 0;
 
-        public static void Validate(AccessKey workspaceAccessKey)
+        public static void Validate(AccessKey accessKey)
         {
-            if (workspaceAccessKey.Id == Guid.Empty)
+            if (accessKey.Id == Guid.Empty)
                 throw new InvalidObjectFetchoException("No ID set");
-            if (workspaceAccessKey.Permissions < 0)
+            if (accessKey.Permissions < 0)
                 throw new InvalidObjectFetchoException("Invalid permissions");
-            if (workspaceAccessKey.Permissions >= WorkspaceAccessPermissions.Max)
+            if (accessKey.Permissions >= WorkspaceAccessPermissions.Max)
                 throw new InvalidObjectFetchoException("Permissions invalid");
-            if (String.IsNullOrWhiteSpace(workspaceAccessKey.AccountName))
+            if (String.IsNullOrWhiteSpace(accessKey.AccountName))
                 throw new InvalidObjectFetchoException("Account Name not set");
-            if (String.IsNullOrWhiteSpace(workspaceAccessKey.Name))
+            if (String.IsNullOrWhiteSpace(accessKey.Name))
                 throw new InvalidObjectFetchoException("Name not set");
 
         }

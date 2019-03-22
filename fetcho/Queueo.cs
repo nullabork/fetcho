@@ -15,7 +15,7 @@ namespace Fetcho
     /// </summary>
     public class Queueo
     {
-        public const int FastCacheSize = 10000;
+        public const int FastCacheSize = 1000000;
 
         static readonly ILog log = LogManager.GetLogger(typeof(Queueo));
 
@@ -64,7 +64,7 @@ namespace Fetcho
             buffer = BuildQueueBuffer();
             recentips = BuildRecentIPsCache();
             TaskPool = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentTasks);
-            lookupCache = new FastLookupCache<Uri>(FastCacheSize);
+            lookupCache = new FastLookupCache<Uri>(FetchoConfiguration.Current.DuplicateLinkCacheWindowSize);
 
             FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
         }
@@ -77,43 +77,51 @@ namespace Fetcho
         /// <returns></returns>
         public async Task Process()
         {
-            var r = ReportStatus();
-            buffer.ActionWhenQueueIsFlushed = (key, items) =>
+            try
             {
-                var t = ValidateQueueItems(items.ToArray());
-            };
 
-            do
-            {
-                // get a queue items 
-                var items = await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
-
-                // wait for tasks to continue
-                await TaskPool.WaitAsync();
-
-                var tasks = new List<Task>();
-
-                foreach (var item in items)
+                var r = ReportStatus();
+                buffer.ActionWhenQueueIsFlushed = (key, items) =>
                 {
-                    // if the item is OK and its not already cached
-                    if (UriIsNotADuplicate(item))
-                    {
-                        // cache it 
-                        CacheUri(item);
+                    var t = ValidateQueueItems(items.ToArray());
+                };
 
-                        // release() happens in this task
-                        tasks.Add(AssessQueueItemForBuffer(item));
-                    }
-                    else
+                do
+                {
+                    // get a queue items 
+                    var items = await PrioritisationBufferIn.ReceiveAsync().ConfigureAwait(false);
+
+                    // wait for tasks to continue
+                    await TaskPool.WaitAsync().ConfigureAwait(false);
+
+                    var tasks = new List<Task>();
+
+                    foreach (var item in items)
                     {
-                        _duplicates++;
+                        // if the item is OK and its not already cached
+                        if (UriIsNotADuplicate(item))
+                        {
+                            // cache it 
+                            CacheUri(item);
+
+                            // release() happens in this task
+                            tasks.Add(AssessQueueItemForBuffer(item));
+                        }
+                        else
+                        {
+                            _duplicates++;
+                        }
                     }
+
+                    var t = Task.WhenAll(tasks.ToArray()).ContinueWith((task) => TaskPool.Release());
                 }
-
-                var t = Task.WhenAll(tasks.ToArray()).ContinueWith((task) => TaskPool.Release());
+                while (Running);
             }
-            while (Running);
-
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+                Environment.Exit(1);
+            }
         }
 
         void Shutdown() => Running = false;
@@ -426,12 +434,18 @@ namespace Fetcho
         // of other factors
         FastLookupCache<string> recentips = null;
 
+        readonly object recentipsLock = new object();
+
         /// <summary>
         /// Check if an IP has been seen recently
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        bool HasIPBeenSeenRecently(QueueItem item) => recentips.Contains(item.TargetIP.ToString());
+        bool HasIPBeenSeenRecently(QueueItem item)
+        {
+            lock (recentipsLock)
+                return recentips.Contains(item.TargetIP.ToString());
+        }
 
         /// <summary>
         /// Add an IP address to the fast lookup cache to say its been seen recently
@@ -439,8 +453,9 @@ namespace Fetcho
         /// <param name="item"></param>
         void CacheRecentIPAddress(QueueItem item)
         {
-            if (!recentips.Contains(item.TargetIP.ToString()))
-                recentips.Enqueue(item.TargetIP.ToString());
+            lock (recentipsLock)
+                if (!recentips.Contains(item.TargetIP.ToString()))
+                    recentips.Enqueue(item.TargetIP.ToString());
         }
 
         /// <summary>
@@ -470,7 +485,7 @@ namespace Fetcho
         private FastLookupCache<string> BuildRecentIPsCache()
             => new FastLookupCache<string>(FetchoConfiguration.Current.WindowForIPsSeenRecently);
 
-        private QueueBuffer<IPAddress, QueueItem> BuildQueueBuffer() 
+        private QueueBuffer<IPAddress, QueueItem> BuildQueueBuffer()
             => new QueueBuffer<IPAddress, QueueItem>(
                  FetchoConfiguration.Current.MaxQueueBufferQueues,
                  FetchoConfiguration.Current.MaxQueueBufferQueueLength

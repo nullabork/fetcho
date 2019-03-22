@@ -21,6 +21,9 @@ namespace FetchoAPI
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
+
+            var json = GlobalConfiguration.Configuration.Formatters.JsonFormatter;
+            json.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
         }
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -36,6 +37,8 @@ namespace Fetcho
 
             // database init
             DatabasePool.Initialise();
+
+            Thread.Sleep(10000);
 
             // configure fetcho
             var cfg = new FetchoConfiguration();

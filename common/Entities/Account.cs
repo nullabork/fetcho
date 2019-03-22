@@ -14,8 +14,7 @@ namespace Fetcho.Common.Entities
         public bool IsActive { get; set; }
 
         public List<AccessKey> AccessKeys { get; set; }
-
-
+        
         public Account()
         {
             Created = DateTime.Now;
@@ -37,7 +36,7 @@ namespace Fetcho.Common.Entities
         {
             if (String.IsNullOrWhiteSpace(key.Name))
                 throw new InvalidObjectFetchoException("No key set");
-            if (key.Name.Length < 12)
+            if (key.Name.Length < MinKeyLength)
                 throw new InvalidObjectFetchoException("Key too short");
             if (!Account.IsValid(key))
                 throw new InvalidObjectFetchoException("Object is invalid");

@@ -88,9 +88,12 @@ namespace Fetcho.Common
                 outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
                 outstream.WriteString(string.Format("Date: {0}\n", now));
                 // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
-                foreach (string key in request.Headers.AllKeys)
+                if ( request.Headers != null)
                 {
-                    outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
+                    foreach (string key in request.Headers.AllKeys)
+                    {
+                        outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
+                    }
                 }
                 outstream.WriteEndElement();
             }

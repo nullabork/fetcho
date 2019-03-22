@@ -27,6 +27,8 @@ namespace Fetcho
 
         public async Task Process()
         {
+            Console.WriteLine("Type 'help' for a list of commands");
+
             while (Running)
             {
                 try

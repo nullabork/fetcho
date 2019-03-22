@@ -1,6 +1,5 @@
 ﻿using Fetcho.Common;
 using Fetcho.ContentReaders;
-using log4net;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,12 +9,10 @@ namespace Fetcho
 {
     internal class ExtractLinksAndBufferConsumer : WebDataPacketConsumer
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksAndBufferConsumer));
-
         public Uri CurrentUri;
         public ContentType ContentType;
         public BufferBlock<IEnumerable<QueueItem>> PrioritisationBuffer;
-        public int LinksExtracted;
+        public long LinksExtracted;
 
         public ExtractLinksAndBufferConsumer(BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer)
         {
@@ -50,6 +47,9 @@ namespace Fetcho
             ContentType = null;
         }
 
+        public override void ReadingException(Exception ex)
+            => Utility.LogException(ex);
+
         private ILinkExtractor GuessLinkExtractor(Stream dataStream)
         {
             var ms = new MemoryStream();
@@ -73,7 +73,7 @@ namespace Fetcho
             {
                 ms.Dispose();
                 ms = null;
-                log.InfoFormat("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
+                Utility.LogInfo("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
                 return null;
             }
         }
@@ -85,7 +85,7 @@ namespace Fetcho
 
             Uri uri = reader.NextUri();
 
-            while (uri != null)
+            while (uri != null && l.Count < FetchoConfiguration.Current.MaxLinksToExtractFromOneResource)
             {
                 var item = new QueueItem()
                 {

@@ -61,6 +61,7 @@ namespace Fetcho
                 using (Stream stream = new MemoryStream())
                 {
                     dataStream.CopyTo(stream);
+                    stream.Seek(0, SeekOrigin.Begin);
 
                     using (var reader = new HtmlReader(stream))
                     {
@@ -135,7 +136,7 @@ namespace Fetcho
 
                     foreach (var workspaceId in postTo.ToArray())
                     {
-                        fetchoClient.PostResultsByWorkspaceAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                        fetchoClient.PostWorkspaceResultsByWorkspaceIdAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                     }
                 }
             }
@@ -203,21 +204,19 @@ namespace Fetcho
             var workspaces = db.GetWorkspaces().GetAwaiter().GetResult();
             foreach (var workspace in workspaces.Distinct())
             {
+                var id = workspace.WorkspaceId.GetValueOrDefault();
                 if (!workspace.IsActive || String.IsNullOrWhiteSpace(workspace.QueryText))
                 {
-                    if (Queries.ContainsKey(workspace.WorkspaceId))
-                        Queries.Remove(workspace.WorkspaceId);
+                    if (Queries.ContainsKey(id))
+                        Queries.Remove(id);
                 }
-                else if (!Queries.ContainsKey(workspace.WorkspaceId))
+                else if (!Queries.ContainsKey(id))
                 {
-                    Queries.Add(
-                        workspace.WorkspaceId,
-                        new Query(workspace.QueryText)
-                        );
+                    Queries.Add(id, new Query(workspace.QueryText));
                 }
-                else if(Queries[workspace.WorkspaceId].OriginalQueryText != workspace.QueryText)
+                else if(Queries[id].OriginalQueryText != workspace.QueryText)
                 {
-                    Queries[workspace.WorkspaceId] = new Query(workspace.QueryText);
+                    Queries[id] = new Query(workspace.QueryText);
                 }
 
             }

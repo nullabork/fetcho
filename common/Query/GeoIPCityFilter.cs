@@ -3,7 +3,11 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    [Filter("geo-ip-city:", "geo-ip-city:[city|*][:city|*]")]
+    [Filter(
+        "geo-ip-city:", 
+        "geo-ip-city:[city|*][:city|*]", 
+        Description = "Filter or tag by the Geo IP City"
+        )]
     public class GeoIPCityFilter : GeoIPFilter
     {
         public string City { get; set; }

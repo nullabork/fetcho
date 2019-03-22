@@ -10,6 +10,8 @@ namespace Fetcho.Common
     public class WebDataPacketReader : IDisposable
     {
 
+        public const int MaxResourcesInAFile = 1000000;
+
         /// <summary>
         /// Raw stream we're accessing
         /// </summary>

@@ -27,7 +27,7 @@ namespace Fetcho.ContentReaders
         {
             Uri uri = null;
 
-            while (!reader.EOF && uri != null )
+            while (!reader.EOF && uri == null )
             {
                 var node = reader.NextNode();
 
@@ -65,7 +65,14 @@ namespace Fetcho.ContentReaders
                 {
                     var href = reader.GetAttribute("href");
                     if (!String.IsNullOrWhiteSpace(href))
-                        CurrentSourceUri = new Uri(href);
+                    {
+                        // sometimes the links are bogus?!
+                        var l = Utility.GetLinks(null, href);
+                        if (l.Any())
+                        {
+                            CurrentSourceUri = l.First();
+                        }
+                    }
                 }
             }
 

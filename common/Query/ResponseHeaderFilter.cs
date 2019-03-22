@@ -5,10 +5,10 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("response-header-", "response-header-[key name]:[value match|*][:value match|*]")]
+    [Filter("response-header(", "response-header(key name):[value match|*][:value match|*]")]
     public class ResponseHeaderFilter : Filter
     {
-        const string ResponseHeaderFilterKey = "response-header-";
+        const string ResponseHeaderFilterKey = "response-header(";
 
         public string SearchText { get; set; }
 
@@ -26,7 +26,7 @@ namespace Fetcho.Common
             => CallOncePerPage = true;
 
         public override string GetQueryText()
-            => string.Format("{0}{1}:{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);
+            => string.Format("{0}{1}):{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);
 
         public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
             => resource.ResponseProperties.ContainsKey(HeaderKey)
@@ -45,7 +45,7 @@ namespace Fetcho.Common
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;
 
-            var key = tokens[0].Substring(ResponseHeaderFilterKey.Length);
+            var key = tokens[0].Substring(ResponseHeaderFilterKey.Length, tokens[0].Length - ResponseHeaderFilterKey.Length - 1);
             searchText = tokens[1].Trim();
 
             return new ResponseHeaderFilter(key, searchText);

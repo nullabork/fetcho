@@ -4,7 +4,10 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("random:", "random:[probability][:*]")]
+    [Filter(
+        "random:", 
+        "random:[probability][:*]",
+        Description = "Filter or tag by random probability")]
     public class RandomMatchFilter : Filter
     {
         public const double DefaultMatchProbability = MaxMatchProbability;

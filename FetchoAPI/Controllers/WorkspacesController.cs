@@ -14,12 +14,14 @@ namespace Fetcho.FetchoAPI.Controllers
     [EnableCors(origins: "*", headers: "*", methods: "*")]
     public class WorkspacesController : ApiController
     {
+        public const int MaxResultsReturned = 200;
+
         public WorkspacesController()
         {
             log4net.Config.XmlConfigurator.Configure();
         }
 
-        #region AccessKeys
+        #region Accounts
 
         [Route("api/v1/accounts/")]
         [HttpPost()]
@@ -38,25 +40,25 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 return CreateCreatedResponse(account);
             }
-            catch( Exception ex )
+            catch (Exception ex)
             {
                 return CreateExceptionResponse(ex);
             }
         }
 
-        [Route("api/v1/accounts/")]
+        [Route("api/v1/accounts/{accountName}")]
         [HttpDelete()]
-        public async Task<HttpResponseMessage> DeleteAccount([FromBody]Account account)
+        public async Task<HttpResponseMessage> DeleteAccount(string accountName)
         {
             try
             {
-                if (account == null)
+                if (String.IsNullOrWhiteSpace(accountName))
                     throw new InvalidRequestFetchoException("No object passed");
 
                 using (var db = new Database())
                 {
-                    Account.Validate(account);
-                    await ThrowIfNotAValidAccount(db, account.Name);
+                    await ThrowIfNotAValidAccount(db, accountName);
+                    var account = await db.GetAccount(accountName);
                     await db.DeleteAccount(account.Name);
                 }
 
@@ -70,7 +72,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accounts/{accountName}")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> Get(string accountName)
+        public async Task<HttpResponseMessage> GetAccount(string accountName)
         {
             try
             {
@@ -78,9 +80,12 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 using (var db = new Database())
                 {
-                    await ThrowIfNotAValidAccount(db, accountName);
                     key = await db.GetAccount(accountName);
-                    key.AccessKeys.AddRange(await db.GetAccessKeys(accountName));
+
+                    if (key == null)
+                        return Create404Response(key);
+
+                    key.AccessKeys.AddRange(await db.GetAccessKeys(accountName, true));
                 }
 
                 return CreateOKResponse(key);
@@ -114,22 +119,37 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        #endregion
+
+        #region Access Keys
+
         [Route("api/v1/accesskey/{accessKeyId}")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> Get(Guid accessKeyId)
+        public async Task<HttpResponseMessage> GetAccessKey(Guid accessKeyId)
         {
             try
             {
-                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
-
-                Workspace workspace = null;
+                AccessKey key = null;
                 using (var db = new Database())
                 {
-                    workspace = await db.GetWorkspace(workspaceId);
+                    key = await db.GetAccessKey(accessKeyId);
+
+                    if (key == null)
+                        return Create404Response(key);
                 }
 
-                //RemoveSecretInformationIfLowerPermissions(workspace, accessKeyId);
-                return CreateOKResponse(workspace);
+                if (key.HasPermissionFlags(WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner))
+                {
+                    key.Workspace.WorkspaceId = null;
+                    key.Workspace.AccessKeys.Clear();
+                }
+
+                if (!key.HasPermissionFlags(WorkspaceAccessPermissions.Read))
+                {
+                    key.Workspace = null;
+                }
+
+                return CreateOKResponse(key);
             }
             catch (Exception ex)
             {
@@ -139,7 +159,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskeys")]
         [HttpPost()]
-        public async Task<HttpResponseMessage> Post([FromBody]AccessKey accessKey)
+        public async Task<HttpResponseMessage> PostAccessKey([FromBody]AccessKey accessKey)
         {
             try
             {
@@ -176,7 +196,7 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns></returns>
         [Route("api/v1/accesskeys")]
         [HttpPut()]
-        public async Task<HttpResponseMessage> Put(AccessKey accessKey)
+        public async Task<HttpResponseMessage> PutAccessKey(AccessKey accessKey)
         {
             try
             {
@@ -186,7 +206,8 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 using (var db = new Database())
                 {
-                    await ThrowIfNoWorkspaceAccess(db, accessKey.Workspace.WorkspaceId, accessKey.AccountName);
+                    await ThrowIfNotValidPermission(db, accessKey.Id, WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
+                    await ThrowIfNoWorkspaceAccess(db, accessKey.Workspace.WorkspaceId.GetValueOrDefault(), accessKey.AccountName);
                     await db.SaveAccessKey(accessKey);
                     await db.SaveWorkspace(accessKey.Workspace);
                 }
@@ -199,15 +220,15 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
-        [Route("api/v1/accesskeys")]
+        [Route("api/v1/accesskey/{accessKeyId}")]
         [HttpDelete()]
-        public async Task<HttpResponseMessage> Delete(AccessKey accessKey)
+        public async Task<HttpResponseMessage> DeleteAccessKey(Guid accessKeyId)
         {
             try
             {
                 using (var db = new Database())
                 {
-                    await db.DeleteWorkspaceKey(accessKey.Id);
+                    await db.DeleteWorkspaceKey(accessKeyId);
                 }
 
                 return CreateNoContentResponse();
@@ -220,12 +241,14 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskey/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetResultsByAccessKey(Guid accessKeyId, long fromSequence = 0, int count = 30)
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long fromSequence = 0, int count = MaxResultsReturned)
         {
             try
             {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
-                return await GetResultsByWorkspace(workspaceId, fromSequence, count);
+                return await GetWorkspaceResultsByWorkspaceId(workspaceId, fromSequence, count);
             }
             catch (Exception ex)
             {
@@ -239,6 +262,8 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Owner);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
                 return GetWorkspaceSupportedFilters(workspaceId);
             }
@@ -250,13 +275,16 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskey/{accessKeyId}/results/random")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetRandomResultsByAccessKey(Guid accessKeyId, int count = 1)
+        public async Task<HttpResponseMessage> GetRandomWorkspaceResultsByAccessKeyId(Guid accessKeyId, int count = 1)
         {
             try
             {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Read);
+
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
 
-                return await GetRandomResultsByWorkspace(workspaceId, count);
+                return await GetRandomResultsByWorkspaceId(workspaceId, count);
             }
             catch (Exception ex)
             {
@@ -267,13 +295,18 @@ namespace Fetcho.FetchoAPI.Controllers
         [Route("api/v1/accesskey/{accessKeyId}/results")]
         [HttpPost()]
         [HttpPut()]
-        public async Task<HttpResponseMessage> PostResultsByAccessKey(Guid accessKeyId, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task<HttpResponseMessage> PostWorkspaceResultsByAccessKeyId(Guid accessKeyId, [FromBody]IEnumerable<WorkspaceResult> results)
         {
             try
             {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(
+                        db,
+                        accessKeyId,
+                        WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
 
-                return await PostResultsByWorkspace(workspaceId, results);
+                return await PostWorkspaceResultsByWorkspaceId(workspaceId, results);
             }
             catch (Exception ex)
             {
@@ -292,11 +325,11 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetResultsByWorkspace(Guid workspaceId, long fromSequence = 0, int count = 30)
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long fromSequence = 0, int count = MaxResultsReturned)
         {
             try
             {
-                count = count.RangeConstraint(1, 50);
+                count = count.RangeConstraint(1, MaxResultsReturned);
                 fromSequence = fromSequence.MinConstraint(0);
 
                 IEnumerable<WorkspaceResult> results = null;
@@ -319,11 +352,11 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results/random")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetRandomResultsByWorkspace(Guid workspaceId, int count = 1)
+        public async Task<HttpResponseMessage> GetRandomResultsByWorkspaceId(Guid workspaceId, int count = 1)
         {
             try
             {
-                count = count.RangeConstraint(1, 50);
+                count = count.RangeConstraint(1, MaxResultsReturned);
 
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
@@ -344,7 +377,7 @@ namespace Fetcho.FetchoAPI.Controllers
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpPost()]
         [HttpPut()]
-        public async Task<HttpResponseMessage> PostResultsByWorkspace(Guid workspaceId, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task<HttpResponseMessage> PostWorkspaceResultsByWorkspaceId(Guid workspaceId, [FromBody]IEnumerable<WorkspaceResult> results)
         {
             try
             {
@@ -366,7 +399,7 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <param name="results"></param>
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpDelete()]
-        public HttpResponseMessage DeleteResultsByWorkspace(Guid workspaceId, [FromBody]IEnumerable<WorkspaceResult> results)
+        public HttpResponseMessage DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, [FromBody]IEnumerable<WorkspaceResult> results)
         {
             try
             {
@@ -388,12 +421,21 @@ namespace Fetcho.FetchoAPI.Controllers
             {
                 var filterTypes = Filter.GetAllFilterTypes();
 
-                var l = new List<string>();
-                foreach( var filterType in filterTypes )
+                var l = new List<FilterHelpInfo>();
+                foreach (var filterType in filterTypes)
                 {
                     var attr = filterType.GetCustomAttributes(typeof(FilterAttribute), false).FirstOrDefault() as FilterAttribute;
                     if (attr != null && !attr.Hidden)
-                        l.Add(attr.ShortHelp);
+                    {
+                        l.Add(new FilterHelpInfo
+                        {
+                            TokenMatch = attr.TokenMatch,
+                            ShortHelp = attr.ShortHelp,
+                            Name = attr.Name,
+                            Description = attr.Description
+                        });
+
+                    }
                 }
 
                 return CreateOKResponse(l);
@@ -465,6 +507,13 @@ namespace Fetcho.FetchoAPI.Controllers
                 throw new PermissionDeniedFetchoException("bad key: reserved");
         }
 
+        private async Task ThrowIfNotValidPermission(Database db, Guid accessKeyId, WorkspaceAccessPermissions permissionFlag)
+        {
+            var key = await db.GetAccessKey(accessKeyId);
+            if (!key.HasPermissionFlags(permissionFlag))
+                throw new PermissionDeniedFetchoException("Permission denied");
+        }
+
         private void FixAccountObject(Account accessKey)
         {
             if (accessKey.Created == DateTime.MinValue)
@@ -492,12 +541,11 @@ namespace Fetcho.FetchoAPI.Controllers
         private HttpResponseMessage CreateInvalidRequestResponse(InvalidRequestFetchoException ex)
             => Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message, ex);
 
-
         private HttpResponseMessage CreateOKResponse<T>(T payload)
-        {
-            var resp = Request.CreateResponse(HttpStatusCode.OK, payload, ContentType.ApplicationJson);
-            return resp;
-        }
+            => Request.CreateResponse(HttpStatusCode.OK, payload, ContentType.ApplicationJson);
+
+        private HttpResponseMessage Create404Response<T>(T payload)
+            => !EqualityComparer<T>.Default.Equals(payload, default(T)) ? Request.CreateResponse(HttpStatusCode.NotFound, payload) : Request.CreateResponse(HttpStatusCode.NotFound);
 
         private HttpResponseMessage CreateExceptionResponse(Exception ex)
         {

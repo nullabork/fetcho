@@ -11,7 +11,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Data.Common;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Fetcho.Common
 {
@@ -136,6 +135,7 @@ namespace Fetcho.Common
                                                  );
 
                 cmd.Parameters.AddWithValue("hostname_hash", hash.Values);
+                cmd.Prepare();
 
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
@@ -196,12 +196,14 @@ namespace Fetcho.Common
                     cmd.Parameters.Add(new NpgsqlParameter<DateTime>("last_robots_fetched", site.LastRobotsFetched.Value));
                 else
                     cmd.Parameters.AddWithValue("last_robots_fetched", DBNull.Value);
+                cmd.Prepare();
 
                 int count = await cmd.ExecuteNonQueryAsync();
 
                 if (count == 0)
                 {
                     cmd.CommandText = insert;
+                    cmd.Prepare();
                     count = await cmd.ExecuteNonQueryAsync();
                 }
 
@@ -246,6 +248,7 @@ namespace Fetcho.Common
         {
             cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", nextfetch));
+            cmd.Prepare();
         }
 
         /// <summary>
@@ -258,13 +261,22 @@ namespace Fetcho.Common
             try
             {
                 // the logic here looks backward, but it deals with the case where there's no records!
-                NpgsqlCommand cmd = await SetupCommand("select count(urihash) from \"WebResource\" where urihash = :urihash and next_fetch > now();");
 
+                var cmd = await SetupCommand("select urihash " +
+                                             "from   \"WebResource\" " +
+                                             "where  urihash = :urihash " +
+                                             "       and next_fetch > :next_fetch " +
+                                             "limit  1;");
                 cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
+                cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", DateTime.Now));
+                cmd.Prepare();
 
                 object o = await cmd.ExecuteScalarAsync();
 
-                return ((long)o) == 0;
+                if (o == null || o == DBNull.Value)
+                    return true;
+                else
+                    return false;
             }
             catch (Exception ex)
             {
@@ -333,7 +345,7 @@ namespace Fetcho.Common
 
             // see MARS comment
             //workspace.AccessKeys.AddRange(await keys);
-            
+
             workspace?.AccessKeys.AddRange(await GetWorkspaceAccessKeys(workspaceId));
 
             return workspace;
@@ -465,13 +477,14 @@ namespace Fetcho.Common
 
         private void _saveWorkspaceSetParams(NpgsqlCommand cmd, Workspace workspace)
         {
-            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspace.WorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspace.WorkspaceId.GetValueOrDefault()));
             cmd.Parameters.Add(new NpgsqlParameter<string>("name", workspace.Name));
             cmd.Parameters.Add(new NpgsqlParameter<string>("description", workspace.Description));
             cmd.Parameters.Add(new NpgsqlParameter<string>("query_text", workspace.QueryText));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", workspace.IsActive));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", workspace.Created));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_wellknown", workspace.IsWellknown));
+            cmd.Prepare();
         }
 
         public async Task SaveAccount(Account accessKey)
@@ -573,7 +586,7 @@ namespace Fetcho.Common
             return l;
         }
 
-        public async Task<IEnumerable<AccessKey>> GetAccessKeys(string accessKey = "")
+        public async Task<IEnumerable<AccessKey>> GetAccessKeys(string accountName = "", bool includeWorkspace = false)
         {
             var l = new List<AccessKey>();
 
@@ -581,13 +594,15 @@ namespace Fetcho.Common
                 "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name " +
                 "from   \"WorkspaceAccessKey\" ";
 
-            if ( !String.IsNullOrWhiteSpace(accessKey))
+            if (!String.IsNullOrWhiteSpace(accountName))
                 sql += "where  access_key = :access_key;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
 
-            if (!String.IsNullOrWhiteSpace(accessKey)) 
-                cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey));
+            if (!String.IsNullOrWhiteSpace(accountName))
+                cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accountName));
+
+            Dictionary<Guid, Guid> wsak = new Dictionary<Guid, Guid>();
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
@@ -604,10 +619,55 @@ namespace Fetcho.Common
                         Name = reader.GetString(8),
                         Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
                     });
+
+                    wsak.Add(reader.GetGuid(0), reader.GetGuid(1));
                 }
             }
 
+            if (includeWorkspace)
+                foreach (var k in l)
+                    k.Workspace = await GetWorkspace(wsak[k.Id]);
+
             return l;
+        }
+
+        public async Task<AccessKey> GetAccessKey(Guid accessKeyId)
+        {
+            AccessKey k = null;
+            Guid workspaceId = Guid.Empty;
+
+            string sql =
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name " +
+                "from   \"WorkspaceAccessKey\" " +
+                "where  workspace_access_key_id = :access_key_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("access_key_id", accessKeyId));
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                if (reader.Read())
+                {
+                    k = new AccessKey()
+                    {
+                        Id = reader.GetGuid(0),
+                        AccountName = reader.GetString(2),
+                        Created = reader.GetDateTime(5),
+                        Expiry = reader.GetDateTime(6),
+                        IsActive = reader.GetBoolean(3),
+                        IsWellknown = reader.GetBoolean(7),
+                        Name = reader.GetString(8),
+                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
+                    };
+
+                    workspaceId = reader.GetGuid(1);
+                }
+            }
+
+            if (k != null)
+                k.Workspace = await GetWorkspace(workspaceId);
+
+            return k;
         }
 
         public async Task SaveAccessKeys(Workspace workspace)
@@ -618,10 +678,11 @@ namespace Fetcho.Common
 
         public async Task SaveAccessKey(AccessKey workspaceAccessKey)
         {
-            string updateSql = "set client_encoding='UTF8'; update \"WorkspaceAccessKey\" " +
+            string updateSql =
+                "set client_encoding='UTF8'; update \"WorkspaceAccessKey\" " +
               "set    is_active = :is_active, " +
               "       permissions = :permissions, " +
-              "       name = :name, " + 
+              "       name = :name, " +
               "       created = :created, " +
               "       expiry = :expiry, " +
               "       is_wellknown = :is_wellknown " +
@@ -647,13 +708,14 @@ namespace Fetcho.Common
         {
             cmd.Parameters.Add(new NpgsqlParameter<string>("name", wak.Name));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_access_key_id", wak.Id));
-            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", wak.Workspace.WorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", wak.Workspace.WorkspaceId.GetValueOrDefault()));
             cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", wak.AccountName));
             cmd.Parameters.Add(new NpgsqlParameter<int>("permissions", (int)wak.Permissions));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", wak.IsActive));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", wak.Created));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("expiry", wak.Expiry));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_wellknown", wak.IsWellknown));
+            cmd.Prepare();
         }
 
         public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long fromSequence, int count)
@@ -665,7 +727,8 @@ namespace Fetcho.Common
             "select hash, uri, referrer, title, description, created, page_size, sequence, tags " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
-            "       sequence > :from_sequence " +
+            "       sequence >= :from_sequence  " +
+            "order  by sequence " + 
             "limit  " + count + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -791,6 +854,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
+            cmd.Prepare();
         }
 
         public async Task UpdateWorkspaceStatistics()

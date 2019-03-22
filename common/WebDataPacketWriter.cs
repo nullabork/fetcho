@@ -60,8 +60,9 @@ namespace Fetcho.Common
         public void OutputEndResource()
         {
             Writer.WriteEndElement(); // resource
-            Writer.Flush();
-            ResourcesWritten++;
+
+            if ( ResourcesWritten++ % 1000 == 0)
+                Writer.Flush();
         }
         
         private void WriteEndOfFile()

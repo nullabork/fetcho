@@ -3,7 +3,10 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    [Filter("geo-ip-ll:", "geo-ip-ll:[[[x,y],[x,y]]|*][:[[x,y],[x,y]]|*]")]
+    [Filter(
+        "geo-ip-ll:",
+        "geo-ip-ll:[[[x,y],[x,y]]|*][:[[x,y],[x,y]]|*]",
+        Description = "Filter or tag by the Geo IP Coordinates")]
     public class GeoIPCoordinateFilter : GeoIPFilter
     {
         public BoundingBox Bounds { get; set; }

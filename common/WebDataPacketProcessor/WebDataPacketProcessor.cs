@@ -12,7 +12,7 @@ namespace Fetcho.Common
 
         public WebDataPacketConsumer Consumer { get; set; }
 
-        public int ResourcesProcessedCount { get; set; }
+        public long ResourcesProcessedCount { get; set; }
 
         public WebDataPacketProcessor()
         {
@@ -20,10 +20,10 @@ namespace Fetcho.Common
 
         public void Process(WebDataPacketReader packet)
         {
-            Consumer.PacketOpened();
 
             try
             {
+                Consumer.PacketOpened();
 
                 do
                 {
@@ -60,6 +60,9 @@ namespace Fetcho.Common
                     }
 
                     ResourcesProcessedCount++;
+
+                    if (ResourcesProcessedCount > WebDataPacketReader.MaxResourcesInAFile)
+                        throw new FetchoException("Something wrong with packet - it keeps spinning");
                 }
                 while (packet.NextResource());
             }
@@ -67,7 +70,10 @@ namespace Fetcho.Common
             {
                 Consumer.ReadingException(ex);
             }
-            Consumer.PacketClosed();
+            finally
+            {
+                Consumer.PacketClosed();
+            }
         }
     }
 }

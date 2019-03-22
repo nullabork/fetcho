@@ -3,7 +3,10 @@ using MaxMind.GeoIP2.Responses;
 
 namespace Fetcho.Common
 {
-    [Filter("geo-ip-country:", "geo-ip-country:[country|*][:country|*]")]
+    [Filter(
+        "geo-ip-country:",
+        "geo-ip-country:[country|*][:country|*]",
+        Description = "Filter or tag by the Geo IP Country")]
     public class GeoIPCountryFilter : GeoIPFilter
     {
         public string Country { get; set; }

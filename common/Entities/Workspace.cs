@@ -12,7 +12,7 @@ namespace Fetcho.Common.Entities
         /// <summary>
         /// GUID for the workspace
         /// </summary>
-        public Guid WorkspaceId { get; set; }
+        public Guid? WorkspaceId { get; set; }
 
         /// <summary>
         /// Name of the workspace
@@ -73,7 +73,7 @@ namespace Fetcho.Common.Entities
         /// </summary>
         /// <returns></returns>
         public AccessKey GetOwnerWorkspaceAccessKey()
-            => AccessKeys.FirstOrDefault(x => x.HasPermissionFlag(WorkspaceAccessPermissions.Owner));
+            => AccessKeys.FirstOrDefault(x => x.HasPermissionFlags(WorkspaceAccessPermissions.Owner));
 
         /// <summary>
         /// Determine if an access key has access to this workspace

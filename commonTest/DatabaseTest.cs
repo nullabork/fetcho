@@ -75,5 +75,19 @@ namespace Fetcho.Common.Tests
                 Assert.IsFalse(rtn, archaeo.ToString());
             }
         }
+
+        [TestMethod]
+        public async Task VisitedSpeedTest()
+        {
+            Uri uri = new Uri("http://some.example.com");
+
+            using (var db = new Database("Server=127.0.0.1;Port=5433;User Id=postgres;Password=postgres;Database=fetcho;Enlist=false"))
+            {
+                DateTime start = DateTime.Now;
+                for ( int i=0;i<100000;i++)
+                    Assert.IsTrue(await db.NeedsVisiting(uri));
+                Assert.IsTrue(false, (DateTime.Now - start).ToString()); // 21.73 22.59
+            }
+        }
     }
 }

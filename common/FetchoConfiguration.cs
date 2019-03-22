@@ -17,7 +17,7 @@ namespace Fetcho.Common
         }
 
         const int DefaultMaxFetchSpeedInMilliseconds = 10000;
-        const int DefaultMaxConcurrentFetches = 1000;
+        const int DefaultMaxConcurrentFetches = 2000;
 
         [ConfigurationSetting("ResearchBot 0.2")]
         public string UserAgent { get; private set; }
@@ -59,11 +59,11 @@ namespace Fetcho.Common
         [ConfigurationSetting(100000)]
         public int MaxResourcesPerDataPacket { get; private set; }
 
-        /// <summary>
-        /// Init all lists to this
-        /// </summary>
         [ConfigurationSetting(500)]
         public int MaxConcurrentTasks { get; private set; }
+
+        [ConfigurationSetting(1000000)]
+        public int DuplicateLinkCacheWindowSize { get; private set; }
 
         /// <summary>
         /// Queue items with a number higher than this will be rejected 
@@ -83,6 +83,9 @@ namespace Fetcho.Common
 
         [ConfigurationSetting(DefaultMaxConcurrentFetches * 5 / 10)] // 50% of max
         public int PressureReliefThreshold { get; private set; }
+
+        [ConfigurationSetting(10000)]
+        public int MaxLinksToExtractFromOneResource { get; set; }
 
         /// <summary>
         /// Maximum number of concurrent fetches, times the number of items able to be fetched before the fetch timeout
