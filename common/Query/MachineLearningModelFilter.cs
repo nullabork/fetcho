@@ -35,10 +35,10 @@ namespace Fetcho.Common
         public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
         {
             PageClassPrediction prediction = null;
-            prediction = PredictionEngine.Predict(new PageData { InputData = fragment });
+            prediction = PredictionEngine.Predict(new PageData { TextData = fragment });
 
-            if (!String.IsNullOrWhiteSpace(prediction.Category))
-                return new string[1] { Utility.MakeTag(prediction.Category) };
+            if (!String.IsNullOrWhiteSpace(prediction.PredictedLabels))
+                return new string[1] { Utility.MakeTag(prediction.PredictedLabels) };
             return EmptySet;
         }
 
@@ -50,12 +50,12 @@ namespace Fetcho.Common
             return PredictionEngineCache[ModelName];
         }
 
-        private PredictionEngine<PageData, PageClassPrediction> LoadPredictionEngineFromDiskIntoCache(string modelName)
+        private void LoadPredictionEngineFromDiskIntoCache(string modelName)
         {
             string path = Path.Combine(FetchoConfiguration.Current.DataSourcePath, ModelName + ".mlmodel");
 
             using (var stream = File.OpenRead(path))
-            return MLContext.Model.CreatePredictionEngine<PageData, PageClassPrediction>(MLContext.Model.Load(stream));
+                PredictionEngineCache.Add(modelName, MLContext.Model.CreatePredictionEngine<PageData, PageClassPrediction>(MLContext.Model.Load(stream)));
         }
 
         private static Dictionary<string, PredictionEngine<PageData, PageClassPrediction>> PredictionEngineCache
@@ -83,17 +83,15 @@ namespace Fetcho.Common
 
         private class PageData
         {
-            [LoadColumn(0)]
-            public string InputData;
+            public string TextData;
 
-            [LoadColumn(1)]
-            public string Category;
+            public string Label;
         }
 
         private class PageClassPrediction
         {
             [ColumnName("PredictedLabel")]
-            public string Category;
+            public string PredictedLabels;
         }
 
     }

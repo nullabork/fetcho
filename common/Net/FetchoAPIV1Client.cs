@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace Fetcho.Common.Net
         private const string AccessKeyEndPoint = BaseEndpoint + "/accesskey";
         private const string AccountsEndPoint = BaseEndpoint + "/accounts";
         private const string WorkspaceEndPoint = BaseEndpoint + "/workspaces";
-        private const string JsonContentType = "application/json";
+        private const string ResourcesEndPoint = BaseEndpoint + "/resources";
 
         private HttpClient client = new HttpClient();
 
@@ -26,7 +27,7 @@ namespace Fetcho.Common.Net
             client.BaseAddress = baseAddress;
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue(JsonContentType));
+                new MediaTypeWithQualityHeaderValue(ContentType.ApplicationJson));
         }
 
         #region workspaces
@@ -46,12 +47,25 @@ namespace Fetcho.Common.Net
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
         }
 
-        public async Task<WorkspaceResult[]> GetWorkspaceResultsAsync(Guid workspaceId, int fromSequence = 0, int count = DefaultResultsCount)
+        public async Task<WorkspaceResult[]> GetWorkspaceResultsAsync(Guid workspaceId, int offset = 0, int count = DefaultResultsCount, string order = "asc")
         {
-            string path = String.Format("{0}/{1}/results?fromSequence={2}&count={3}", WorkspaceEndPoint, workspaceId, fromSequence, count);
+            string path = String.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", WorkspaceEndPoint, workspaceId, offset, count, order);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
+        }
+
+        #endregion
+
+        #region resources
+
+        public async Task PostWebResourceDataCache(Stream stream)
+        {
+            var content = new StreamContent(stream);
+            content.Headers.ContentType = new MediaTypeHeaderValue(ContentType.ApplicationOctetStream);
+            string path = String.Format("{0}/", ResourcesEndPoint);
+            var response = await client.PostAsync(path, content);
+            response.EnsureSuccessStatusCode();
         }
 
         #endregion
@@ -66,9 +80,9 @@ namespace Fetcho.Common.Net
             return await response.Content.ReadAsAsync<AccessKey>();
         }
 
-        public async Task<WorkspaceResult[]> GetWorkspaceResultsByAccessKey(Guid accessKeyId, int fromSequence = 0, int count = DefaultResultsCount)
+        public async Task<WorkspaceResult[]> GetWorkspaceResultsByAccessKey(Guid accessKeyId, int offset = 0, int count = DefaultResultsCount, string order = "asc")
         {
-            string path = String.Format("{0}/{1}/results?fromSequence={2}&count={3}", AccessKeyEndPoint, accessKeyId, fromSequence, count);
+            string path = String.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", AccessKeyEndPoint, accessKeyId, offset, count, order);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();

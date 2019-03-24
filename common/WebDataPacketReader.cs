@@ -9,7 +9,9 @@ namespace Fetcho.Common
 
     public class WebDataPacketReader : IDisposable
     {
-
+        /// <summary>
+        /// Use this to catch wierd errors
+        /// </summary>
         public const int MaxResourcesInAFile = 1000000;
 
         /// <summary>
@@ -18,6 +20,8 @@ namespace Fetcho.Common
         private readonly XmlReader inStream;
 
         private string currentException = "";
+
+        public int ResourceCountSeen { get; set; }
 
         /// <summary>
         /// A forward only packet reader
@@ -28,6 +32,10 @@ namespace Fetcho.Common
 
         }
 
+        /// <summary>
+        /// Create a packet from an XmlReader
+        /// </summary>
+        /// <param name="reader"></param>
         public WebDataPacketReader(XmlReader reader)
         {
             this.inStream = reader;
@@ -36,6 +44,10 @@ namespace Fetcho.Common
                     throw new FetchoException("No resources in the file");
         }
 
+        /// <summary>
+        /// Create a packet from a file
+        /// </summary>
+        /// <param name="fileName"></param>
         public WebDataPacketReader(string fileName) : this(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
         {
 
@@ -114,6 +126,7 @@ namespace Fetcho.Common
         public bool NextResource()
         {
             while (inStream.Read() && !(inStream.Name == "resource" && inStream.NodeType == XmlNodeType.Element)) ;
+            ResourceCountSeen++;
 
             return !inStream.EOF;
         }
@@ -188,6 +201,11 @@ namespace Fetcho.Common
             return new Uri(uri);
         }
 
+        /// <summary>
+        /// Get the ContentType from the response headers content-type: header
+        /// </summary>
+        /// <param name="responseHeaders"></param>
+        /// <returns></returns>
         public static ContentType GetContentTypeFromResponseHeaders( string responseHeaders )
         {
             const string ContentTypePrefix = "content-type:";
@@ -212,6 +230,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="exceptionString"></param>
         /// <returns></returns>
-        public static bool IsException(string exceptionString) => !String.IsNullOrWhiteSpace(exceptionString);
+        public static bool IsException(string exceptionString) 
+            => !String.IsNullOrWhiteSpace(exceptionString);
     }
 }

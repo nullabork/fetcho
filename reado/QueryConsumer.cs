@@ -8,6 +8,7 @@ using BracketPipe;
 using System.Linq;
 using System.Text;
 using Fetcho.Common.Net;
+using System.Net;
 
 namespace Fetcho
 {
@@ -62,6 +63,9 @@ namespace Fetcho
                 {
                     dataStream.CopyTo(stream);
                     stream.Seek(0, SeekOrigin.Begin);
+                    PropertyCache.Add("datahash", MD5Hash.Compute(stream));
+                    long pageSize = stream.Length;
+                    stream.Seek(0, SeekOrigin.Begin);
 
                     using (var reader = new HtmlReader(stream))
                     {
@@ -80,12 +84,10 @@ namespace Fetcho
                             if (node.Value == "style")
                                 ReadToEndTag(reader, "style");
 
-                            if (node.Value == "title")
+                            if (node.Value == "title" && !PropertyCache.ContainsKey("title"))
                             {
                                 string title = ReadTitle(reader);
-                                if (!PropertyCache.ContainsKey("title"))
-                                    PropertyCache.Add("title", title);
-                                PropertyCache["title"] = title;
+                                PropertyCache.Add("title", title);
                             }
 
                             if (node.Value == "meta")
@@ -101,15 +103,18 @@ namespace Fetcho
                         }
                     }
 
+                    var datahash = PropertyCache.SafeGet("datahash") as MD5Hash;
+
                     result = new WorkspaceResult
                     {
-                        Hash = MD5Hash.Compute(RequestProperties["uri"]).ToString(),
+                        UriHash = MD5Hash.Compute(RequestProperties["uri"]).ToString(),
                         RefererUri = RequestProperties.SafeGet("referer"),
                         Uri = RequestProperties["uri"],
                         Title = PropertyCache.SafeGet("title")?.ToString(),
                         Description = PropertyCache.SafeGet("description")?.ToString(),
                         Created = DateTime.Now,
-                        PageSize = 0
+                        PageSize = pageSize,
+                        DataHash = datahash == MD5Hash.Empty ? "" : datahash.ToString()
                     };
 
                     // evaluate against the queries
@@ -134,6 +139,7 @@ namespace Fetcho
                     // if no matches, move onto the next resource
                     if (!postTo.Any()) return;
 
+                    fetchoClient.PostWebResourceDataCache(stream).GetAwaiter().GetResult();
                     foreach (var workspaceId in postTo.ToArray())
                     {
                         fetchoClient.PostWorkspaceResultsByWorkspaceIdAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
@@ -146,7 +152,7 @@ namespace Fetcho
             }
             finally
             {
-                if (ResourcesSeen++ % 100 == 0)
+                if (ResourcesSeen++ % 1000 == 0)
                 {
                     using (var db = new Database())
                     {
@@ -163,7 +169,7 @@ namespace Fetcho
         string ReadDesc(HtmlReader reader)
         {
             if (reader.GetAttribute("name").Contains("description"))
-                return reader.GetAttribute("content").Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(1024);
+                return WebUtility.HtmlDecode(reader.GetAttribute("content").Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim()).Truncate(1024);
             return String.Empty;
         }
 
@@ -179,10 +185,10 @@ namespace Fetcho
                     title += node.Value;
 
                 if (node.Type == HtmlTokenType.EndTag && node.Value == "title")
-                    return title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim();
+                    return WebUtility.HtmlDecode(title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim()).Truncate(128);
             }
 
-            return title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim().Truncate(128);
+            return WebUtility.HtmlDecode(title.Replace("\n", " ").Replace("\t", " ").Replace("\r", " ").Trim()).Truncate(128);
         }
 
         void ReadToEndTag(HtmlReader reader, string endTag)

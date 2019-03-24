@@ -61,7 +61,7 @@ namespace Fetcho.ContentReaders
                         {
                             if (cache == null || !cache.Contains(c.Value))
                             {
-                                cache.Enqueue(c.Value);
+                                cache?.Enqueue(c.Value);
                                 callback(c.Value);
                             }
                         }

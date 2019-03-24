@@ -22,7 +22,7 @@ namespace FetchoAPI.Test
             //await controller.Post(workspace.GetOwnerAccessKey().AccessKey, workspace);
 
             var guid = new Guid("f5201ff7-ea59-4e00-87b9-af4a0a9c8e2e");
-            var httpResponse = await controller.GetWorkspaceResultsByWorkspaceId(guid, 0, 30);
+            var httpResponse = await controller.GetWorkspaceResultsByWorkspaceId(guid, 0, 30, "desc");
 
             Assert.IsNotNull(httpResponse);
             var results = await httpResponse.Content.ReadAsAsync<IEnumerable<WorkspaceResult>>(new[] { new JsonMediaTypeFormatter() });

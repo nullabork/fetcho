@@ -36,6 +36,11 @@ namespace Fetcho
                 ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
                 );
 
+            cfg.SetConfigurationSetting(
+                () => cfg.DataSourcePath,
+                ConfigurationManager.AppSettings["DataSourcePath"]
+                );
+
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();
             else

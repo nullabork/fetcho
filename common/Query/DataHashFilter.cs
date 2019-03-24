@@ -25,7 +25,7 @@ namespace Fetcho.Common
         {
             var hash = "";
             if (resource.PropertyCache.ContainsKey("datahash"))
-                hash = resource.PropertyCache["datahash"].ToString();
+                hash = resource.PropertyCache["datahash"].ToString().ToLower();
             else
             {
                 hash = MD5Hash.Compute(stream).ToString();

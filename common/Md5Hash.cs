@@ -130,6 +130,11 @@ namespace Fetcho.Common
         public readonly static MD5Hash MaxValue = new MD5Hash(new byte[] { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 });
 
         /// <summary>
+        /// Empty hash
+        /// </summary>
+        public readonly static MD5Hash Empty = new MD5Hash(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+        /// <summary>
         /// Create a hash of the bytes supplied
         /// </summary>
         /// <param name="bytes"></param>

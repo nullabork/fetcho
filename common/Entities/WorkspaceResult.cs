@@ -6,7 +6,7 @@ namespace Fetcho.Common.Entities
 {
     public class WorkspaceResult
     {
-        public string Hash { get; set; }
+        public string UriHash { get; set; }
 
         public string RefererUri { get; set; }
 
@@ -22,19 +22,22 @@ namespace Fetcho.Common.Entities
 
         public long? PageSize { get; set; }
 
-        public long Sequence { get; set; }
+        public long GlobalSequence { get; set; }
+
+        public string DataHash { get; set; }
 
         public WorkspaceResult()
         {
             Tags = new List<string>();
             PageSize = null;
-            Sequence = -1;
+            GlobalSequence = -1;
             Created = DateTime.MinValue;
             Description = String.Empty;
             Title = String.Empty;
             Uri = String.Empty;
             RefererUri = String.Empty;
-            Hash = String.Empty;
+            UriHash = String.Empty;
+            DataHash = String.Empty;
         }
 
         public string GetTagString()

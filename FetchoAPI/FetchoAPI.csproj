@@ -43,6 +43,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BinaryMediaTypeFormatter, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\WebApi.BinaryMediaTypeFormatter.1.0.5\lib\BinaryMediaTypeFormatter.dll</HintPath>
+    </Reference>
     <Reference Include="log4net, Version=2.0.8.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\packages\log4net.2.0.8\lib\net45-full\log4net.dll</HintPath>
     </Reference>
@@ -100,6 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="Controllers\AccessKeyDoesntExistFetchoException.cs" />
     <Compile Include="Controllers\InvalidRequestFetchoException.cs" />
     <Compile Include="Controllers\PermissionDeniedFetchoException.cs" />
     <Compile Include="Controllers\WorkspacesController.cs" />

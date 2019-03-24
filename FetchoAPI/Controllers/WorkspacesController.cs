@@ -1,10 +1,14 @@
 ﻿using Fetcho.Common;
 using Fetcho.Common.Entities;
+using Fetcho.ContentReaders;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
@@ -241,14 +245,14 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskey/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long fromSequence = 0, int count = MaxResultsReturned)
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "ASC")
         {
             try
             {
                 using (var db = new Database())
                     await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
-                return await GetWorkspaceResultsByWorkspaceId(workspaceId, fromSequence, count);
+                return await GetWorkspaceResultsByWorkspaceId(workspaceId, offset, count, order);
             }
             catch (Exception ex)
             {
@@ -320,21 +324,22 @@ namespace Fetcho.FetchoAPI.Controllers
         /// Get some results from a workspace
         /// </summary>
         /// <param name="workspaceId">Workspace guid</param>
-        /// <param name="fromSequence">Minimum sequence value to start from</param>
+        /// <param name="offset">Minimum sequence value to start from</param>
         /// <param name="count">Max number of results to get</param>
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long fromSequence = 0, int count = MaxResultsReturned)
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "ASC")
         {
             try
             {
+                bool descendingOrder = (order.ToLower() == "desc");
                 count = count.RangeConstraint(1, MaxResultsReturned);
-                fromSequence = fromSequence.MinConstraint(0);
+                offset = offset.MinConstraint(0);
 
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
-                    results = await db.GetWorkspaceResults(workspaceId, fromSequence, count);
+                    results = await db.GetWorkspaceResults(workspaceId, offset, count, descendingOrder);
                 return CreateOKResponse(results);
             }
             catch (Exception ex)
@@ -465,6 +470,99 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/resources/")]
+        [HttpPost()]
+        [HttpPut()]
+        public async Task<HttpResponseMessage> PostWebResourceDataCache([FromBody]Stream data)
+        {
+            MD5Hash hash = null;
+
+            try
+            {
+                using (var ms = new MemoryStream())
+                {
+                    data.CopyTo(ms);
+                    ms.Seek(0, SeekOrigin.Begin);
+                    hash = MD5Hash.Compute(ms);
+                    ms.Seek(0, SeekOrigin.Begin);
+
+                    using (var db = new Database())
+                        await db.AddWebResourceDataCache(hash, ms);
+                }
+
+                return CreateCreatedResponse((Object)null);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/resources/{datahash}")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWebResourceCacheData(string datahash)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    byte[] bytes = await db.GetWebResourceCacheData(new MD5Hash(datahash));
+
+                    if (bytes == null)
+                        return Create404Response((Object)null);
+
+                    var result = new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(bytes)
+                    };
+                    result.Content.Headers.ContentType =
+                        new MediaTypeHeaderValue(ContentType.ApplicationOctetStream);
+
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/resources/{datahash}/text")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWebResourceCacheDataText(string datahash)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    byte[] bytes = await db.GetWebResourceCacheData(new MD5Hash(datahash));
+
+                    if (bytes == null)
+                        return Create404Response((Object)null);
+
+                    var l = new List<string>();
+                    using (var ms = new MemoryStream(bytes))
+                    {
+                        var parser = new BracketPipeTextExtractor
+                        {
+                            Distinct = true,
+                            Granularity = ExtractionGranularity.Raw,
+                            MaximumLength = int.MaxValue,
+                            MinimumLength = int.MinValue,
+                            StopWords = false
+                        };
+                        parser.Parse(ms, l.Add);
+                    }
+
+                    return CreateOKResponse(l);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         #endregion
 
         #region helper methods
@@ -510,6 +608,8 @@ namespace Fetcho.FetchoAPI.Controllers
         private async Task ThrowIfNotValidPermission(Database db, Guid accessKeyId, WorkspaceAccessPermissions permissionFlag)
         {
             var key = await db.GetAccessKey(accessKeyId);
+            if (key == null)
+                throw new AccessKeyDoesntExistFetchoException();
             if (!key.HasPermissionFlags(permissionFlag))
                 throw new PermissionDeniedFetchoException("Permission denied");
         }
@@ -542,7 +642,10 @@ namespace Fetcho.FetchoAPI.Controllers
             => Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message, ex);
 
         private HttpResponseMessage CreateOKResponse<T>(T payload)
-            => Request.CreateResponse(HttpStatusCode.OK, payload, ContentType.ApplicationJson);
+            => CreateOKResponse<T>(payload, ContentType.ApplicationJson);
+
+        private HttpResponseMessage CreateOKResponse<T>(T payload, string contentType)
+            => Request.CreateResponse(HttpStatusCode.OK, payload, contentType);
 
         private HttpResponseMessage Create404Response<T>(T payload)
             => !EqualityComparer<T>.Default.Equals(payload, default(T)) ? Request.CreateResponse(HttpStatusCode.NotFound, payload) : Request.CreateResponse(HttpStatusCode.NotFound);
@@ -558,6 +661,8 @@ namespace Fetcho.FetchoAPI.Controllers
                 return CreateNotImplementedResponse(notImplementedException);
             if (ex is InvalidRequestFetchoException invalidRequestFetchoException)
                 return CreateInvalidRequestResponse(invalidRequestFetchoException);
+            if (ex is AccessKeyDoesntExistFetchoException doesntExistFetchoException)
+                return Create404Response<Guid>(Guid.Empty);
             return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message, ex);
         }
 

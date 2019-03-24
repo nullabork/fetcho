@@ -29,6 +29,8 @@ namespace Fetcho.Common
                 {
                     try
                     {
+                        Consumer.NewResource();
+
                         if (Consumer.ProcessesRequest)
                         {
                             string requestString = packet.GetRequestString();
@@ -52,16 +54,18 @@ namespace Fetcho.Common
                             Consumer.ProcessException(exception);
                         }
 
-                        Consumer.NewResource();
                     }
                     catch (Exception ex)
                     {
                         log.Error(ex);
                     }
+                    finally
+                    {
+                    }
 
                     ResourcesProcessedCount++;
 
-                    if (ResourcesProcessedCount > WebDataPacketReader.MaxResourcesInAFile)
+                    if (packet.ResourceCountSeen > WebDataPacketReader.MaxResourcesInAFile)
                         throw new FetchoException("Something wrong with packet - it keeps spinning");
                 }
                 while (packet.NextResource());

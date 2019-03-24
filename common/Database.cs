@@ -718,39 +718,44 @@ namespace Fetcho.Common
             cmd.Prepare();
         }
 
-        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long fromSequence, int count)
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long offset, int count, bool descendingOrder)
         {
             var l = new List<WorkspaceResult>();
-            byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select hash, uri, referrer, title, description, created, page_size, sequence, tags " +
+            "select urihash, uri, referrer, title, description, created, page_size, sequence, tags, datahash " +
             "from   \"WorkspaceResult\" " +
-            "where  workspace_id = :workspace_id and" +
-            "       sequence >= :from_sequence  " +
-            "order  by sequence " + 
-            "limit  " + count + ";";
+            "where  workspace_id = :workspace_id " +
+            "order  by sequence " + (descendingOrder ? " desc" : " asc") + " " +
+            "limit  " + count + " offset " + offset + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
-            cmd.Parameters.Add(new NpgsqlParameter<long>("from_sequence", fromSequence));
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 while (reader.Read())
                 {
-                    reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
+                    byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
+                    byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
+
+                    reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
+                    if (!reader.IsDBNull(9))
+                        reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
+
+                    var h = new MD5Hash(datahash);
 
                     l.Add(new WorkspaceResult()
                     {
-                        Hash = new MD5Hash(buffer).ToString(),
+                        UriHash = new MD5Hash(urihash).ToString(),
                         Uri = reader.GetString(1),
                         RefererUri = IsNull(reader, 2, ""),
                         Title = IsNull(reader, 3, ""),
                         Description = IsNull(reader, 4, ""),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
-                        Sequence = reader.GetInt64(7)
+                        GlobalSequence = reader.GetInt64(7),
+                        DataHash = h == MD5Hash.Empty ? "" : h.ToString()
                     });
 
                     if (!reader.IsDBNull(8))
@@ -768,10 +773,11 @@ namespace Fetcho.Common
         public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResultsByRandom(Guid workspaceId, int count)
         {
             var l = new List<WorkspaceResult>();
-            byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
+            byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
+            byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select hash, uri, referrer, title, description, created, page_size, sequence, tags " +
+            "select urihash, uri, referrer, title, description, created, page_size, sequence, tags, datahash " +
             "from   \"WorkspaceResult\" " +
             "where  workspace_id = :workspace_id and" +
             "       random > :random " +
@@ -786,18 +792,23 @@ namespace Fetcho.Common
             {
                 while (reader.Read())
                 {
-                    reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
+                    reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
+                    if (!reader.IsDBNull(9))
+                        reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
+
+                    var h = new MD5Hash(datahash);
 
                     l.Add(new WorkspaceResult()
                     {
-                        Hash = new MD5Hash(buffer).ToString(),
+                        UriHash = new MD5Hash(urihash).ToString(),
                         Uri = reader.GetString(1),
                         RefererUri = IsNull(reader, 2, ""),
                         Title = IsNull(reader, 3, ""),
                         Description = IsNull(reader, 4, ""),
                         Created = reader.GetDateTime(5),
                         PageSize = reader.GetInt64(6),
-                        Sequence = reader.GetInt64(7)
+                        GlobalSequence = reader.GetInt64(7),
+                        DataHash = h == MD5Hash.Empty ? "" : h.ToString()
                     });
 
                     if (!reader.IsDBNull(8))
@@ -821,12 +832,13 @@ namespace Fetcho.Common
               "       description = :description, " +
               "       page_size = :page_size, " +
               "       created = :created, " +
-              "       tags = :tags " +
-              "where  hash = :hash and " +
+              "       tags = :tags, " +
+              "       datahash = :datahash " +
+              "where  urihash = :urihash and " +
               "       workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( hash, uri, referrer, title, description, created, workspace_id, page_size, tags) " +
-              "values ( :hash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size, :tags );";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( urihash, uri, referrer, title, description, created, workspace_id, page_size, tags, datahash) " +
+              "values ( :urihash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size, :tags, :datahash );";
 
             foreach (var result in results)
             {
@@ -845,7 +857,7 @@ namespace Fetcho.Common
 
         private void _addWorkspaceResultsSetParams(NpgsqlCommand cmd, Guid workspaceId, WorkspaceResult result)
         {
-            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("hash", new MD5Hash(result.Hash).Values));
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", new MD5Hash(result.UriHash).Values));
             cmd.Parameters.Add(new NpgsqlParameter<string>("uri", result.Uri));
             cmd.Parameters.Add(new NpgsqlParameter<string>("referrer", result.RefererUri));
             cmd.Parameters.Add(new NpgsqlParameter<string>("title", result.Title));
@@ -854,6 +866,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", new MD5Hash(result.DataHash).Values));
             cmd.Prepare();
         }
 
@@ -861,11 +874,53 @@ namespace Fetcho.Common
         {
             await ExecuteSqlAgainstConnection(
                 "update \"Workspace\" " +
-                " set result_count = coalesce((select count(*) c " +
-                " from   \"WorkspaceResult\" r " +
-                " where  r.workspace_id = \"Workspace\".workspace_id " +
-                " group  by workspace_id), 0) "
+                " set   result_count = coalesce((select count(*) c " +
+                "                                from   \"WorkspaceResult\" r " +
+                "                                where  r.workspace_id = \"Workspace\".workspace_id " +
+                "                                group  by workspace_id), 0) "
                 );
+        }
+
+        public async Task AddWebResourceDataCache(MD5Hash datahash, MemoryStream stream)
+        {
+            try
+            {
+                string insertSql = "set client_encoding='UTF8'; insert into \"WebResourceDataCache\" ( datahash, data ) values(:datahash, :data);";
+
+                var cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", datahash.Values));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("data", stream.GetBuffer()));
+                cmd.Prepare();
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex); // probably throws when the result already exists
+            }
+        }
+
+        public async Task<byte[]> GetWebResourceCacheData(MD5Hash datahash)
+        {
+            string sql = "select datahash, data from \"WebResourceDataCache\" where datahash = :datahash;";
+
+            var cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", datahash.Values));
+            cmd.Prepare();
+
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                if (reader.Read())
+                {
+                    long len = reader.GetBytes(1, 0, null, 0, 0);
+                    byte[] buffer = new byte[len];
+                    reader.GetBytes(1, 0, buffer, 0, buffer.Length);
+                    return buffer;
+                }
+            }
+
+            return null;
         }
 
         async Task ExecuteSqlAgainstConnection(string sql)

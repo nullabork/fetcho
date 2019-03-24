@@ -25,7 +25,7 @@ namespace Fetcho
 
         private ISourceBlock<IEnumerable<QueueItem>> FetchQueueIn;
         private ITargetBlock<IEnumerable<QueueItem>> RequeueOut;
-        private BufferBlock<WebDataPacketWriter> DataWritersCycle;
+        private BufferBlock<WebDataPacketWriter> DataWritersPool;
 
         public bool Running { get; set; }
 
@@ -179,13 +179,13 @@ namespace Fetcho
                         await ResourceFetcher.FetchFactory(
                             item.TargetUri,
                             item.SourceUri,
-                            DateTime.MinValue,
-                            DataWritersCycle
+                            DateTime.MinValue, // TODO: Get this from the DB
+                            DataWritersPool
                             );
 
-                        var writer = await DataWritersCycle.ReceiveAsync().ConfigureAwait(false);
+                        var writer = await DataWritersPool.ReceiveAsync().ConfigureAwait(false);
                         writer = ReplaceDataPacketWriterIfQuotaReached(writer);
-                        await DataWritersCycle.SendAsync(writer);
+                        await DataWritersPool.SendAsync(writer);
                     }
                     catch (Exception)
                     {
@@ -215,9 +215,9 @@ namespace Fetcho
 
         private async Task CreateDataPacketWriters()
         {
-            DataWritersCycle = new BufferBlock<WebDataPacketWriter>();
+            DataWritersPool = new BufferBlock<WebDataPacketWriter>();
             var packet = CreateNewDataPacketWriter();
-            await DataWritersCycle.SendAsync(packet);
+            await DataWritersPool.SendAsync(packet);
         }
 
         private WebDataPacketWriter CreateNewDataPacketWriter()
@@ -245,9 +245,9 @@ namespace Fetcho
 
         private void CloseAllWriters()
         {
-            while (DataWritersCycle.Count > 0)
+            while (DataWritersPool.Count > 0)
             {
-                var packet = DataWritersCycle.Receive();
+                var packet = DataWritersPool.Receive();
                 packet.Dispose();
             }
         }

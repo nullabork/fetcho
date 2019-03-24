@@ -10,6 +10,7 @@ namespace Fetcho.Common
     {
         public const string ApplicationJson = "application/json";
         public const string ApplicationXEmpty = "application/x-empty";
+        public const string ApplicationOctetStream = "application/octet-stream";
 
         public string Raw { get; private set; }
 
