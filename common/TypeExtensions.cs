@@ -14,7 +14,7 @@ namespace Fetcho.Common
     /// </summary>
     public static class TypeExtensions
     {
-        static Random random = new Random(DateTime.Now.Millisecond);
+        static Random random = new Random(DateTime.UtcNow.Millisecond);
 
         /// <summary>
         /// Appends another array to this array
@@ -125,26 +125,30 @@ namespace Fetcho.Common
             return str.Substring(0, str.Length - numchars);
         }
 
-        public static int MaxConstraint(this int val, int maxValue) => val > maxValue ? maxValue : val;  
-        public static int MinConstraint(this int val, int minValue) => val < minValue ? minValue : val;
-        public static int RangeConstraint(this int val, int min, int max) => val < min ? min : val > max ? max : val;
+        public static int ConstrainMax(this int val, int maxValue) => val > maxValue ? maxValue : val;  
+        public static int ConstrainMin(this int val, int minValue) => val < minValue ? minValue : val;
+        public static int ConstrainRange(this int val, int min, int max) => val < min ? min : val > max ? max : val;
+        public static bool IsBetween(this int val, int min, int max) => val >= min && val <= max;
 
-        public static long MaxConstraint(this long val, long max) => val > max ? max : val;
-        public static long MinConstraint(this long val, long min) => val < min ? min : val;
-        public static long RangeConstraint(this long val, long min, long max) => val < min ? min : val > max ? max : val;
+        public static long ConstrainMax(this long val, long max) => val > max ? max : val;
+        public static long ConstrainMin(this long val, long min) => val < min ? min : val;
+        public static long ConstrainRange(this long val, long min, long max) => val < min ? min : val > max ? max : val;
+        public static bool IsBetween(this long val, long min, long max) => val >= min && val <= max;
 
-        public static double MaxConstraint(this double val, double max) => val > max ? max : val;
-        public static double MinConstraint(this double val, double min) => val < min ? min : val;
-        public static double RangeConstraint(this double val, double min, double max) => val < min ? min : val > max ? max : val;
+        public static double ConstrainMax(this double val, double max) => val > max ? max : val;
+        public static double ConstrainMin(this double val, double min) => val < min ? min : val;
+        public static double ConstrainRange(this double val, double min, double max) => val < min ? min : val > max ? max : val;
+        public static bool IsBetween(this double val, double min, double max) => val >= min && val <= max;
 
-        public static decimal MaxConstraint(this decimal val, decimal max) => val > max ? max : val;
-        public static decimal MinConstraint(this decimal val, decimal min) => val < min ? min : val;
-        public static decimal RangeConstraint(this decimal val, decimal min, decimal max) => val < min ? min : val > max ? max : val;
+        public static decimal ConstrainMax(this decimal val, decimal max) => val > max ? max : val;
+        public static decimal ConstrainMin(this decimal val, decimal min) => val < min ? min : val;
+        public static decimal ConstrainRange(this decimal val, decimal min, decimal max) => val < min ? min : val > max ? max : val;
+        public static bool IsBetween(this decimal val, decimal min, decimal max) => val >= min && val <= max;
 
-        public static bool Between(this int val, int min, int max) => val >= min && val <= max;
-        public static bool Between(this long val, long min, long max) => val >= min && val <= max;
-        public static bool Between(this decimal val, decimal min, decimal max) => val >= min && val <= max;
-        public static bool Between(this double val, double min, double max) => val >= min && val <= max;
+        public static float ConstrainMax(this float val, float max) => val > max ? max : val;
+        public static float ConstrainMin(this float val, float min) => val < min ? min : val;
+        public static float ConstrainRange(this float val, float min, float max) => val < min ? min : val > max ? max : val;
+        public static bool IsBetween(this float val, float min, float max) => val >= min && val <= max;
 
         /// <summary>
         /// Ensure a string always only comes to maxlength
@@ -194,6 +198,30 @@ namespace Fetcho.Common
                     sb.Append(value[i]);
 
             return sb.ToString();
+        }
+
+        public const string CleanInputRegexAlphanumericFilename = @"[^\w-_]";
+
+        /// <summary>
+        /// Use this to cleanup input provided from users
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="regex"></param>
+        /// <returns></returns>
+        public static string CleanInput(this string value, string regex = CleanInputRegexAlphanumericFilename)
+        {
+            // Replace invalid characters with empty strings.
+            try
+            {
+                return Regex.Replace(value, regex, "",
+                                     RegexOptions.None, TimeSpan.FromSeconds(1.5));
+            }
+            // If we timeout when replacing invalid characters, 
+            // we should return Empty.
+            catch (RegexMatchTimeoutException)
+            {
+                return String.Empty;
+            }
         }
 
         public async static Task SendOrWaitAsync<T>(this ITargetBlock<T> target, T item, int waitTime = 100)

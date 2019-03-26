@@ -23,7 +23,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         public override async Task Fetch(
             Uri uri,
-            Uri referrerUri,
+            Uri refererUri,
             DateTime? lastFetchedDate,
             BufferBlock<WebDataPacketWriter> writerPool
             )
@@ -40,7 +40,7 @@ namespace Fetcho.Common
 
             HttpWebResponse response = null;
             HttpWebRequest request = null;
-            DateTime startTime = DateTime.Now;
+            DateTime startTime = DateTime.UtcNow;
             Exception exception = null;
             bool wroteOk = false;
 
@@ -50,10 +50,10 @@ namespace Fetcho.Common
 
                 // get database from the pool
                 var db = await DatabasePool.GetDatabaseAsync();
-                await db.SaveWebResource(uri, DateTime.Now.AddDays(FetchoConfiguration.Current.PageCacheExpiryInDays));
+                await db.SaveWebResource(uri, DateTime.UtcNow.AddDays(FetchoConfiguration.Current.PageCacheExpiryInDays));
                 await DatabasePool.GiveBackToPool(db);
 
-                request = CreateRequest(referrerUri, uri, lastFetchedDate);
+                request = CreateRequest(refererUri, uri, lastFetchedDate);
 
                 var netTask = request.GetResponseAsync();
 
@@ -228,12 +228,17 @@ namespace Fetcho.Common
             // some sites get upset if this isn't here
             request.CookieContainer = new CookieContainer();
 
-            // fill in the referrer if its set
+            // fill in the referer if its set
             TrySetReferer(request, refererUri);
 
             return request;
         }
 
+        /// <summary>
+        /// Sometimes this doesn't work for whatever reason
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="uri"></param>
         private void TrySetReferer(HttpWebRequest request, Uri uri)
         {
             try
@@ -243,7 +248,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                log.ErrorFormat("Failed to set Referrer: {0}, {1}", uri, ex);
+                log.ErrorFormat("Failed to set Referer: {0}, {1}", uri, ex);
             }
         }
 

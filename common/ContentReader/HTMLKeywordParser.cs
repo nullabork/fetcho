@@ -34,7 +34,7 @@ namespace Fetcho.ContentReaders
         {
             if (!IncludeChardata) return;
             var sb = new StringBuilder(context.GetText().Trim());
-            if (sb.Length.Between(MinimumLength, MaximumLength))
+            if (sb.Length.IsBetween(MinimumLength, MaximumLength))
                 Emit(HttpUtility.HtmlDecode(sb.ToString()));
         }
 
@@ -42,7 +42,7 @@ namespace Fetcho.ContentReaders
         {
             if (!IncludeComments) return;
             var sb = new StringBuilder(context.GetText().Trim());
-            if (sb.Length.Between(MinimumLength, MaximumLength))
+            if (sb.Length.IsBetween(MinimumLength, MaximumLength))
                 Emit(HttpUtility.HtmlDecode(sb.ToString()));
         }
 

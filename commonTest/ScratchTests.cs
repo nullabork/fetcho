@@ -11,11 +11,11 @@ namespace Fetcho.Common.Tests
         [TestMethod]
         public async Task RunTests()
         {
-            DateTime startTime = DateTime.Now;
+            DateTime startTime = DateTime.UtcNow;
             IPAddress[] ips = null;
             for ( int i=0;i<10000;i++)
                 ips = await Dns.GetHostAddressesAsync("www.google.com");
-            Assert.IsTrue(false, (DateTime.Now - startTime).TotalMilliseconds.ToString());
+            Assert.IsTrue(false, (DateTime.UtcNow - startTime).TotalMilliseconds.ToString());
         }
     }
 }

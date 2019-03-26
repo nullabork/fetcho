@@ -20,8 +20,8 @@ namespace Fetcho
         int waitingForFetchTimeout = 0;
         SemaphoreSlim fetchLock = null;
         PressureReliefValve<QueueItem> valve = null;
-        Random random = new Random(DateTime.Now.Millisecond);
-        DateTime startTime = DateTime.Now;
+        Random random = new Random(DateTime.UtcNow.Millisecond);
+        DateTime startTime = DateTime.UtcNow;
 
         private ISourceBlock<IEnumerable<QueueItem>> FetchQueueIn;
         private ITargetBlock<IEnumerable<QueueItem>> RequeueOut;
@@ -320,7 +320,7 @@ namespace Fetcho
                             ResourceFetcher.WaitingToWrite,
                             completedFetches,
                             FetchoConfiguration.Current.MaxConcurrentFetches - fetchLock.CurrentCount,
-                            (DateTime.Now - startTime));
+                            (DateTime.UtcNow - startTime));
 
     }
 }

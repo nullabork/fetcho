@@ -14,7 +14,7 @@ namespace Fetcho.Common
         public const double MaxMatchProbability = 1.0 / 10000.0;
         public const double MinMatchProbability = 1.0 / 10000000.0;
 
-        static readonly Random random = new Random(DateTime.Now.Millisecond);
+        static readonly Random random = new Random(DateTime.UtcNow.Millisecond);
 
         public double MatchProbability { get; set; }
 
@@ -23,7 +23,7 @@ namespace Fetcho.Common
         public RandomMatchFilter(double probability)
         {
             CallOncePerPage = true;
-            MatchProbability = probability.RangeConstraint(MinMatchProbability, MaxMatchProbability);
+            MatchProbability = probability.ConstrainRange(MinMatchProbability, MaxMatchProbability);
         }
 
         public RandomMatchFilter() => MatchProbability = DefaultMatchProbability;

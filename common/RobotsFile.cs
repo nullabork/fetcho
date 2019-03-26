@@ -298,7 +298,7 @@ namespace Fetcho.Common
                     }
 
                     robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched);
-                    site.LastRobotsFetched = DateTime.Now;
+                    site.LastRobotsFetched = DateTime.UtcNow;
                     site.RobotsFile = robotsFile;
                     db = await DatabasePool.GetDatabaseAsync();
                     await db.SaveSite(site);

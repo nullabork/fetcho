@@ -16,7 +16,7 @@ namespace Fetcho.Common
         readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
         readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
         readonly SemaphoreSlim can_i_fetch_lock = new SemaphoreSlim(1);
-        readonly Random random = new Random(DateTime.Now.Millisecond);
+        readonly Random random = new Random(DateTime.UtcNow.Millisecond);
 
         public HostCacheManager()
         {
@@ -77,7 +77,7 @@ namespace Fetcho.Common
         /// <returns>True if we can fetch, false if timeout or cancelled</returns>
         public async Task<bool> WaitToFetch(string hostName, int timeoutMilliseconds)
         {
-            DateTime startTime = DateTime.Now;
+            DateTime startTime = DateTime.UtcNow;
             bool keepWaiting = true;
             bool success = false;
             HostCacheManagerRecord host_record = await GetRecord(hostName);
@@ -89,7 +89,7 @@ namespace Fetcho.Common
                     while (!await host_record.FetchWaitHandle.WaitAsync(360000))
                         Utility.LogInfo("Been waiting a long time to update a record: {0}", host_record.Host);
 
-                    DateTime n = DateTime.Now;
+                    DateTime n = DateTime.UtcNow;
                     if (host_record.IsFetchable)
                     {
                         host_record.LastCall = n;
@@ -109,7 +109,7 @@ namespace Fetcho.Common
 
                 if (keepWaiting)
                 {
-                    if (timeoutMilliseconds != Timeout.Infinite && (DateTime.Now - startTime).TotalMilliseconds > timeoutMilliseconds)
+                    if (timeoutMilliseconds != Timeout.Infinite && (DateTime.UtcNow - startTime).TotalMilliseconds > timeoutMilliseconds)
                         keepWaiting = false;
                     else
                     {
@@ -130,7 +130,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fromHost"></param>
         /// <returns></returns>
-        int GetTimeRemainingToWait(HostCacheManagerRecord host_record) => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.Now - host_record.LastCall).TotalMilliseconds);
+        int GetTimeRemainingToWait(HostCacheManagerRecord host_record) => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.UtcNow - host_record.LastCall).TotalMilliseconds);
 
         /// <summary>
         /// Moves a host to the top of the queue preventing it from being dropped out the bottom from disuse
@@ -215,7 +215,7 @@ namespace Fetcho.Common
             /// </summary>
             /// <param name="record"></param>
             /// <returns></returns>
-            public bool IsFetchable { get { return LastCall.AddMilliseconds(MaxFetchSpeedInMilliseconds) < DateTime.Now; } }
+            public bool IsFetchable { get { return LastCall.AddMilliseconds(MaxFetchSpeedInMilliseconds) < DateTime.UtcNow; } }
 
             public HostCacheManagerRecord()
             {

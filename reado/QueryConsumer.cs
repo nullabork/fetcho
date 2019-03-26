@@ -112,7 +112,8 @@ namespace Fetcho
                         Uri = RequestProperties["uri"],
                         Title = PropertyCache.SafeGet("title")?.ToString(),
                         Description = PropertyCache.SafeGet("description")?.ToString(),
-                        Created = DateTime.Now,
+                        Created = DateTime.UtcNow,
+                        Updated = DateTime.UtcNow,
                         PageSize = pageSize,
                         DataHash = datahash == MD5Hash.Empty ? "" : datahash.ToString()
                     };

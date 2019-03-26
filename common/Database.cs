@@ -26,7 +26,7 @@ namespace Fetcho.Common
 
         static readonly BinaryFormatter formatter = new BinaryFormatter();
         static readonly ILog log = LogManager.GetLogger(typeof(Database));
-        static readonly Random random = new Random(DateTime.Now.Millisecond);
+        static readonly Random random = new Random(DateTime.UtcNow.Millisecond);
         static readonly SemaphoreSlim connPool = new SemaphoreSlim(MaxConcurrentConnections);
 
         private NpgsqlConnection conn;
@@ -88,10 +88,10 @@ namespace Fetcho.Common
         /// <returns></returns>
         async Task WaitIfTooManyActiveConnections()
         {
-            DateTime start = DateTime.Now;
+            DateTime start = DateTime.UtcNow;
             while (!await connPool.WaitAsync(GetWaitTime()).ConfigureAwait(false))
                 log.InfoFormat("Waiting for a database connection for {0}ms",
-                    (DateTime.Now - start).TotalMilliseconds);
+                    (DateTime.UtcNow - start).TotalMilliseconds);
         }
 
         /// <summary>
@@ -268,7 +268,7 @@ namespace Fetcho.Common
                                              "       and next_fetch > :next_fetch " +
                                              "limit  1;");
                 cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
-                cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", DateTime.Now));
+                cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", DateTime.UtcNow));
                 cmd.Prepare();
 
                 object o = await cmd.ExecuteScalarAsync();
@@ -718,67 +718,38 @@ namespace Fetcho.Common
             cmd.Prepare();
         }
 
-        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long offset, int count, bool descendingOrder)
+
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long offset, int count, string orderBy = "sequence ASC")
         {
             var l = new List<WorkspaceResult>();
 
             string sql =
-            "select urihash, uri, referrer, title, description, created, page_size, sequence, tags, datahash " +
-            "from   \"WorkspaceResult\" " +
+            WorkspaceResultSelectLine +
             "where  workspace_id = :workspace_id " +
-            "order  by sequence " + (descendingOrder ? " desc" : " asc") + " " +
+            "order  by " + orderBy + " " +
             "limit  " + count + " offset " + offset + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Prepare();
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 while (reader.Read())
                 {
-                    byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
-                    byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
-
-                    reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
-                    if (!reader.IsDBNull(9))
-                        reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
-
-                    var h = new MD5Hash(datahash);
-
-                    l.Add(new WorkspaceResult()
-                    {
-                        UriHash = new MD5Hash(urihash).ToString(),
-                        Uri = reader.GetString(1),
-                        RefererUri = IsNull(reader, 2, ""),
-                        Title = IsNull(reader, 3, ""),
-                        Description = IsNull(reader, 4, ""),
-                        Created = reader.GetDateTime(5),
-                        PageSize = reader.GetInt64(6),
-                        GlobalSequence = reader.GetInt64(7),
-                        DataHash = h == MD5Hash.Empty ? "" : h.ToString()
-                    });
-
-                    if (!reader.IsDBNull(8))
-                    {
-                        string t = reader.GetString(8);
-                        if (!String.IsNullOrWhiteSpace(t))
-                            l[l.Count - 1].Tags.AddRange(t.Trim().Split(' '));
-                    }
+                    l.Add(GetWorkspaceResultFromReader(reader));
                 }
             }
 
             return l;
         }
 
-        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResultsByRandom(Guid workspaceId, int count)
+        public async Task<IEnumerable<WorkspaceResult>> GetRandomWorkspaceResultsByWorkspaceId(Guid workspaceId, int count)
         {
             var l = new List<WorkspaceResult>();
-            byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
-            byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
 
             string sql =
-            "select urihash, uri, referrer, title, description, created, page_size, sequence, tags, datahash " +
-            "from   \"WorkspaceResult\" " +
+            WorkspaceResultSelectLine +
             "where  workspace_id = :workspace_id and" +
             "       random > :random " +
             "order  by random " +
@@ -787,58 +758,99 @@ namespace Fetcho.Common
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
             cmd.Parameters.Add(new NpgsqlParameter<double>("random", random.NextDouble()));
+            cmd.Prepare();
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 while (reader.Read())
                 {
-                    reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
-                    if (!reader.IsDBNull(9))
-                        reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
-
-                    var h = new MD5Hash(datahash);
-
-                    l.Add(new WorkspaceResult()
-                    {
-                        UriHash = new MD5Hash(urihash).ToString(),
-                        Uri = reader.GetString(1),
-                        RefererUri = IsNull(reader, 2, ""),
-                        Title = IsNull(reader, 3, ""),
-                        Description = IsNull(reader, 4, ""),
-                        Created = reader.GetDateTime(5),
-                        PageSize = reader.GetInt64(6),
-                        GlobalSequence = reader.GetInt64(7),
-                        DataHash = h == MD5Hash.Empty ? "" : h.ToString()
-                    });
-
-                    if (!reader.IsDBNull(8))
-                    {
-                        string t = reader.GetString(8);
-                        if (!String.IsNullOrWhiteSpace(t))
-                            l[l.Count - 1].Tags.AddRange(t.Trim().Split(' '));
-                    }
+                    l.Add(GetWorkspaceResultFromReader(reader));
                 }
             }
 
             return l;
         }
 
+        public async Task<WorkspaceResult> GetWorkspaceResultByUri(Uri uri)
+            => await GetWorkspaceResultByHash(MD5Hash.Compute(uri.ToString()));
+
+        public async Task<WorkspaceResult> GetWorkspaceResultByHash(MD5Hash hash)
+        {
+            string sql =
+            WorkspaceResultSelectLine +
+            "where  urihash = :urihash";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+            cmd.Prepare();
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                if (reader.Read())
+                {
+                    return GetWorkspaceResultFromReader(reader);
+                }
+            }
+
+            return null;
+        }
+
+        public const string WorkspaceResultSelectLine =
+            "select urihash, uri, referer, title, description, created, page_size, sequence, tags, datahash, updated " +
+            "from   \"WorkspaceResult\" ";
+
+        private WorkspaceResult GetWorkspaceResultFromReader(DbDataReader reader)
+        {
+            byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
+            byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
+
+            reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
+            if (!reader.IsDBNull(9))
+                reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
+
+            var h = new MD5Hash(datahash);
+
+            var r = new WorkspaceResult()
+            {
+                UriHash = new MD5Hash(urihash).ToString(),
+                Uri = reader.GetString(1),
+                RefererUri = IsNull(reader, 2, ""),
+                Title = IsNull(reader, 3, ""),
+                Description = IsNull(reader, 4, ""),
+                Created = reader.GetDateTime(5),
+                Updated = IsNull(reader, 10, DateTime.UtcNow),
+                PageSize = reader.GetInt64(6),
+                GlobalSequence = reader.GetInt64(7),
+                DataHash = h == MD5Hash.Empty ? "" : h.ToString()
+            };
+
+            if (!reader.IsDBNull(8))
+            {
+                string t = reader.GetString(8);
+                if (!String.IsNullOrWhiteSpace(t))
+                    r.Tags.AddRange(t.Trim().Split(' '));
+            }
+
+            return r;
+        }
+
         public async Task AddWorkspaceResults(Guid workspaceId, IEnumerable<WorkspaceResult> results)
         {
             string updateSql = "set client_encoding='UTF8'; update \"WorkspaceResult\" " +
               "set    uri = :uri, " +
-              "       referrer = :referrer, " +
+              "       referer = :referer, " +
               "       title = :title, " +
               "       description = :description, " +
               "       page_size = :page_size, " +
-              "       created = :created, " +
+              "       updated = :updated, " +
               "       tags = :tags, " +
               "       datahash = :datahash " +
               "where  urihash = :urihash and " +
               "       workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceResult\" ( urihash, uri, referrer, title, description, created, workspace_id, page_size, tags, datahash) " +
-              "values ( :urihash, :uri, :referrer, :title, :description, :created, :workspace_id, :page_size, :tags, :datahash );";
+            string insertSql = "set client_encoding='UTF8'; " + 
+                "insert into \"WorkspaceResult\" ( urihash, uri, referer, title, description, created, updated, workspace_id, page_size, tags, datahash) " +
+                "values ( :urihash, :uri, :referer, :title, :description, :created, :updated, :workspace_id, :page_size, :tags, :datahash );";
 
             foreach (var result in results)
             {
@@ -859,10 +871,11 @@ namespace Fetcho.Common
         {
             cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", new MD5Hash(result.UriHash).Values));
             cmd.Parameters.Add(new NpgsqlParameter<string>("uri", result.Uri));
-            cmd.Parameters.Add(new NpgsqlParameter<string>("referrer", result.RefererUri));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("referer", result.RefererUri));
             cmd.Parameters.Add(new NpgsqlParameter<string>("title", result.Title));
             cmd.Parameters.Add(new NpgsqlParameter<string>("description", result.Description));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", result.Created));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("updated", result.Updated));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));

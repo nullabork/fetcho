@@ -83,10 +83,10 @@ namespace Fetcho.Common.Tests
 
             using (var db = new Database("Server=127.0.0.1;Port=5433;User Id=postgres;Password=postgres;Database=fetcho;Enlist=false"))
             {
-                DateTime start = DateTime.Now;
+                DateTime start = DateTime.UtcNow;
                 for ( int i=0;i<100000;i++)
                     Assert.IsTrue(await db.NeedsVisiting(uri));
-                Assert.IsTrue(false, (DateTime.Now - start).ToString()); // 21.73 22.59
+                Assert.IsTrue(false, (DateTime.UtcNow - start).ToString()); // 21.73 22.59
             }
         }
     }

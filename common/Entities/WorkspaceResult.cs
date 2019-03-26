@@ -20,6 +20,8 @@ namespace Fetcho.Common.Entities
 
         public DateTime Created { get; set; }
 
+        public DateTime Updated { get; set; }
+
         public long? PageSize { get; set; }
 
         public long GlobalSequence { get; set; }
@@ -32,6 +34,7 @@ namespace Fetcho.Common.Entities
             PageSize = null;
             GlobalSequence = -1;
             Created = DateTime.MinValue;
+            Updated = DateTime.MinValue;
             Description = String.Empty;
             Title = String.Empty;
             Uri = String.Empty;

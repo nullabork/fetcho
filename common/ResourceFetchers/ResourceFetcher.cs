@@ -29,7 +29,7 @@ namespace Fetcho.Common
 
         public abstract Task Fetch(
             Uri uri,
-            Uri referrerUri,
+            Uri refererUri,
             DateTime? lastFetchedDate,
             BufferBlock<WebDataPacketWriter> writerPool
             );
@@ -37,7 +37,7 @@ namespace Fetcho.Common
         /// <summary>
         /// For any URI fires up a fetcher to get it
         /// </summary>
-        /// <param name="referrerUri"></param>
+        /// <param name="refererUri"></param>
         /// <param name="uri"></param>
         /// <param name="writeStream"></param>
         /// <param name="blockProvider"></param>
@@ -45,7 +45,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static async Task FetchFactory(
             Uri uri,
-            Uri referrerUri,
+            Uri refererUri,
             DateTime? lastFetchedDate,
             BufferBlock<WebDataPacketWriter> writerPool
             )
@@ -55,7 +55,7 @@ namespace Fetcho.Common
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
                 await new HttpResourceFetcher().Fetch(
                     uri,
-                    referrerUri,
+                    refererUri,
                     lastFetchedDate,
                     writerPool).ConfigureAwait(false);
             //      else if ( uri.Scheme == Uri.UriSchemeFtp )
@@ -82,7 +82,7 @@ namespace Fetcho.Common
             }
             else
             {
-                DateTime now = DateTime.Now;
+                DateTime now = DateTime.UtcNow;
                 outstream.WriteStartElement("request");
                 outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri == null ? "" : request.RequestUri.ToString().CleanupForXml()));
                 outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));

@@ -181,7 +181,7 @@ namespace Fetcho.Common
         }
         
         /// <summary>
-        /// Extract the Referrer URI from the raw request string
+        /// Extract the Referer URI from the raw request string
         /// </summary>
         /// <param name="requestString"></param>
         /// <returns></returns>

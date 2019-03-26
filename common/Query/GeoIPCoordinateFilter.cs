@@ -54,8 +54,8 @@ namespace Fetcho.Common
 
             public bool IsWithin(double latitude, double longitude)
                 => IsValid &&
-                latitude.Between(Math.Min(CoordOne[0], CoordTwo[0]), Math.Max(CoordOne[0], CoordTwo[0])) &&
-                longitude.Between(Math.Min(CoordOne[1], CoordTwo[1]), Math.Max(CoordOne[1], CoordTwo[1]));
+                latitude.IsBetween(Math.Min(CoordOne[0], CoordTwo[0]), Math.Max(CoordOne[0], CoordTwo[0])) &&
+                longitude.IsBetween(Math.Min(CoordOne[1], CoordTwo[1]), Math.Max(CoordOne[1], CoordTwo[1]));
 
             public override string ToString()
                 => string.Format("[[{0},{1}],[{2},{3}]]", CoordOne[0], CoordOne[1], CoordTwo[0], CoordTwo[1]);

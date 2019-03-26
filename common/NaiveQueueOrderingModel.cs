@@ -12,7 +12,7 @@ namespace Fetcho.Common
     /// </summary>
     public class NaiveQueueOrderingModel : IQueuePriorityCalculationModel
     {
-        static readonly Random rand = new Random(DateTime.Now.Millisecond);
+        static readonly Random rand = new Random(DateTime.UtcNow.Millisecond);
 
         const int MinHostsAreEqualPriority = 10 * 1000 * 1000;
         const int MaxHostsAreEqualPriority = 200 * 1000 * 1000;

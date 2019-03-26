@@ -28,7 +28,7 @@ namespace Fetcho.Common.QueryEngine
 
         public EvaluationResult Evaluate(IWebResource resource, string words, Stream stream)
         {
-            var ticks = DateTime.Now.Ticks;
+            var ticks = DateTime.UtcNow.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
             var inc = IncludeFilters.AllMatch(resource, words, stream);
@@ -43,7 +43,7 @@ namespace Fetcho.Common.QueryEngine
             if (action == EvaluationResultAction.Include)
                 tags = TagFilters.GetTags(resource, words, stream);
 
-            var r = new EvaluationResult(action, tags, DateTime.Now.Ticks - ticks);
+            var r = new EvaluationResult(action, tags, DateTime.UtcNow.Ticks - ticks);
             DoBookKeeping(r);
             return r;
         }

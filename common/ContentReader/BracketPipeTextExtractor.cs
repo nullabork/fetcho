@@ -1,6 +1,7 @@
 ﻿using BracketPipe;
 using Fetcho.Common;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Fetcho.ContentReaders
@@ -57,7 +58,7 @@ namespace Fetcho.ContentReaders
 
                     if (!skip && c.Type == HtmlTokenType.Text)
                     {
-                        if (c.Value.Length.Between(MinimumLength, MaximumLength))
+                        if (c.Value.Length.IsBetween(MinimumLength, MaximumLength))
                         {
                             if (cache == null || !cache.Contains(c.Value))
                             {
@@ -68,6 +69,14 @@ namespace Fetcho.ContentReaders
                     }
                 }
             }
+        }
+
+        public static IEnumerable<string> ReadAllText(Stream stream)
+        {
+            var l = new List<string>();
+            var parser = new BracketPipeTextExtractor();
+            parser.Parse(stream, l.Add);
+            return l;
         }
     }
 

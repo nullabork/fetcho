@@ -18,7 +18,7 @@ namespace Fetcho.Common
     public static class Utility
     {
         static readonly ILog log = LogManager.GetLogger(typeof(Utility));
-        static Random random = new Random(DateTime.Now.Millisecond);
+        static Random random = new Random(DateTime.UtcNow.Millisecond);
 
         /// <summary>
         /// Get the IP Address of the host from a URI

@@ -245,7 +245,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskey/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "ASC")
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
         {
             try
             {
@@ -288,7 +288,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
 
-                return await GetRandomResultsByWorkspaceId(workspaceId, count);
+                return await GetRandomWorkspaceResultsByWorkspaceId(workspaceId, count);
             }
             catch (Exception ex)
             {
@@ -329,17 +329,19 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "ASC")
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
         {
+            string[] acceptableOrderByTokens = { "sequence", "updated", "asc", "desc" };
+
             try
             {
-                bool descendingOrder = (order.ToLower() == "desc");
-                count = count.RangeConstraint(1, MaxResultsReturned);
-                offset = offset.MinConstraint(0);
+                count = count.ConstrainRange(1, MaxResultsReturned);
+                offset = offset.ConstrainMin(0);
+                ThrowIfOrderParameterIsInvalid(acceptableOrderByTokens, order);
 
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
-                    results = await db.GetWorkspaceResults(workspaceId, offset, count, descendingOrder);
+                    results = await db.GetWorkspaceResults(workspaceId, offset, count, BuildSqlOrderByStringFromQueryStringOrderString(order));
                 return CreateOKResponse(results);
             }
             catch (Exception ex)
@@ -352,20 +354,19 @@ namespace Fetcho.FetchoAPI.Controllers
         /// Get random results from a workspace
         /// </summary>
         /// <param name="workspaceId">Workspace guid</param>
-        /// <param name="minSequence">Minimum sequence value to start from</param>
         /// <param name="count">Max number of results to get</param>
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results/random")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetRandomResultsByWorkspaceId(Guid workspaceId, int count = 1)
+        public async Task<HttpResponseMessage> GetRandomWorkspaceResultsByWorkspaceId(Guid workspaceId, int count = 1)
         {
             try
             {
-                count = count.RangeConstraint(1, MaxResultsReturned);
+                count = count.ConstrainRange(1, MaxResultsReturned);
 
                 IEnumerable<WorkspaceResult> results = null;
                 using (var db = new Database())
-                    results = await db.GetWorkspaceResultsByRandom(workspaceId, count);
+                    results = await db.GetRandomWorkspaceResultsByWorkspaceId(workspaceId, count);
                 return CreateOKResponse(results);
             }
             catch (Exception ex)
@@ -387,7 +388,19 @@ namespace Fetcho.FetchoAPI.Controllers
             try
             {
                 using (var db = new Database())
+                {
+                    foreach (var result in results)
+                    {
+                        // update updated dates
+                        var r = await db.GetWorkspaceResultByHash(new MD5Hash(result.UriHash));
+                        if (r.DataHash != result.DataHash)
+                            result.Updated = DateTime.UtcNow;
+                        else
+                            result.Updated = r.Updated;
+                    }
+
                     await db.AddWorkspaceResults(workspaceId, results);
+                }
 
                 return CreateCreatedResponse((WorkspaceResult)null);
             }
@@ -568,6 +581,14 @@ namespace Fetcho.FetchoAPI.Controllers
         #region helper methods
 
         /// <summary>
+        /// Take string in query string order format [field]:[sort] and convert it to SQL order by format
+        /// </summary>
+        /// <param name="order"></param>
+        /// <returns></returns>
+        private string BuildSqlOrderByStringFromQueryStringOrderString(string order)
+            => order.Replace(':', ' ');
+
+        /// <summary>
         /// Test that the GUID and workspace match - throw if not
         /// </summary>
         /// <param name="workspace"></param>
@@ -614,10 +635,17 @@ namespace Fetcho.FetchoAPI.Controllers
                 throw new PermissionDeniedFetchoException("Permission denied");
         }
 
+        private void ThrowIfOrderParameterIsInvalid(string[] acceptableOrderByTokens, string order)
+        {
+            var orderTokens = order.Split(',', ':');
+            if (orderTokens.Intersect(acceptableOrderByTokens).Count() != orderTokens.Length)
+                throw new InvalidRequestFetchoException("Invalid query parameter: order");
+        }
+
         private void FixAccountObject(Account accessKey)
         {
             if (accessKey.Created == DateTime.MinValue)
-                accessKey.Created = DateTime.Now;
+                accessKey.Created = DateTime.UtcNow;
         }
 
         private async Task<Guid> GetWorkspaceIdOrThrowIfNoAccess(Guid workspaceAccessKeyId)

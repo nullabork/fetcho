@@ -17,7 +17,7 @@ namespace Fetcho.Common.Entities
         
         public Account()
         {
-            Created = DateTime.Now;
+            Created = DateTime.UtcNow;
             IsActive = true;
             Name = Utility.GetRandomHashString();
             AccessKeys = new List<AccessKey>();

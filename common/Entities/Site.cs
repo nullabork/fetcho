@@ -17,7 +17,7 @@ namespace Fetcho.Common.Entities
 
         public DateTime NextRobotsFetch { get => !LastRobotsFetched.HasValue ? DateTime.MinValue : LastRobotsFetched.Value.AddDays(FetchoConfiguration.Current.RobotsCacheTimeoutDays);  }
 
-        public bool RobotsNeedsVisiting { get => DateTime.Now > NextRobotsFetch;  }
+        public bool RobotsNeedsVisiting { get => DateTime.UtcNow > NextRobotsFetch;  }
 
         public Site()
         {
