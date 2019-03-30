@@ -19,7 +19,11 @@ namespace Fetcho.Common
 
         public override string Name => "Workspace Sub Query Filter";
 
-        public override decimal Cost => 2000m;
+        public override decimal Cost => Query.AvgCost;
+
+        public override bool RequiresResultInput { get => Query.RequiresResultInput; }
+        public override bool RequiresStreamInput { get => Query.RequiresStreamInput; }
+        public override bool RequiresTextInput { get => Query.RequiresTextInput; }
 
         public WorkspaceSubQueryFilter(Query query, string headerKey, string searchText)
         {
@@ -31,13 +35,13 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("{0}{1}):{2}", WorkspaceQueryFilterKey, HeaderKey, SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            var result = Query.Evaluate(resource, fragment, stream);
+            var eval = Query.Evaluate(result, fragment, stream);
 
-            if (result.Action == EvaluationResultAction.Include)
+            if (eval.Action == EvaluationResultAction.Include)
             {
-                return result.Tags.Any() ? result.Tags.ToArray() : new string[1];
+                return eval.Tags.Any() ? result.Tags.ToArray() : new string[1];
             }
 
             return EmptySet;

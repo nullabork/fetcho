@@ -26,33 +26,33 @@ namespace Fetcho.Common
 
         public void Clear() => Filters.Clear();
 
-        public bool AllMatch(IWebResource resource, string fragment, Stream stream)
+        public bool AllMatch(WorkspaceResult result, string fragment, Stream stream)
             => Filters
             .OrderBy(x => x.Cost)
-            .All(x => x.IsMatch(resource, fragment, stream).Any());
+            .All(x => x.IsMatch(result, fragment, stream).Any());
 
-        public bool AllMatch(IWebResource resource, string fragment, Stream stream, FilterCollectionMatchOptions options)
+        public bool AllMatch(WorkspaceResult result, string fragment, Stream stream, FilterCollectionMatchOptions options)
             => Filters
             .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
             .OrderBy(x => x.Cost)
-            .All(x => x.IsMatch(resource, fragment, stream).Any());
+            .All(x => x.IsMatch(result, fragment, stream).Any());
 
-        public bool AnyMatch(IWebResource resource, string fragment, Stream stream)
+        public bool AnyMatch(WorkspaceResult result, string fragment, Stream stream)
             => Filters
             .OrderBy(x => x.Cost)
-            .Any(x => x.IsMatch(resource, fragment, stream).Any());
+            .Any(x => x.IsMatch(result, fragment, stream).Any());
 
-        public bool AnyMatch(IWebResource resource, string fragment, Stream stream, FilterCollectionMatchOptions options)
+        public bool AnyMatch(WorkspaceResult result, string fragment, Stream stream, FilterCollectionMatchOptions options)
             => Filters
             .Where(x => !x.CallOncePerPage || options.RunCallOnceFilters)
             .OrderBy(x => x.Cost)
-            .Any(x => x.IsMatch(resource, fragment, stream).Any());
+            .Any(x => x.IsMatch(result, fragment, stream).Any());
         
-        public IEnumerable<string> GetTags(IWebResource resource, string fragment, Stream stream)
+        public IEnumerable<string> GetTags(WorkspaceResult result, string fragment, Stream stream)
         {
             var l = new List<string>();
             foreach (var filter in Filters)
-                l.AddRange(filter.IsMatch(resource, fragment, stream));
+                l.AddRange(filter.IsMatch(result, fragment, stream));
             return l.Distinct();
         }
         public IEnumerator<Filter> GetEnumerator()

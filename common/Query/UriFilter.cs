@@ -11,6 +11,8 @@ namespace Fetcho.Common
 
         public override string Name => "URI filter";
 
+        public override bool RequiresResultInput { get => true; }
+
         public UriFilter(string searchText) : this()
             => SearchText = searchText;
 
@@ -20,8 +22,8 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("uri:{0}", SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
-            => resource.RequestProperties["uri"].Contains(SearchText) ? new string[1] { resource.RequestProperties["uri"] } : EmptySet;
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
+            => result.RequestProperties["uri"].Contains(SearchText) ? new string[1] { result.RequestProperties["uri"] } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object

@@ -20,19 +20,20 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("geo-ip-{0}:{1}", Property, FilterData);
 
+        public override bool RequiresResultInput { get => true; }
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             const string HostIPCacheKey = "hostip";
 
             try
             {
-                var uri = new Uri(resource.RequestProperties["uri"]);
+                var uri = new Uri(result.RequestProperties["uri"]);
 
-                if ( !resource.PropertyCache.ContainsKey(HostIPCacheKey))
-                    resource.PropertyCache.Add(HostIPCacheKey, Utility.GetHostIPAddress(uri).GetAwaiter().GetResult());
+                if ( !result.PropertyCache.ContainsKey(HostIPCacheKey))
+                    result.PropertyCache.Add(HostIPCacheKey, Utility.GetHostIPAddress(uri).GetAwaiter().GetResult());
 
-                IPAddress ip = resource.PropertyCache[HostIPCacheKey] as IPAddress;
+                IPAddress ip = result.PropertyCache[HostIPCacheKey] as IPAddress;
 
                 var c = database.City(ip);
 

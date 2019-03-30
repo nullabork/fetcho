@@ -12,6 +12,8 @@ namespace Fetcho.Common
         public override string Name 
             => "Data Hash Filter";
 
+        public override bool RequiresResultInput { get => true; }
+
         public DataHashFilter(string hash) : this()
             => Hash = hash.ToLower();
 
@@ -21,16 +23,11 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("hash:{0}", Hash);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             var hash = "";
-            if (resource.PropertyCache.ContainsKey("datahash"))
-                hash = resource.PropertyCache["datahash"].ToString().ToLower();
-            else
-            {
-                hash = MD5Hash.Compute(stream).ToString();
-                resource.PropertyCache.Add("datahash", MD5Hash.Compute(stream).ToString().ToLower());
-            }
+            if (!String.IsNullOrWhiteSpace(result.DataHash))
+                hash = result.DataHash;
 
             if (hash.Equals(Hash, StringComparison.InvariantCultureIgnoreCase) || String.IsNullOrWhiteSpace(Hash)) return new string[1] { hash };
             return EmptySet;

@@ -28,7 +28,7 @@ namespace Fetcho.Common
 
         public RandomMatchFilter() => MatchProbability = DefaultMatchProbability;
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             bool rtn = random.NextDouble() < MatchProbability;
 

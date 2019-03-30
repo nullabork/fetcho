@@ -10,8 +10,7 @@ namespace Fetcho.Common
     [Filter(
         "tag:",
         "tag:[tagfilter|*][:replace_with]",
-        Description = "Filter by a tag",
-        Hidden = true)]
+        Description = "Filter by a tag")]
     public class TagFilter : Filter
     {
         public string TagName { get; set; }
@@ -20,13 +19,18 @@ namespace Fetcho.Common
 
         public override decimal Cost => 999999m;
 
+        public override bool RequiresResultInput { get => true; }
+
         public override string GetQueryText()
             => string.Format("tag:{0}", TagName);
 
         public TagFilter(string tagName) => TagName = tagName.ToLower();
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
+            foreach (var tag in result.Tags)
+                if (tag.Contains(TagName))
+                    return new string[] { Utility.MakeTag(TagName) };
             return EmptySet;
         }
 

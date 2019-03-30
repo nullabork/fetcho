@@ -16,16 +16,18 @@ namespace Fetcho.Common
 
         public override decimal Cost => 2m;
 
+        public override bool RequiresResultInput { get => true; }
+
         public override string GetQueryText()
             => string.Format("has:{0}", PropertyName);
 
         public HasFilter(string propertyName) => PropertyName = propertyName.ToLower();
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            if (resource.PropertyCache.ContainsKey(PropertyName))
+            if (result.PropertyCache.ContainsKey(PropertyName))
             {
-                var o = resource.PropertyCache[PropertyName];
+                var o = result.PropertyCache[PropertyName];
                 if ( o == null || String.IsNullOrWhiteSpace(o.ToString())) return EmptySet;
                 return new string[1] { "has-" + PropertyName };
             }

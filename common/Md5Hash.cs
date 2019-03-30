@@ -59,7 +59,7 @@ namespace Fetcho.Common
         {
             var sb = new StringBuilder();
             foreach (byte b in Values)
-                sb.AppendFormat("{0:X2}", b);
+                sb.AppendFormat("{0:x2}", b);
             return sb.ToString();
         }
 

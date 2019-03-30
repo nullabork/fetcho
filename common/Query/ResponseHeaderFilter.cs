@@ -16,6 +16,8 @@ namespace Fetcho.Common
 
         public override string Name => "Response Header Filter";
 
+        public override bool RequiresResultInput { get => true; }
+
         public ResponseHeaderFilter(string headerKey, string searchText) : this()
         {
             SearchText = searchText.ToLower();
@@ -28,10 +30,10 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("{0}{1}):{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
-            => resource.ResponseProperties.ContainsKey(HeaderKey)
-               && (String.IsNullOrWhiteSpace(SearchText) || resource.ResponseProperties[HeaderKey].Contains(SearchText)) ?
-                      new string[1] { Utility.MakeTag(resource.ResponseProperties[HeaderKey]) } : EmptySet;
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
+            => result.ResponseProperties.ContainsKey(HeaderKey)
+               && (String.IsNullOrWhiteSpace(SearchText) || result.ResponseProperties[HeaderKey].Contains(SearchText)) ?
+                      new string[1] { Utility.MakeTag(result.ResponseProperties[HeaderKey]) } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object

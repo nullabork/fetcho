@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace Fetcho.Common.Entities
 {
@@ -30,6 +31,15 @@ namespace Fetcho.Common.Entities
 
         public string DebugInfo { get; set; }
 
+        [JsonIgnore]
+        public Dictionary<string, string> RequestProperties { get; set; }
+
+        [JsonIgnore]
+        public Dictionary<string, string> ResponseProperties { get; set; }
+
+        [JsonIgnore]
+        public Dictionary<string, object> PropertyCache { get; set; }
+
         public WorkspaceResult()
         {
             Tags = new List<string>();
@@ -44,6 +54,10 @@ namespace Fetcho.Common.Entities
             UriHash = String.Empty;
             DataHash = String.Empty;
             DebugInfo = String.Empty;
+
+            RequestProperties = new Dictionary<string, string>();
+            ResponseProperties = new Dictionary<string, string>();
+            PropertyCache = new Dictionary<string, object>();
         }
 
         public string GetTagString()

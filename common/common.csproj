@@ -204,6 +204,7 @@
     <Compile Include="Configuration\ConfigurationSetting.cs" />
     <Compile Include="ContentReader\BracketPipeTextExtractor.cs" />
     <Compile Include="ContentReader\HtmlFileLinkExtractor.cs" />
+    <Compile Include="ContentReader\WorkspaceResultBuilder.cs" />
     <Compile Include="DatabasePool.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsoleWriter.cs" />
     <Compile Include="DataFlow\BufferBlockObjectConsumer.cs" />

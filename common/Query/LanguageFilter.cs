@@ -17,6 +17,8 @@ namespace Fetcho.Common
 
         public override decimal Cost => 50m;
 
+        public override bool RequiresTextInput { get => true; }
+
         public LanguageFilter(string language) : this()
             => Language = language;
 
@@ -28,7 +30,7 @@ namespace Fetcho.Common
 
         public override string GetQueryText() => string.Format("lang:{0}", Language);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             var l = detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault();
 

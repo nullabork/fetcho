@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common;
 using Fetcho.Common.Entities;
+using Fetcho.Common.QueryEngine;
 using Fetcho.ContentReaders;
 using System;
 using System.Collections.Generic;
@@ -11,6 +12,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
+using System.Web.Http.OData;
 
 namespace Fetcho.FetchoAPI.Controllers
 {
@@ -185,6 +187,39 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/accesskey/{accessKeyId}")]
+        [HttpPatch()]
+        public async Task<HttpResponseMessage> PatchAccessKey(Guid accessKeyId, [FromBody]Delta<AccessKey> delta)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    var accessKey = await db.GetAccessKey(accessKeyId);
+                    if (accessKey == null)
+                        throw new AccessKeyDoesntExistFetchoException("AccessKey doesnt exist");
+
+                    if (accessKey.Workspace == null)
+                        accessKey.Workspace = new Workspace()
+                        {
+                            Name = Utility.GetRandomHashString()
+                        };
+
+                    delta.Patch(accessKey);
+
+                    AccessKey.Validate(accessKey);
+                    await db.SaveAccessKey(accessKey);
+                    await db.SaveWorkspace(accessKey.Workspace);
+
+                    return CreateUpdatedResponse(accessKey);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         /// <summary>
         /// Update a workspace record
         /// </summary>
@@ -305,6 +340,48 @@ namespace Fetcho.FetchoAPI.Controllers
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
 
                 return await PostWorkspaceResultsByWorkspaceId(workspaceId, results);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accesskey/{accessKeyId}/results")]
+        [HttpDelete()]
+        public async Task<HttpResponseMessage> DeleteWorkspaceResultsByAccessKeyId(Guid accessKeyId, [FromBody]WorkspaceResultTransform transform)
+        {
+            try
+            {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(
+                        db,
+                        accessKeyId,
+                        WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
+                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
+
+                return await DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accesskey/{accessKeyId}/results/{urihash}")]
+        [HttpDelete()]
+        public async Task<HttpResponseMessage> DeleteWorkspaceResultByAccessKeyId(Guid accessKeyId, string urihash)
+        {
+            try
+            {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(
+                        db,
+                        accessKeyId,
+                        WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
+                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
+
+                return await DeleteWorkspaceResultByWorkspaceId(workspaceId, urihash);
             }
             catch (Exception ex)
             {
@@ -443,17 +520,27 @@ namespace Fetcho.FetchoAPI.Controllers
                 {
                     if (transform.Action == WorkspaceResultTransformAction.DeleteAll)
                     {
-                        db.DeleteAllWorkspaceResultsByWorkspaceId(workspaceId);
+                        await db.DeleteAllWorkspaceResultsByWorkspaceId(workspaceId);
                     }
                     else if (transform.Action == WorkspaceResultTransformAction.DeleteSpecificResults)
                     {
                         await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform.Results);
                     }
                     else if (transform.Action == WorkspaceResultTransformAction.DeleteByQueryText)
-                    { 
-                        throw new NotImplementedException("Delete using QueryText property is not implemented yet");
-                    }
+                    {
+                        var query = new Query(transform.QueryText);
+                        ThrowIfQueryContainsInvalidOptions(query);
+                        var results = await db.GetWorkspaceResults(workspaceId);
+                        var resultsToDelete = new List<WorkspaceResult>();
+                        foreach ( var result in results )
+                        {
+                            var eval = query.Evaluate(result, String.Empty, null);
+                            if (eval.Action == EvaluationResultAction.Include)
+                                resultsToDelete.Add(result);
+                        }
 
+                        await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, resultsToDelete);
+                    }
                 }
 
                 return CreateNoContentResponse();
@@ -693,6 +780,12 @@ namespace Fetcho.FetchoAPI.Controllers
                 throw new InvalidRequestFetchoException("The transform passed through is not a delete action");
         }
 
+        private void ThrowIfQueryContainsInvalidOptions(Query query)
+        {
+            if (query.RequiresStreamInput || query.RequiresTextInput)
+                throw new InvalidRequestFetchoException("Query contains options which can't be used for this purpose");
+        }
+
         private void FixAccountObject(Account accessKey)
         {
             if (accessKey.Created == DateTime.MinValue)
@@ -710,6 +803,9 @@ namespace Fetcho.FetchoAPI.Controllers
 
         private HttpResponseMessage CreateCreatedResponse<T>(T obj = default(T))
             => !EqualityComparer<T>.Default.Equals(obj, default(T)) ? Request.CreateResponse(HttpStatusCode.Created, obj) : Request.CreateResponse(HttpStatusCode.Created);
+
+        private HttpResponseMessage CreateUpdatedResponse<T>(T obj = default(T))
+            => !EqualityComparer<T>.Default.Equals(obj, default(T)) ? Request.CreateResponse(HttpStatusCode.Accepted, obj) : Request.CreateResponse(HttpStatusCode.Accepted);
 
         private HttpResponseMessage CreateNoContentResponse()
             => Request.CreateResponse(HttpStatusCode.NoContent);

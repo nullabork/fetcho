@@ -22,6 +22,10 @@ namespace Fetcho.Common.QueryEngine
         public int NumberOfEvaluations { get; set; }
         public string OriginalQueryText { get; set; }
 
+        public bool RequiresTextInput { get; protected set; }
+        public bool RequiresStreamInput { get; protected set; }
+        public bool RequiresResultInput { get; protected set; }
+
         public Query(string queryText)
         {
             OriginalQueryText = queryText;
@@ -32,29 +36,29 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Evalute some resource against this query to figure out whether to ignore, include or exclude it from the workspace
         /// </summary>
-        /// <param name="resource"></param>
+        /// <param name="result"></param>
         /// <param name="words"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public EvaluationResult Evaluate(IWebResource resource, string words, Stream stream)
+        public EvaluationResult Evaluate(WorkspaceResult result, string words, Stream stream)
         {
             IEnumerable<string> tags = null;
             var ticks = DateTime.UtcNow.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var exc = ExcludeFilters.AnyMatch(resource, words, stream);
+            var exc = ExcludeFilters.AnyMatch(result, words, stream);
 
             if (exc)
                 action = EvaluationResultAction.Exclude;
             else
             {
-                var inc = IncludeFilters.AllMatch(resource, words, stream);
+                var inc = IncludeFilters.AllMatch(result, words, stream);
 
                 if (inc) action = EvaluationResultAction.Include;
                 else if (!inc) action = EvaluationResultAction.NotEvaluated;
 
                 if (action == EvaluationResultAction.Include)
-                    tags = TagFilters.GetTags(resource, words, stream);
+                    tags = TagFilters.GetTags(result, words, stream);
             }
 
             var r = new EvaluationResult(action, tags, DateTime.UtcNow.Ticks - ticks);

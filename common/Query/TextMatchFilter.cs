@@ -22,7 +22,9 @@ namespace Fetcho.Common
         /// </summary>
         public override string Name { get => "TextMatchFilter";  }
 
-        public override decimal Cost => 3m;
+        public override decimal Cost => 30m;
+
+        public override bool RequiresTextInput { get => true; }
 
         /// <summary>
         /// Constructor
@@ -41,7 +43,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="fragment"></param>
         /// <returns></returns>
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             var idx = fragment.IndexOf(SearchText, StringComparison.InvariantCultureIgnoreCase);
             if ( idx > -1 )

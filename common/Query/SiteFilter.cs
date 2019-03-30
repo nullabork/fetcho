@@ -14,7 +14,9 @@ namespace Fetcho.Common
         public SiteFilter(string site) : this()
             => SearchText = site;
 
-        public override decimal Cost => 1m; 
+        public override decimal Cost => 1m;
+
+        public override bool RequiresResultInput { get => true; }
 
         private SiteFilter() 
             => CallOncePerPage = true;
@@ -22,9 +24,9 @@ namespace Fetcho.Common
         public override string GetQueryText() 
             => string.Format("site:{0}", SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            var uri = new Uri(resource.RequestProperties["uri"]);
+            var uri = new Uri(result.RequestProperties["uri"]);
             return uri.Host.Contains(SearchText) ? new string[1] { uri.Host } : EmptySet;
         }
 

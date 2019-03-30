@@ -11,6 +11,8 @@ namespace Fetcho.Common
 
         public override string Name => "File Type filter";
 
+        public override bool RequiresResultInput { get => true; }
+
         public FileTypeFilter(string filetype) : this()
             => SearchText = filetype;
 
@@ -20,9 +22,9 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("filetype:{0}", SearchText);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            string contentType = resource.RequestProperties.SafeGet("content-type");
+            string contentType = result.RequestProperties.SafeGet("content-type");
             return String.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
         }
 

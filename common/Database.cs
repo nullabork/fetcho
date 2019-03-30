@@ -793,16 +793,16 @@ namespace Fetcho.Common
             cmd.Prepare();
         }
 
-
-        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long offset, int count, string orderBy = "sequence ASC")
+        public async Task<IEnumerable<WorkspaceResult>> GetWorkspaceResults(Guid workspaceId, long offset = -1, int count = -1, string orderBy = "sequence ASC")
         {
             var l = new List<WorkspaceResult>();
 
             string sql =
             WorkspaceResultSelectLine +
             "where  workspace_id = :workspace_id " +
-            "order  by " + orderBy + " " +
-            "limit  " + count + " offset " + offset + ";";
+            "order  by " + orderBy + " ";
+            if (offset > -1 && count > -1)
+                sql += "limit  " + count + " offset " + offset + ";";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
@@ -921,7 +921,7 @@ namespace Fetcho.Common
               "       updated = :updated, " +
               "       tags = :tags, " +
               "       datahash = :datahash, " +
-              "       debug_info = :debug_info " + 
+              "       debug_info = :debug_info " +
               "where  urihash = :urihash and " +
               "       workspace_id = :workspace_id;";
 

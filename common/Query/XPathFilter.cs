@@ -13,6 +13,8 @@ namespace Fetcho.Common
 
         public override string Name => "XPath filter";
 
+        public override bool RequiresStreamInput { get => true; }
+
         public XPathFilter(string xpath) : this()
             => XPath = xpath;
 
@@ -22,7 +24,7 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("xpath:{0}", XPath);
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             // all the approaches I've tried so far sucked or didnt work
             // need an XPath query library that can handle streamed HTML

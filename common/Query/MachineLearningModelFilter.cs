@@ -32,6 +32,8 @@ namespace Fetcho.Common
 
         public override decimal Cost => 500m;
 
+        public override bool RequiresTextInput { get => true; }
+
         public MachineLearningModelFilter(string modelName, string filterTags, float confidenceThreshold = DefaultConfidenceThreshold)
         {
             ModelName = modelName.CleanInput();
@@ -49,13 +51,13 @@ namespace Fetcho.Common
                 String.IsNullOrWhiteSpace(SearchText) ? "*" : SearchText
                 );
 
-        public override string[] IsMatch(IWebResource resource, string fragment, Stream stream)
+        public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
 
-            if (resource.PropertyCache["datahash"].ToString() != lastDataHash)
+            if (result.DataHash != lastDataHash)
             {
                 lastPrediction = PredictionEngine.Predict(new PageData { TextData = fragment });
-                lastDataHash = resource.PropertyCache["datahash"].ToString();
+                lastDataHash = result.DataHash;
             }
 
             System.Diagnostics.Debug.WriteLine("Label '{0}', {1}, max(Score) = {2}", lastPrediction.PredictedLabels, ModelName, lastPrediction.Score.Max());

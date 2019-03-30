@@ -28,9 +28,24 @@ namespace Fetcho.Common
         public bool CallOncePerPage { get; set; }
 
         /// <summary>
+        /// Returns true if this filter uses the result input of IsMatch
+        /// </summary>
+        public virtual bool RequiresResultInput { get; protected set; }
+
+        /// <summary>
+        /// Returns true if this filter uses the text input of IsMatch
+        /// </summary>
+        public virtual bool RequiresTextInput { get; protected set; }
+
+        /// <summary>
+        /// Returns true if this filter uses the stream input of IsMatch
+        /// </summary>
+        public virtual bool RequiresStreamInput { get; protected set; }
+
+        /// <summary>
         /// If the resource is matched by this filter
         /// </summary>
-        public abstract string[] IsMatch(IWebResource resource, string fragment, Stream stream);
+        public abstract string[] IsMatch(WorkspaceResult result, string fragment, Stream stream);
 
         /// <summary>
         /// Get the textual representation of this filter
