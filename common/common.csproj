@@ -222,6 +222,7 @@
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessPermissions.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
+    <Compile Include="Entities\WorkspaceResultTransform.cs" />
     <Compile Include="ExceptionClassifier.cs" />
     <Compile Include="FastLookupCache.cs" />
     <Compile Include="FetchoConfiguration.cs" />
@@ -257,6 +258,7 @@
     <Compile Include="Query\RequestHeaderFilter.cs" />
     <Compile Include="Query\ResponseHeaderFilter.cs" />
     <Compile Include="Query\SiteFilter.cs" />
+    <Compile Include="Query\TagFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
     <Compile Include="Query\UriFilter.cs" />
     <Compile Include="Query\WorkspaceSubQueryFilter.cs" />

@@ -307,7 +307,11 @@ namespace Fetcho.Common
 
         public static string GetRandomHashString() => MD5Hash.Compute(random.Next(int.MinValue, int.MaxValue)).ToString();
 
-        public static void LogException(Exception ex) => log.Error(ex);
+        public static void LogException(Exception ex)
+        {
+            System.Diagnostics.Debug.Write(ex);
+            log.Error(ex);
+        }
 
         public static void LogInfo(string format, params object[] args) => log.InfoFormat(format, args);
 

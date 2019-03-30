@@ -17,7 +17,7 @@ namespace Fetcho.Common
 
         public override string FilterData => Country;
 
-        public override decimal Cost => 1000m;
+        public override decimal Cost => 500m;
 
         public GeoIPCountryFilter(string country) 
             => Country = country;

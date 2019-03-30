@@ -15,7 +15,7 @@ namespace learno
         public FetchoWorkspaceMLModelSchemaCategoryDataSource(string category, Guid workspaceId)
         {
             WorkspaceId = workspaceId;
-            Category = category;
+            Name = category;
         }
 
         public override IEnumerable<TextPageData> GetData(int maxRecords)
@@ -24,7 +24,7 @@ namespace learno
             using (var db = new Database())
             {
                 var results = db.GetRandomWorkspaceResultsByWorkspaceId(WorkspaceId, maxRecords).GetAwaiter().GetResult();
-                l.AddRange(GetPages(db, Category, results));
+                l.AddRange(GetPages(db, Name, results));
             }
             return l;
         }

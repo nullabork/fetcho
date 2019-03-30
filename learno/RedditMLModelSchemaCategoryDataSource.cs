@@ -15,7 +15,7 @@ namespace learno
 
         public RedditMLModelSchemaCategoryDataSource(string category, string endPoint)
         {
-            Category = category;
+            Name = category;
             EndPoint = endPoint;
         }
 
@@ -32,7 +32,8 @@ namespace learno
             {
                 for (int j = 2; j <= 12; j++)
                 {
-                    string path = String.Format("https://api.pushshift.io/reddit/search/submission/?subreddit={0}&size=1000&after={1}-{2:00}-01&before={3}-{4:00}-01", EndPoint, i, j - 1, i, j);
+                    string path = String.Format("https://api.pushshift.io/reddit/search/submission/?subreddit={0}&size=1000&after={1}-{2:00}-01&before={3}-{4:00}-01",
+                        EndPoint, i, j - 1, i, j);
                     var response = client.GetAsync(path).GetAwaiter().GetResult();
                     response.EnsureSuccessStatusCode();
                     var json = response.Content.ReadAsAsync<dynamic>().GetAwaiter().GetResult();

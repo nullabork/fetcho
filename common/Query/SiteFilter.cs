@@ -14,6 +14,8 @@ namespace Fetcho.Common
         public SiteFilter(string site) : this()
             => SearchText = site;
 
+        public override decimal Cost => 1m; 
+
         private SiteFilter() 
             => CallOncePerPage = true;
 
@@ -39,7 +41,7 @@ namespace Fetcho.Common
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == "*") searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = String.Empty;
             }
 
             return new SiteFilter(searchText);

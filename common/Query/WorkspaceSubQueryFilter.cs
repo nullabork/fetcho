@@ -19,6 +19,8 @@ namespace Fetcho.Common
 
         public override string Name => "Workspace Sub Query Filter";
 
+        public override decimal Cost => 2000m;
+
         public WorkspaceSubQueryFilter(Query query, string headerKey, string searchText)
         {
             Query = query;

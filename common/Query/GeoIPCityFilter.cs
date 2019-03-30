@@ -18,7 +18,7 @@ namespace Fetcho.Common
 
         public override string FilterData => City;
 
-        public override decimal Cost => 1000m;
+        public override decimal Cost => 500m;
 
         public GeoIPCityFilter(string city) => City = city;
 

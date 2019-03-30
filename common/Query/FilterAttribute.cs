@@ -14,7 +14,7 @@ namespace Fetcho.Common
         public string ShortHelp { get; set; }
 
         public bool Hidden { get; set; }
-        
+
         public FilterAttribute(string tokenMatch)
         {
             TokenMatch = tokenMatch;

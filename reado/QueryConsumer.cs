@@ -128,6 +128,7 @@ namespace Fetcho
                             if (r.Action == EvaluationResultAction.Include)
                             {
                                 result.Tags.AddRange(r.Tags);
+                                result.DebugInfo += String.Format("Cost: {0}\nQuery stats:{1}\n", r.Cost, qry.Value.CostDetails());
                                 postTo.Add(qry.Key);
                             }
                         }
@@ -159,6 +160,7 @@ namespace Fetcho
                     {
                         UpdateStatistics(db);
                         SetupQueries(db);
+                        ReportStatus();
                     }
                 }
             }
@@ -166,6 +168,17 @@ namespace Fetcho
 
         public override void NewResource()
             => ClearAll();
+
+        DateTime lastCall = DateTime.UtcNow;
+        long lastResourcesSeen = 0;
+        void ReportStatus()
+        {
+            var timing = DateTime.UtcNow - lastCall;
+            var diff = ResourcesSeen - lastResourcesSeen;
+            lastResourcesSeen = ResourcesSeen;
+            lastCall = DateTime.UtcNow;
+            Console.WriteLine("Processed: {0}, {1:0.00}/min", ResourcesSeen, (double)diff / timing.TotalMinutes);
+        }
 
         string ReadDesc(HtmlReader reader)
         {

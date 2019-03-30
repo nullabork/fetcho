@@ -307,11 +307,11 @@ namespace Fetcho
         private void UpdateValveConfiguration(ConfigurationChangeEventArgs e)
             => valve.WaitingThreshold = (int)e.NewValue;
 
-        private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item) =>
-            item.TargetIP != null && !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
+        private async Task<IPAddress> GetQueueItemTargetIP(QueueItem item)
+            => item.TargetIP != null && !item.TargetIP.Equals(IPAddress.None) ? item.TargetIP : await Utility.GetHostIPAddress(item.TargetUri);
 
-        private void LogStatus(string status) =>
-            log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting(IP) {3}, Waiting(Timeout) {4}, Waiting(Write): {5}, completed {6}, active chunks {7}, running {8}",
+        private void LogStatus(string status)
+            => log.InfoFormat("{0}: In Valve {1}, Fetching {2}, Waiting(IP) {3}, Waiting(Timeout) {4}, Waiting(Write): {5}, completed {6}, active chunks {7}, running {8}",
                             status,
                             valve.TasksInValve,
                             ResourceFetcher.ActiveFetches,

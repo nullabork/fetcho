@@ -10,6 +10,8 @@ namespace Fetcho.Common
 {
     public abstract class Filter
     {
+        public const string WildcardChar = "*";
+
         /// <summary>
         /// Name of this filter
         /// </summary>
@@ -51,6 +53,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Create the cache of filter types
         /// </summary>
+        [Obsolete("Need to figure out how to get rid of this without creating a race condition")]
         public static void InitaliseFilterTypes()
         {
             foreach (var ft in GetAllFilterTypes())

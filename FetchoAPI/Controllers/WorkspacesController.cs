@@ -8,7 +8,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
@@ -19,11 +18,6 @@ namespace Fetcho.FetchoAPI.Controllers
     public class WorkspacesController : ApiController
     {
         public const int MaxResultsReturned = 200;
-
-        public WorkspacesController()
-        {
-            log4net.Config.XmlConfigurator.Configure();
-        }
 
         #region Accounts
 
@@ -393,7 +387,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     {
                         // update updated dates
                         var r = await db.GetWorkspaceResultByHash(new MD5Hash(result.UriHash));
-                        if (r.DataHash != result.DataHash)
+                        if (r == null || r.DataHash != result.DataHash)
                             result.Updated = DateTime.UtcNow;
                         else
                             result.Updated = r.Updated;
@@ -415,15 +409,54 @@ namespace Fetcho.FetchoAPI.Controllers
         /// </summary>
         /// <param name="workspaceId"></param>
         /// <param name="results"></param>
-        [Route("api/v1/workspaces/{workspaceId}/results")]
+        [Route("api/v1/workspaces/{workspaceId}/result/{urihash}")]
         [HttpDelete()]
-        public HttpResponseMessage DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, [FromBody]IEnumerable<WorkspaceResult> results)
+        public async Task<HttpResponseMessage> DeleteWorkspaceResultByWorkspaceId(Guid workspaceId, string urihash)
         {
             try
             {
-                // using ( var db = new Database())
-                //   db.DeleteWorkspaceResults(guid, results);
-                throw new NotImplementedException();
+                using (var db = new Database())
+                    await db.DeleteWorkspaceResultByWorkspaceId(workspaceId, new MD5Hash(urihash));
+
+                return CreateNoContentResponse();
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        /// <summary>
+        /// Delete some results from a workspace
+        /// </summary>
+        /// <param name="workspaceId"></param>
+        /// <param name="results"></param>
+        [Route("api/v1/workspaces/{workspaceId}/results")]
+        [HttpDelete()]
+        public async Task<HttpResponseMessage> DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, WorkspaceResultTransform transform)
+        {
+            try
+            {
+                ThrowIfNotADeleteTransform(transform);
+
+                using (var db = new Database())
+                {
+                    if (transform.Action == WorkspaceResultTransformAction.DeleteAll)
+                    {
+                        db.DeleteAllWorkspaceResultsByWorkspaceId(workspaceId);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.DeleteSpecificResults)
+                    {
+                        await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform.Results);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.DeleteByQueryText)
+                    { 
+                        throw new NotImplementedException("Delete using QueryText property is not implemented yet");
+                    }
+
+                }
+
+                return CreateNoContentResponse();
             }
             catch (Exception ex)
             {
@@ -445,14 +478,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     var attr = filterType.GetCustomAttributes(typeof(FilterAttribute), false).FirstOrDefault() as FilterAttribute;
                     if (attr != null && !attr.Hidden)
                     {
-                        l.Add(new FilterHelpInfo
-                        {
-                            TokenMatch = attr.TokenMatch,
-                            ShortHelp = attr.ShortHelp,
-                            Name = attr.Name,
-                            Description = attr.Description
-                        });
-
+                        l.Add(new FilterHelpInfo(attr));
                     }
                 }
 
@@ -540,6 +566,22 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        // info
+        //   # keywords
+        //   # content type, provided
+        //   # content type, guessed
+        //   # language provided
+        //   # language guessed
+        //   tags:
+        //     ml-models matched
+        //   
+        //   paragraphs
+        //   scripts
+        //   raw text
+        //   stop words
+        //   last fetched
+        //   links
+
         [Route("api/v1/resources/{datahash}/text")]
         [HttpGet()]
         public async Task<HttpResponseMessage> GetWebResourceCacheDataText(string datahash)
@@ -609,7 +651,7 @@ namespace Fetcho.FetchoAPI.Controllers
         private async Task ThrowIfNoWorkspaceAccess(Database db, Guid guid, string accesskey)
         {
             if (!await db.HasWorkspaceAccess(guid, accesskey))
-                throw new PermissionDeniedFetchoException("No access to " + guid + " " + accesskey);
+                throw new PermissionDeniedFetchoException("No access to {0} {1}", guid, accesskey);
         }
 
         private async Task ThrowIfNotAValidAccount(Database db, string accesskey)
@@ -640,6 +682,15 @@ namespace Fetcho.FetchoAPI.Controllers
             var orderTokens = order.Split(',', ':');
             if (orderTokens.Intersect(acceptableOrderByTokens).Count() != orderTokens.Length)
                 throw new InvalidRequestFetchoException("Invalid query parameter: order");
+        }
+
+        private void ThrowIfNotADeleteTransform(WorkspaceResultTransform transform)
+        {
+            if (!(
+                transform.Action == WorkspaceResultTransformAction.DeleteAll ||
+                transform.Action == WorkspaceResultTransformAction.DeleteSpecificResults ||
+                transform.Action == WorkspaceResultTransformAction.DeleteByQueryText))
+                throw new InvalidRequestFetchoException("The transform passed through is not a delete action");
         }
 
         private void FixAccountObject(Account accessKey)

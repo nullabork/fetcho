@@ -17,7 +17,7 @@ namespace Fetcho.Common
 
         public override string FilterData => Bounds.ToString();
 
-        public override decimal Cost => 1000m;
+        public override decimal Cost => 500m;
 
         public GeoIPCoordinateFilter(string llvector) => Bounds = BoundingBox.Parse(llvector);
 

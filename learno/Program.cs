@@ -10,8 +10,8 @@ namespace learno
             var randomWorkspace = new Guid("24f51e4e-951e-453b-957c-1a1dfe475672");
 
             var schema = new MLModelSchema("science.mlmodel");
-            schema.AddCategory(new RedditMLModelSchemaCategoryDataSource("science", "science"));
-            schema.AddCategory(new FetchoWorkspaceMLModelSchemaCategoryDataSource("random", randomWorkspace));
+            schema.AddDataSource(new RedditMLModelSchemaCategoryDataSource("science", "science"));
+            schema.AddDataSource(new FetchoWorkspaceMLModelSchemaCategoryDataSource("random", randomWorkspace));
 
             var trainer = new MultiClassifierModelTrainer();
             trainer.TrainAndSave(schema);

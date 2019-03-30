@@ -28,6 +28,8 @@ namespace Fetcho.Common.Entities
 
         public string DataHash { get; set; }
 
+        public string DebugInfo { get; set; }
+
         public WorkspaceResult()
         {
             Tags = new List<string>();
@@ -41,6 +43,7 @@ namespace Fetcho.Common.Entities
             RefererUri = String.Empty;
             UriHash = String.Empty;
             DataHash = String.Empty;
+            DebugInfo = String.Empty;
         }
 
         public string GetTagString()

@@ -15,7 +15,7 @@ using System.Collections.Generic;
 namespace Fetcho.Common
 {
     /// <summary>
-    /// Connect to postgres
+    /// Connect to postgres, run commands
     /// </summary>
     public class Database : IDisposable
     {
@@ -286,7 +286,7 @@ namespace Fetcho.Common
         }
 
         /// <summary>
-        /// Determines if an access key can access a specific workspace
+        /// Determines if an account can access a specific workspace
         /// </summary>
         /// <param name="workspaceId"></param>
         /// <returns></returns>
@@ -552,6 +552,81 @@ namespace Fetcho.Common
             await cmd.ExecuteNonQueryAsync();
         }
 
+        /// <summary>
+        /// Delete workspace results by the workspace id
+        /// </summary>
+        public async Task DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results)
+        {
+
+            string sql =
+                "delete  " +
+                "from   \"WorkspaceResult\" " +
+                "where  workspace_id = :workspace_id " +
+                "       and urihash = :urihash;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            foreach (var result in results)
+            {
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", new MD5Hash(result.UriHash).Values));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0)
+                    throw new FetchoException("No record was deleted");
+            }
+        }
+
+        /// <summary>
+        /// Delete workspace results by the workspace id
+        /// </summary>
+        public async Task DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<MD5Hash> urihashes)
+        {
+
+            string sql =
+                "delete  " +
+                "from   \"WorkspaceResult\" " +
+                "where  workspace_id = :workspace_id " +
+                "       and urihash = :urihash;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            foreach (var hash in urihashes)
+            {
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (count == 0)
+                    throw new FetchoException("No records were deleted");
+            }
+        }
+
+        public async Task DeleteAllWorkspaceResultsByWorkspaceId(Guid workspaceId)
+        {
+            string sql =
+                "delete  " +
+                "from   \"WorkspaceResult\" " +
+                "where  workspace_id = :workspace_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Prepare();
+
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0)
+                throw new FetchoException("No records were deleted");
+        }
+
+        public async Task DeleteWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash)
+            => await DeleteWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash });
+
         public async Task<IEnumerable<AccessKey>> GetWorkspaceAccessKeys(Guid workspaceId)
         {
             var l = new List<AccessKey>();
@@ -796,7 +871,7 @@ namespace Fetcho.Common
         }
 
         public const string WorkspaceResultSelectLine =
-            "select urihash, uri, referer, title, description, created, page_size, sequence, tags, datahash, updated " +
+            "select urihash, uri, referer, title, description, created, page_size, sequence, tags, datahash, updated, debug_info " +
             "from   \"WorkspaceResult\" ";
 
         private WorkspaceResult GetWorkspaceResultFromReader(DbDataReader reader)
@@ -821,7 +896,8 @@ namespace Fetcho.Common
                 Updated = IsNull(reader, 10, DateTime.UtcNow),
                 PageSize = reader.GetInt64(6),
                 GlobalSequence = reader.GetInt64(7),
-                DataHash = h == MD5Hash.Empty ? "" : h.ToString()
+                DataHash = h == MD5Hash.Empty ? "" : h.ToString(),
+                DebugInfo = IsNull(reader, 11, "")
             };
 
             if (!reader.IsDBNull(8))
@@ -844,13 +920,14 @@ namespace Fetcho.Common
               "       page_size = :page_size, " +
               "       updated = :updated, " +
               "       tags = :tags, " +
-              "       datahash = :datahash " +
+              "       datahash = :datahash, " +
+              "       debug_info = :debug_info " + 
               "where  urihash = :urihash and " +
               "       workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; " + 
-                "insert into \"WorkspaceResult\" ( urihash, uri, referer, title, description, created, updated, workspace_id, page_size, tags, datahash) " +
-                "values ( :urihash, :uri, :referer, :title, :description, :created, :updated, :workspace_id, :page_size, :tags, :datahash );";
+            string insertSql = "set client_encoding='UTF8'; " +
+                "insert into \"WorkspaceResult\" ( urihash, uri, referer, title, description, created, updated, workspace_id, page_size, tags, datahash, debug_info) " +
+                "values ( :urihash, :uri, :referer, :title, :description, :created, :updated, :workspace_id, :page_size, :tags, :datahash, :debug_info );";
 
             foreach (var result in results)
             {
@@ -880,19 +957,18 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
             cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", new MD5Hash(result.DataHash).Values));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("debug_info", result.DebugInfo));
             cmd.Prepare();
         }
 
         public async Task UpdateWorkspaceStatistics()
-        {
-            await ExecuteSqlAgainstConnection(
+            => await ExecuteSqlAgainstConnection(
                 "update \"Workspace\" " +
                 " set   result_count = coalesce((select count(*) c " +
                 "                                from   \"WorkspaceResult\" r " +
                 "                                where  r.workspace_id = \"Workspace\".workspace_id " +
                 "                                group  by workspace_id), 0) "
                 );
-        }
 
         public async Task AddWebResourceDataCache(MD5Hash datahash, MemoryStream stream)
         {
