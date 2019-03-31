@@ -314,7 +314,7 @@ namespace Fetcho.Common
             Workspace workspace = null;
 
             string sql =
-                "select workspace_id, name, description, is_active, query_text, result_count, created, is_wellknown " +
+                "select workspace_id, name, description, is_active, query_text, result_count, created, is_wellknown, revision " +
                 "from   \"Workspace\" " +
                 "where  workspace_id = :workspace_id;";
 
@@ -338,7 +338,8 @@ namespace Fetcho.Common
                         QueryText = reader.GetString(4),
                         ResultCount = reader.GetInt64(5),
                         Created = reader.GetDateTime(6),
-                        IsWellknown = reader.GetBoolean(7)
+                        IsWellknown = reader.GetBoolean(7),
+                        Revision = reader.GetInt32(8)
                     };
                 }
             }
@@ -362,7 +363,7 @@ namespace Fetcho.Common
             Workspace workspace = null;
 
             string sql =
-                "select workspace_id, name, description, is_active, query_text, result_count, created, is_wellknown " +
+                "select workspace_id, name, description, is_active, query_text, result_count, created, is_wellknown, revision " +
                 "from   \"Workspace\"; ";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -382,7 +383,8 @@ namespace Fetcho.Common
                         QueryText = reader.GetString(4),
                         ResultCount = reader.GetInt64(5),
                         Created = reader.GetDateTime(6),
-                        IsWellknown = reader.GetBoolean(7)
+                        IsWellknown = reader.GetBoolean(7),
+                        Revision = reader.GetInt32(8)
                     };
 
                     l.Add(workspace);
@@ -433,11 +435,12 @@ namespace Fetcho.Common
               "       description = :description, " +
               "       query_text = :query_text, " +
               "       is_active = :is_active, " +
-              "       is_wellknown = :is_wellknown " +
+              "       is_wellknown = :is_wellknown, " +
+              "       revision = :revision " +
               "where  workspace_id = :workspace_id;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"Workspace\" ( workspace_id, name, description, query_text, is_active, created, is_wellknown ) " +
-              "values ( :workspace_id, :name, :description, :query_text, :is_active, :created, :is_wellknown );";
+            string insertSql = "set client_encoding='UTF8'; insert into \"Workspace\" ( workspace_id, name, description, query_text, is_active, created, is_wellknown, revision ) " +
+              "values ( :workspace_id, :name, :description, :query_text, :is_active, :created, :is_wellknown, :revision );";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             _saveWorkspaceSetParams(cmd, workspace);
@@ -484,6 +487,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", workspace.IsActive));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", workspace.Created));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_wellknown", workspace.IsWellknown));
+            cmd.Parameters.Add(new NpgsqlParameter<int>("revision", workspace.Revision));
             cmd.Prepare();
         }
 
@@ -633,7 +637,7 @@ namespace Fetcho.Common
 
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name " +
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_id = :workspace_id;";
 
@@ -653,7 +657,8 @@ namespace Fetcho.Common
                         Expiry = reader.GetDateTime(6),
                         IsActive = reader.GetBoolean(3),
                         IsWellknown = reader.GetBoolean(7),
-                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
+                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4),
+                        Revision = reader.GetInt32(9)
                     });
                 }
             }
@@ -666,7 +671,7 @@ namespace Fetcho.Common
             var l = new List<AccessKey>();
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name " +
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" ";
 
             if (!String.IsNullOrWhiteSpace(accountName))
@@ -692,7 +697,8 @@ namespace Fetcho.Common
                         IsActive = reader.GetBoolean(3),
                         IsWellknown = reader.GetBoolean(7),
                         Name = reader.GetString(8),
-                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
+                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4),
+                        Revision = reader.GetInt32(9)
                     });
 
                     wsak.Add(reader.GetGuid(0), reader.GetGuid(1));
@@ -712,7 +718,7 @@ namespace Fetcho.Common
             Guid workspaceId = Guid.Empty;
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name " +
+                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_access_key_id = :access_key_id;";
 
@@ -732,7 +738,8 @@ namespace Fetcho.Common
                         IsActive = reader.GetBoolean(3),
                         IsWellknown = reader.GetBoolean(7),
                         Name = reader.GetString(8),
-                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4)
+                        Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4),
+                        Revision = reader.GetInt32(9)
                     };
 
                     workspaceId = reader.GetGuid(1);
@@ -760,11 +767,12 @@ namespace Fetcho.Common
               "       name = :name, " +
               "       created = :created, " +
               "       expiry = :expiry, " +
-              "       is_wellknown = :is_wellknown " +
+              "       is_wellknown = :is_wellknown, " +
+              "       revision = :revision " +
               "where  workspace_id = :workspace_id and access_key = :access_key;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( name, workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown) " +
-              "values ( :name, :workspace_access_key_id, :workspace_id, :access_key, :is_active, :permissions, :created, :expiry, :is_wellknown);";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( name, workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, revision) " +
+              "values ( :name, :workspace_access_key_id, :workspace_id, :access_key, :is_active, :permissions, :created, :expiry, :is_wellknown, :revision);";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             _saveAccessKeysSetParams(cmd, workspaceAccessKey);
@@ -790,6 +798,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", wak.Created));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("expiry", wak.Expiry));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_wellknown", wak.IsWellknown));
+            cmd.Parameters.Add(new NpgsqlParameter<int>("revision", wak.Revision));
             cmd.Prepare();
         }
 

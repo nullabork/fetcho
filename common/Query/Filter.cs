@@ -10,6 +10,7 @@ namespace Fetcho.Common
 {
     public abstract class Filter
     {
+        public const decimal MaxCost = 9999999m;
         public const string WildcardChar = "*";
 
         /// <summary>
@@ -25,22 +26,28 @@ namespace Fetcho.Common
         /// <summary>
         /// An optimisation to stop this filter being used more than one per page
         /// </summary>
-        public bool CallOncePerPage { get; set; }
+        public virtual bool CallOncePerPage { get => false; }
 
         /// <summary>
         /// Returns true if this filter uses the result input of IsMatch
         /// </summary>
-        public virtual bool RequiresResultInput { get; protected set; }
+        public virtual bool RequiresResultInput { get => false; }
 
         /// <summary>
         /// Returns true if this filter uses the text input of IsMatch
         /// </summary>
-        public virtual bool RequiresTextInput { get; protected set; }
+        public virtual bool RequiresTextInput { get => false; }
 
         /// <summary>
         /// Returns true if this filter uses the stream input of IsMatch
         /// </summary>
-        public virtual bool RequiresStreamInput { get; protected set; }
+        public virtual bool RequiresStreamInput { get => false; }
+
+        /// <summary>
+        /// True if this filter can be used to determine if a result should be included or excluded or whether it'll always pass all values
+        /// </summary>
+        /// ie. is it a useless filter?
+        public virtual bool IsReducingFilter { get => false; }
 
         /// <summary>
         /// If the resource is matched by this filter

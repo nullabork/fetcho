@@ -1,11 +1,10 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("response-header(", "response-header(key name):[value match|*][:value match|*]")]
+    [Filter("response-header(", "request-header(key name):[value match|*][:value match|*]")]
     public class ResponseHeaderFilter : Filter
     {
         const string ResponseHeaderFilterKey = "response-header(";
@@ -16,16 +15,17 @@ namespace Fetcho.Common
 
         public override string Name => "Response Header Filter";
 
+        public override bool CallOncePerPage => true;
+
         public override bool RequiresResultInput { get => true; }
 
-        public ResponseHeaderFilter(string headerKey, string searchText) : this()
+        public override bool IsReducingFilter => true;
+
+        public ResponseHeaderFilter(string headerKey, string searchText) 
         {
             SearchText = searchText.ToLower();
             HeaderKey = headerKey.ToLower();
         }
-
-        private ResponseHeaderFilter()
-            => CallOncePerPage = true;
 
         public override string GetQueryText()
             => string.Format("{0}{1}):{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);

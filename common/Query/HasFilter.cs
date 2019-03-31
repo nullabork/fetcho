@@ -18,6 +18,8 @@ namespace Fetcho.Common
 
         public override bool RequiresResultInput { get => true; }
 
+        public override bool IsReducingFilter => true;
+
         public override string GetQueryText()
             => string.Format("has:{0}", PropertyName);
 
@@ -29,7 +31,7 @@ namespace Fetcho.Common
             {
                 var o = result.PropertyCache[PropertyName];
                 if ( o == null || String.IsNullOrWhiteSpace(o.ToString())) return EmptySet;
-                return new string[1] { "has-" + PropertyName };
+                return new string[1] { Utility.MakeTag(o.ToString()) };
             }
             else
                 return EmptySet; 
@@ -37,14 +39,14 @@ namespace Fetcho.Common
 
         public static Filter Parse(string queryText)
         {
-            string searchText = String.Empty;
+            string propertyName = String.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;
 
-            searchText = tokens[1].Trim();
+            propertyName = tokens[1].Trim();
 
-            return new HasFilter(searchText);
+            return new HasFilter(propertyName);
 
         }
     }

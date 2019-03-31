@@ -22,6 +22,8 @@ namespace Fetcho.Common
 
         public override bool RequiresResultInput { get => true; }
 
+        public override bool IsReducingFilter => true;
+
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             const string HostIPCacheKey = "hostip";

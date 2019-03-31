@@ -231,6 +231,8 @@
     <Compile Include="IQueueCalculationModel.cs" />
     <Compile Include="NaiveQueueOrderingModel.cs" />
     <Compile Include="Net\FetchoAPIV1Client.cs" />
+    <Compile Include="Net\RedditSubmission.cs" />
+    <Compile Include="Net\RedditSubmissionFetcher.cs" />
     <Compile Include="PressureReliefValve.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -238,6 +240,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Query\DataHashFilter.cs" />
+    <Compile Include="Query\DistinctWindowFilter.cs" />
     <Compile Include="Query\EvaluationResult.cs" />
     <Compile Include="Query\EvaluationResultAction.cs" />
     <Compile Include="Query\FileTypeFilter.cs" />
@@ -254,8 +257,10 @@
     <Compile Include="Query\HasFilter.cs" />
     <Compile Include="Query\LanguageFilter.cs" />
     <Compile Include="Query\MachineLearningModelFilter.cs" />
+    <Compile Include="Query\PropertyFilter.cs" />
     <Compile Include="Query\Query.cs" />
     <Compile Include="Query\RandomMatchFilter.cs" />
+    <Compile Include="Query\RegexFilter.cs" />
     <Compile Include="Query\RequestHeaderFilter.cs" />
     <Compile Include="Query\ResponseHeaderFilter.cs" />
     <Compile Include="Query\SiteFilter.cs" />
@@ -264,6 +269,8 @@
     <Compile Include="Query\UriFilter.cs" />
     <Compile Include="Query\WorkspaceSubQueryFilter.cs" />
     <Compile Include="Query\XPathFilter.cs" />
+    <Compile Include="QueueItemStatusUpdate.cs" />
+    <Compile Include="QueueItemStatusUpdateEventArgs.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />
     <Compile Include="Entities\Site.cs" />
     <Compile Include="FetchoException.cs" />

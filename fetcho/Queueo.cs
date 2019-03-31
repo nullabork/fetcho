@@ -101,6 +101,9 @@ namespace Fetcho
                         // if the item is OK and its not already cached
                         if (UriIsNotADuplicate(item))
                         {
+                            // status
+                            item.Status = QueueItemStatus.Queuing;
+
                             // cache it 
                             CacheUri(item);
 
@@ -109,6 +112,7 @@ namespace Fetcho
                         }
                         else
                         {
+                            item.Status = QueueItemStatus.Duplicate;
                             _duplicates++;
                         }
                     }
@@ -205,6 +209,7 @@ namespace Fetcho
         List<QueueItem> outbuffer = new List<QueueItem>();
         void SendItemToRejects(QueueItem item)
         {
+            item.Status = QueueItemStatus.Discarded;
             outbuffer.Add(item);
         }
 
@@ -327,18 +332,21 @@ namespace Fetcho
                 {
                     if (QuotaReached())
                     {
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
                     else if (IsMalformedQueueItem(item))
                     {
                         item.MalformedUrl = true;
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
                     else if (IsPriorityTooLow(item))
                     {
                         item.PriorityTooLow = true;
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
@@ -346,6 +354,7 @@ namespace Fetcho
                     else if (IsChunkSequenceTooHigh(item))
                     {
                         item.ChunkSequenceTooHigh = true;
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
@@ -353,17 +362,20 @@ namespace Fetcho
                     else if (HasIPBeenSeenRecently(item))
                     {
                         item.IPSeenRecently = true;
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
                     else if (await IsBlockedByRobots(item)) // most expensive one last
                     {
                         item.BlockedByRobots = true;
+                        item.Status = QueueItemStatus.Discarded;
                         rejected.Add(item);
                     }
 
                     else
                     {
+                        item.Status = QueueItemStatus.Fetching;
                         accepted.Add(item);
                     }
                 }

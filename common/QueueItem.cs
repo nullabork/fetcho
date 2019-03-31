@@ -14,6 +14,43 @@ namespace Fetcho.Common
         public const uint BadQueueItemPriorityNumber = uint.MaxValue;
 
         /// <summary>
+        /// Will report the status of this queue item as it moves through fetcho
+        /// </summary>
+        public EventHandler<QueueItemStatusUpdateEventArgs> StatusUpdate;
+        private readonly object statusUpdateLock = new object();
+
+        /// <summary>
+        /// Use this to send status updates
+        /// </summary>
+        /// <param name="status"></param>
+        protected void OnStatusUpdate()
+        {
+            lock(statusUpdateLock)
+            {
+                StatusUpdate?.Invoke(this, new QueueItemStatusUpdateEventArgs
+                {
+                    Item = this
+                });
+            }
+        }
+
+        public QueueItemStatus Status
+        {
+            get => _status;
+            set
+            {
+                _status = value;
+                OnStatusUpdate();
+            }
+        }
+        private QueueItemStatus _status = QueueItemStatus.Unknown;
+
+        /// <summary>
+        /// True if this queue item can be discarded for any reason
+        /// </summary>
+        public bool CanBeDiscarded { get; set; }
+
+        /// <summary>
         /// Priority to go fetch the link, lower is better
         /// </summary>
         public uint Priority { get; set; }
@@ -139,6 +176,7 @@ namespace Fetcho.Common
         {
             Priority = QueueItem.BadQueueItemPriorityNumber;
             TargetIP = IPAddress.None;
+            CanBeDiscarded = true;
         }
 
         public override string ToString()

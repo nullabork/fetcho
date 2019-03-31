@@ -13,11 +13,12 @@ namespace Fetcho.Common
 
         public override bool RequiresResultInput { get => true; }
 
-        public UriFilter(string searchText) : this()
-            => SearchText = searchText;
+        public override bool CallOncePerPage => true;
 
-        private UriFilter()
-            => CallOncePerPage = true;
+        public override bool IsReducingFilter => true;
+
+        public UriFilter(string searchText)
+            => SearchText = searchText;
 
         public override string GetQueryText()
             => string.Format("uri:{0}", SearchText);

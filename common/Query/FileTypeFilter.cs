@@ -13,11 +13,12 @@ namespace Fetcho.Common
 
         public override bool RequiresResultInput { get => true; }
 
-        public FileTypeFilter(string filetype) : this()
-            => SearchText = filetype;
+        public override bool CallOncePerPage => true;
 
-        private FileTypeFilter()
-            => CallOncePerPage = true;
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
+
+        public FileTypeFilter(string filetype) 
+            => SearchText = filetype;
 
         public override string GetQueryText()
             => string.Format("filetype:{0}", SearchText);

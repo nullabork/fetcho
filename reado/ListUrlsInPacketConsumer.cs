@@ -1,7 +1,6 @@
 ﻿using Fetcho.Common;
 using log4net;
 using System;
-using System.IO;
 
 namespace reado
 {

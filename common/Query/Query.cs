@@ -20,6 +20,9 @@ namespace Fetcho.Common.QueryEngine
         public long AvgCost { get => NumberOfEvaluations == 0 ? 0 : TotalCost / NumberOfEvaluations; }
         public long TotalCost { get; set; }
         public int NumberOfEvaluations { get; set; }
+        public int NumberOfInclusions { get; set; }
+        public int NumberOfExclusions { get; set; }
+        public int NumberOfTags { get; set; }
         public string OriginalQueryText { get; set; }
 
         public bool RequiresTextInput { get; protected set; }
@@ -29,6 +32,9 @@ namespace Fetcho.Common.QueryEngine
         public Query(string queryText)
         {
             OriginalQueryText = queryText;
+            MinCost = long.MaxValue;
+            MaxCost = long.MinValue;
+            TotalCost = 0;
             ParseQueryText(queryText);
             Console.WriteLine(this.ToString());
         }
@@ -54,11 +60,12 @@ namespace Fetcho.Common.QueryEngine
             {
                 var inc = IncludeFilters.AllMatch(result, words, stream);
 
-                if (inc) action = EvaluationResultAction.Include;
-                else if (!inc) action = EvaluationResultAction.NotEvaluated;
-
-                if (action == EvaluationResultAction.Include)
+                if (inc)
+                {
+                    action = EvaluationResultAction.Include;
                     tags = TagFilters.GetTags(result, words, stream);
+                }
+                else if (!inc) action = EvaluationResultAction.NotEvaluated;
             }
 
             var r = new EvaluationResult(action, tags, DateTime.UtcNow.Ticks - ticks);
@@ -73,7 +80,7 @@ namespace Fetcho.Common.QueryEngine
         private void ParseQueryText(string text)
         {
             if (String.IsNullOrWhiteSpace(text)) return;
-            string[] tokens = text.Split(' ');
+            string[] tokens = text.Replace('\n', ' ').Replace('\r', ' ').Replace('\t', ' ').Split(' ');
 
             foreach (var token in tokens)
             {
@@ -102,20 +109,23 @@ namespace Fetcho.Common.QueryEngine
                 switch (filterMode)
                 {
                     case FilterMode.Include:
+                        if (filter == null || !filter.IsReducingFilter) break;
                         IncludeFilters.Add(filter);
                         break;
 
                     case FilterMode.Exclude:
+                        if (filter == null || !filter.IsReducingFilter) break;
                         ExcludeFilters.Add(filter);
                         break;
 
                     case FilterMode.Tag:
+                        if (filter == null) break;
                         TagFilters.Add(filter);
                         break;
 
                     case (FilterMode.Tag | FilterMode.Include):
-                        IncludeFilters.Add(filter);
-                        TagFilters.Add(tagger);
+                        if ( filter != null && filter.IsReducingFilter ) IncludeFilters.Add(filter);
+                        if ( tagger != null ) TagFilters.Add(tagger);
                         break;
 
                     default:
@@ -203,6 +213,9 @@ namespace Fetcho.Common.QueryEngine
             if (r.Cost > MaxCost) MaxCost = r.Cost;
             TotalCost += r.Cost;
             NumberOfEvaluations++;
+            if (r.Action == EvaluationResultAction.Exclude) NumberOfExclusions++;
+            else if (r.Action == EvaluationResultAction.Include) NumberOfInclusions++;
+            else if (r.Action == EvaluationResultAction.Tag) NumberOfTags++;
         }
 
         /// <summary>
@@ -210,7 +223,7 @@ namespace Fetcho.Common.QueryEngine
         /// </summary>
         /// <returns></returns>
         public string CostDetails()
-            => String.Format("Min: {0}, Max: {1}, Avg: {2}, Total: {3}, #: {4}",
+            => String.Format("Min: {0,-10}, Max: {1, -10}, Avg: {2,-10}, Total: {3,-10}, #: {4,-10}",
                 MinCost, MaxCost, AvgCost, TotalCost, NumberOfEvaluations);
 
         /// <summary>

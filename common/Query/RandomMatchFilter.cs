@@ -20,9 +20,12 @@ namespace Fetcho.Common
 
         public override string Name => "RandomMatchFilter";
 
+        public override bool CallOncePerPage => true;
+
+        public override bool IsReducingFilter => true;
+
         public RandomMatchFilter(double probability)
         {
-            CallOncePerPage = true;
             MatchProbability = probability.ConstrainRange(MinMatchProbability, MaxMatchProbability);
         }
 

@@ -55,6 +55,12 @@ namespace Fetcho.Common.Entities
         /// </summary>
         public List<AccessKey> AccessKeys { get; }
 
+        /// <summary>
+        /// Number of changes saved to the DB
+        /// </summary>
+        public int Revision { get; set; }
+
+
         public Workspace()
         {
             WorkspaceId = Guid.NewGuid();
@@ -66,6 +72,7 @@ namespace Fetcho.Common.Entities
             ResultCount = 0;
             IsWellknown = false;
             AccessKeys = new List<AccessKey>();
+            Revision = 0;
         }
 
         /// <summary>

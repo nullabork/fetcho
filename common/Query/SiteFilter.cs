@@ -11,17 +11,18 @@ namespace Fetcho.Common
 
         public override string Name => "Site filter";
 
-        public SiteFilter(string site) : this()
+        public SiteFilter(string site) 
             => SearchText = site;
 
         public override decimal Cost => 1m;
 
+        public override bool CallOncePerPage => true;
+
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText); 
+
         public override bool RequiresResultInput { get => true; }
 
-        private SiteFilter() 
-            => CallOncePerPage = true;
-
-        public override string GetQueryText() 
+        public override string GetQueryText()
             => string.Format("site:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)

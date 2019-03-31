@@ -17,9 +17,14 @@ namespace Fetcho.Common
 
         public override string Name => "Tag Filter";
 
-        public override decimal Cost => 999999m;
+        // needs to run after all other filters
+        public override decimal Cost => MaxCost;
+
+        public override bool CallOncePerPage => true;
 
         public override bool RequiresResultInput { get => true; }
+
+        public override bool IsReducingFilter => true;
 
         public override string GetQueryText()
             => string.Format("tag:{0}", TagName);

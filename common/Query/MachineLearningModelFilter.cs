@@ -34,6 +34,8 @@ namespace Fetcho.Common
 
         public override bool RequiresTextInput { get => true; }
 
+        public override bool IsReducingFilter => ConfidenceThreshold > 0f;
+
         public MachineLearningModelFilter(string modelName, string filterTags, float confidenceThreshold = DefaultConfidenceThreshold)
         {
             ModelName = modelName.CleanInput();
@@ -48,7 +50,7 @@ namespace Fetcho.Common
                 MachineLearningModelFilterKey,
                 ModelName,
                 ConfidenceThreshold,
-                String.IsNullOrWhiteSpace(SearchText) ? "*" : SearchText
+                String.IsNullOrWhiteSpace(SearchText) ? WildcardChar : SearchText
                 );
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)

@@ -26,6 +26,8 @@ namespace Fetcho.Common
 
         public override bool RequiresTextInput { get => true; }
 
+        public override bool IsReducingFilter => true;
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -46,7 +48,7 @@ namespace Fetcho.Common
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             var idx = fragment.IndexOf(SearchText, StringComparison.InvariantCultureIgnoreCase);
-            if ( idx > -1 )
+            if ( idx > -1 && idx < fragment.Length)
             {
                 var frag = fragment.Fragment(idx, 20, SearchText.Length + 20);
                 if (seenFragments.Contains(frag))
@@ -88,5 +90,6 @@ namespace Fetcho.Common
         public static bool TokenIsFilter(string token)
             => !token.Contains(":");
     }
+
 
 }

@@ -69,7 +69,7 @@ namespace Fetcho
             var readLinko = new ReadLinko(prioritisationBuffer, startPacketIndex);
             var queueo = new Queueo(prioritisationBuffer, fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
             var fetcho = new Fetcho(fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
-            var controlo = new Controlo();
+            var controlo = new Controlo(prioritisationBuffer, fetchQueueBuffer);
             //var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
             //var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", new NullTarget);
 

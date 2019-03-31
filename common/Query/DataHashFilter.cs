@@ -14,11 +14,12 @@ namespace Fetcho.Common
 
         public override bool RequiresResultInput { get => true; }
 
-        public DataHashFilter(string hash) : this()
-            => Hash = hash.ToLower();
+        public override bool CallOncePerPage => false;
 
-        private DataHashFilter()
-            => CallOncePerPage = true;
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(Hash);
+
+        public DataHashFilter(string hash) 
+            => Hash = hash.ToLower();
 
         public override string GetQueryText()
             => string.Format("hash:{0}", Hash);

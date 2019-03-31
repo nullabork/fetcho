@@ -113,6 +113,7 @@
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\AccessKeyDoesntExistFetchoException.cs" />
+    <Compile Include="Controllers\DataConcurrencyFetchoException.cs" />
     <Compile Include="Controllers\InvalidRequestFetchoException.cs" />
     <Compile Include="Controllers\PermissionDeniedFetchoException.cs" />
     <Compile Include="Controllers\WorkspacesController.cs" />

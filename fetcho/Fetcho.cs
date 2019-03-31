@@ -183,6 +183,8 @@ namespace Fetcho
                             DataWritersPool
                             );
 
+                        item.Status = QueueItemStatus.Fetched;
+
                         var writer = await DataWritersPool.ReceiveAsync().ConfigureAwait(false);
                         writer = ReplaceDataPacketWriterIfQuotaReached(writer);
                         await DataWritersPool.SendAsync(writer);

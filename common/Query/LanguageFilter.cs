@@ -19,6 +19,8 @@ namespace Fetcho.Common
 
         public override bool RequiresTextInput { get => true; }
 
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(Language);
+
         public LanguageFilter(string language) : this()
             => Language = language;
 

@@ -1,7 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Xml.XPath;
-using BracketPipe;
 using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
@@ -15,11 +13,12 @@ namespace Fetcho.Common
 
         public override bool RequiresStreamInput { get => true; }
 
-        public XPathFilter(string xpath) : this()
-            => XPath = xpath;
+        public override bool CallOncePerPage => true;
 
-        private XPathFilter()
-            => CallOncePerPage = true;
+        public override bool IsReducingFilter => true;
+
+        public XPathFilter(string xpath) 
+            => XPath = xpath;
 
         public override string GetQueryText()
             => string.Format("xpath:{0}", XPath);
@@ -33,7 +32,7 @@ namespace Fetcho.Common
             // the entire page to be stored in memory which is not workable here
 
             // pass out nothing until i get it working
-            return new string[0];
+            return EmptySet;
         }
 
         /// <summary>

@@ -29,6 +29,8 @@ namespace Fetcho.Common
         public ContentType(string contentType)
         {
             if (String.IsNullOrWhiteSpace(contentType)) contentType = String.Empty;
+            SubType = String.Empty;
+            MediaType = String.Empty;
             Raw = contentType;
             Parse(contentType);
         }
@@ -133,6 +135,9 @@ namespace Fetcho.Common
 
         public static bool IsHtmlContentType(ContentType value) 
             => value.MediaType == "text" && value.SubType == "html";
+
+        public static bool IsJavascriptContentType(ContentType value)
+            => value.SubType.Contains("javascript");
 
         public static ContentType Guess(string fileName)
         {

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading;
 using Fetcho.Common;
 using Fetcho.ContentReaders;
@@ -23,36 +22,6 @@ namespace learno
         {
             var l = new List<TextPageData>(maxRecords);
 
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue(ContentType.ApplicationJson));
-
-            for (int i = 2012; i < 2020; i++)
-            {
-                for (int j = 2; j <= 12; j++)
-                {
-                    string path = String.Format("https://api.pushshift.io/reddit/search/submission/?subreddit={0}&size=1000&after={1}-{2:00}-01&before={3}-{4:00}-01",
-                        EndPoint, i, j - 1, i, j);
-                    var response = client.GetAsync(path).GetAwaiter().GetResult();
-                    response.EnsureSuccessStatusCode();
-                    var json = response.Content.ReadAsAsync<dynamic>().GetAwaiter().GetResult();
-
-                    foreach (var child in json["data"])
-                    {
-                        if (child["url"] == null || child["link_flair_text"] == null) continue;
-                        Console.WriteLine("{0}: {1}",
-                                            (string)child["link_flair_text"]?.ToString(),
-                                            (string)child["url"]?.ToString()); // go fetch the page data
-                        l.Add(new TextPageData
-                        {
-                            TextData = child["url"],
-                            Category = child["link_flair_text"]
-                        });
-                    }
-                }
-            }
-
             Uri previous = null;
             Uri current = null;
 
@@ -60,6 +29,10 @@ namespace learno
             {
                 try
                 {
+                    var submissions = RedditSubmissionFetcher.GetSubmissions(EndPoint).GetAwaiter().GetResult();
+
+                    var client = new HttpClient();
+
                     previous = current;
                     current = new Uri(p.TextData);
                     using ( var stm = client.GetStreamAsync(current).GetAwaiter().GetResult())

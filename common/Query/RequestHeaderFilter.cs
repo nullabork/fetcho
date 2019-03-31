@@ -16,16 +16,17 @@ namespace Fetcho.Common
 
         public override string Name => "Request Header Filter";
 
+        public override bool CallOncePerPage => true;
+
         public override bool RequiresResultInput { get => true; }
 
-        public RequestHeaderFilter(string headerKey, string searchText) : this()
+        public override bool IsReducingFilter => true;
+
+        public RequestHeaderFilter(string headerKey, string searchText) 
         {
             SearchText = searchText.ToLower();
             HeaderKey = headerKey.ToLower();
         }
-
-        private RequestHeaderFilter()
-            => CallOncePerPage = true;
 
         public override string GetQueryText()
             => string.Format("{0}{1}):{2}", RequestHeaderFilterKey, HeaderKey, SearchText);

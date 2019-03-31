@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,12 +13,9 @@ namespace Fetcho.Common
         public int Count { get => Filters.Count; }
 
         public FilterCollection()
-        {
-            Filters = new List<Filter>();
-        }
+            => Filters = new List<Filter>();
 
-        public void Add(Filter filter)
-            => Filters.Add(filter);
+        public void Add(Filter filter) { if (filter != null) Filters.Add(filter); }
 
         public void Remove(Filter filter)
             => Filters.Remove(filter);
@@ -55,6 +51,7 @@ namespace Fetcho.Common
                 l.AddRange(filter.IsMatch(result, fragment, stream));
             return l.Distinct();
         }
+
         public IEnumerator<Filter> GetEnumerator()
             => Filters.GetEnumerator();
 

@@ -4,11 +4,8 @@ using Fetcho.Common.QueryEngine;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BracketPipe;
 using System.Linq;
-using System.Text;
 using Fetcho.Common.Net;
-using System.Net;
 using Fetcho.ContentReaders;
 
 namespace Fetcho
@@ -60,7 +57,7 @@ namespace Fetcho
                     var result = builder.Build(stream, requestString, responseHeaders, out string evaluationText);
 
                     // evaluate against the queries
-                    foreach (var qry in Queries)
+                    foreach (var qry in Queries.OrderBy( x => x.Value.AvgCost ))
                     {
                         try
                         {
@@ -68,7 +65,8 @@ namespace Fetcho
                             var r = qry.Value.Evaluate(result, evaluationText.ToString(), stream);
                             if (r.Action == EvaluationResultAction.Include)
                             {
-                                result.Tags.AddRange(r.Tags);
+
+                                result.Tags.AddRange(r.Tags.Distinct().Where( x => !result.Tags.Contains(x)));
                                 result.DebugInfo += String.Format("Cost: {0}\nQuery stats:{1}\n", r.Cost, qry.Value.CostDetails());
                                 postTo.Add(qry.Key);
                             }
@@ -96,7 +94,7 @@ namespace Fetcho
             }
             finally
             {
-                if (ResourcesSeen++ % 1000 == 0)
+                if (++ResourcesSeen % 1000 == 0)
                 {
                     using (var db = new Database())
                     {
@@ -120,10 +118,15 @@ namespace Fetcho
             var diff = ResourcesSeen - lastResourcesSeen;
             lastResourcesSeen = ResourcesSeen;
             lastCall = DateTime.UtcNow;
+            Console.Clear();
             Console.WriteLine("\nProcessed: {0}, {1:0.00}/min", ResourcesSeen, (double)diff / timing.TotalMinutes);
-            foreach( var qry in Queries)
+            Console.WriteLine("MinCost    MaxCost    AvgCost    TotalCost   # Eval     # Inc      # Exc      # Tag      Query");
+            foreach ( var qry in Queries.OrderByDescending(x => x.Value.AvgCost))
             {
-                Console.WriteLine("\t{0}: {1}", qry.Value.CostDetails(), qry.Value.ToString());
+                var query = qry.Value;
+                Console.WriteLine("{0,-10} {1, -10} {2,-10} {3,-11} {4,-10} {5,-10} {6,-10} {7,-10} {8}",
+                    query.MinCost, query.MaxCost, query.AvgCost, query.TotalCost, query.NumberOfEvaluations,
+                    query.NumberOfInclusions, query.NumberOfExclusions, query.NumberOfTags, query.ToString().Truncate(128));
             }
         }
 
@@ -151,7 +154,6 @@ namespace Fetcho
                 {
                     Queries[id] = new Query(workspace.QueryText);
                 }
-
             }
         }
 

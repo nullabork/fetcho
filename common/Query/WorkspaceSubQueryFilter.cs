@@ -25,6 +25,8 @@ namespace Fetcho.Common
         public override bool RequiresStreamInput { get => Query.RequiresStreamInput; }
         public override bool RequiresTextInput { get => Query.RequiresTextInput; }
 
+        public override bool IsReducingFilter => true;
+
         public WorkspaceSubQueryFilter(Query query, string headerKey, string searchText)
         {
             Query = query;

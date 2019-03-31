@@ -26,6 +26,9 @@ namespace Fetcho
         /// <param name="args"></param>
         static void Main(string[] args)
         {
+            ThrowIfAppSettingIsNotSet("FetchoWorkspaceServerBaseUri");
+            ThrowIfAppSettingIsNotSet("DataSourcePath");
+
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
             Filter.InitaliseFilterTypes();
@@ -111,6 +114,12 @@ namespace Fetcho
             Console.WriteLine();
             Console.WriteLine("Processors available:");
             OutputProcessors();
+        }
+
+        static void ThrowIfAppSettingIsNotSet(string key)
+        {
+            if (ConfigurationManager.AppSettings[key] == null)
+                throw new FetchoException("{0} not set in the AppSettings section", key);
         }
 
         static void OutputProcessors()

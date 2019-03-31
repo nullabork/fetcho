@@ -23,6 +23,8 @@ namespace Fetcho.Common.Entities
 
         public Workspace Workspace { get; set; }
 
+        public int Revision { get; set; }
+
         [JsonIgnore]
         public bool IsOwner { get => HasPermissionFlags(WorkspaceAccessPermissions.Owner); }
 
@@ -60,6 +62,7 @@ namespace Fetcho.Common.Entities
             IsWellknown = false;
             Id = Guid.NewGuid();
             AccountName = String.Empty;
+            Revision = 0;
         }
 
         public bool HasPermissionFlags(WorkspaceAccessPermissions flags)
@@ -77,6 +80,10 @@ namespace Fetcho.Common.Entities
                 throw new InvalidObjectFetchoException("Account Name not set");
             if (String.IsNullOrWhiteSpace(accessKey.Name))
                 throw new InvalidObjectFetchoException("Name not set");
+            if (accessKey.Workspace == null)
+                throw new InvalidObjectFetchoException("Workspace is null");
+            if (accessKey.Workspace.WorkspaceId == null)
+                throw new InvalidObjectFetchoException("Workspace ID is null");
 
         }
     }

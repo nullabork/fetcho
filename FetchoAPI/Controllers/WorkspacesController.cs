@@ -12,7 +12,6 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
-using System.Web.Http.OData;
 
 namespace Fetcho.FetchoAPI.Controllers
 {
@@ -175,6 +174,10 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 using (var db = new Database())
                 {
+
+                    accessKey.Revision++;
+                    accessKey.Workspace.Revision++;
+
                     await db.SaveAccessKey(accessKey);
                     await db.SaveWorkspace(accessKey.Workspace);
                 }
@@ -187,17 +190,23 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
-        [Route("api/v1/accesskey/{accessKeyId}")]
+        [Route("api/v1/accesskey/{writeAccessKeyId}")]
         [HttpPatch()]
-        public async Task<HttpResponseMessage> PatchAccessKey(Guid accessKeyId, [FromBody]Delta<AccessKey> delta)
+        public async Task<HttpResponseMessage> PatchAccessKey(Guid writeAccessKeyId, [FromBody]dynamic delta)
         {
+            int workspaceRevision = 0;
+            int accessKeyRevision = 0;
+
             try
             {
                 using (var db = new Database())
                 {
-                    var accessKey = await db.GetAccessKey(accessKeyId);
+                    var accessKey = await db.GetAccessKey(writeAccessKeyId); // TODO: Change this to delta.Id when someone realises you can't write to read-only keys issue comes up
                     if (accessKey == null)
                         throw new AccessKeyDoesntExistFetchoException("AccessKey doesnt exist");
+
+                    // gotta pass the accesskeyid of that has the capability to use the delta
+                    await ThrowIfNotValidPermission(db, writeAccessKeyId, WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
 
                     if (accessKey.Workspace == null)
                         accessKey.Workspace = new Workspace()
@@ -205,47 +214,47 @@ namespace Fetcho.FetchoAPI.Controllers
                             Name = Utility.GetRandomHashString()
                         };
 
-                    delta.Patch(accessKey);
+                    if (delta["Workspace"] != null)
+                    {
+                        if (delta["Workspace"]["QueryText"] != null)
+                            accessKey.Workspace.QueryText = delta.Workspace.QueryText;
+                        if (delta["Workspace"]["Name"] != null)
+                            accessKey.Workspace.Name = delta.Workspace.Name;
+                        if (delta["Workspace"]["Description"] != null)
+                            accessKey.Workspace.Description = delta.Workspace.Description;
+                        if (delta["Workspace"]["IsActive"] != null)
+                            accessKey.Workspace.IsActive = delta.Workspace.IsActive;
+                        if (delta["Workspace"]["IsWellknown"] != null)
+                            accessKey.Workspace.IsWellknown = delta.Workspace.IsWellknown;
+
+                        if (delta["Workspace"]["Revision"] != null)
+                            workspaceRevision = delta.Workspace.Revision;
+                        if (delta["Revision"] != null)
+                            accessKeyRevision = delta.Revision;
+                    }
+
+                    accessKey.Workspace.AccessKeys.Clear();
 
                     AccessKey.Validate(accessKey);
+
+                    try
+                    {
+                        ThrowIfAccessKeyRevisionNumberIsNotEqual(accessKey, accessKeyRevision);
+                        ThrowIfWorkspaceRevisionNumberIsNotEqual(accessKey.Workspace, workspaceRevision);
+                    }
+                    catch (DataConcurrencyFetchoException)
+                    {
+                        return CreateConflictResponse(accessKey);
+                    }
+
+                    accessKey.Revision++;
+                    accessKey.Workspace.Revision++;
+
                     await db.SaveAccessKey(accessKey);
                     await db.SaveWorkspace(accessKey.Workspace);
 
                     return CreateUpdatedResponse(accessKey);
                 }
-            }
-            catch (Exception ex)
-            {
-                return CreateExceptionResponse(ex);
-            }
-        }
-
-        /// <summary>
-        /// Update a workspace record
-        /// </summary>
-        /// <param name="accesskey"></param>
-        /// <param name="workspaceAccessKeyId"></param>
-        /// <param name="workspace"></param>
-        /// <returns></returns>
-        [Route("api/v1/accesskeys")]
-        [HttpPut()]
-        public async Task<HttpResponseMessage> PutAccessKey(AccessKey accessKey)
-        {
-            try
-            {
-                AccessKey.Validate(accessKey);
-                Workspace.Validate(accessKey.Workspace);
-                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKey.Id);
-
-                using (var db = new Database())
-                {
-                    await ThrowIfNotValidPermission(db, accessKey.Id, WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
-                    await ThrowIfNoWorkspaceAccess(db, accessKey.Workspace.WorkspaceId.GetValueOrDefault(), accessKey.AccountName);
-                    await db.SaveAccessKey(accessKey);
-                    await db.SaveWorkspace(accessKey.Workspace);
-                }
-
-                return CreateNoContentResponse();
             }
             catch (Exception ex)
             {
@@ -532,7 +541,7 @@ namespace Fetcho.FetchoAPI.Controllers
                         ThrowIfQueryContainsInvalidOptions(query);
                         var results = await db.GetWorkspaceResults(workspaceId);
                         var resultsToDelete = new List<WorkspaceResult>();
-                        foreach ( var result in results )
+                        foreach (var result in results)
                         {
                             var eval = query.Evaluate(result, String.Empty, null);
                             if (eval.Action == EvaluationResultAction.Include)
@@ -728,6 +737,18 @@ namespace Fetcho.FetchoAPI.Controllers
                 throw new PermissionDeniedFetchoException("Permission denied");
         }
 
+        private void ThrowIfAccessKeyRevisionNumberIsNotEqual(AccessKey key, int revision)
+        {
+            if (key.Revision != revision)
+                throw new DataConcurrencyFetchoException("The revision number sent is older than the current database");
+        }
+
+        private void ThrowIfWorkspaceRevisionNumberIsNotEqual(Workspace key, int revision)
+        {
+            if (key.Revision != revision)
+                throw new DataConcurrencyFetchoException("The revision number sent is older than the current database");
+        }
+
         /// <summary>
         /// Test we have workspace access with this access key
         /// </summary>
@@ -803,6 +824,9 @@ namespace Fetcho.FetchoAPI.Controllers
 
         private HttpResponseMessage CreateCreatedResponse<T>(T obj = default(T))
             => !EqualityComparer<T>.Default.Equals(obj, default(T)) ? Request.CreateResponse(HttpStatusCode.Created, obj) : Request.CreateResponse(HttpStatusCode.Created);
+
+        private HttpResponseMessage CreateConflictResponse<T>(T obj = default(T))
+            => !EqualityComparer<T>.Default.Equals(obj, default(T)) ? Request.CreateResponse(HttpStatusCode.Conflict, obj) : Request.CreateResponse(HttpStatusCode.Conflict);
 
         private HttpResponseMessage CreateUpdatedResponse<T>(T obj = default(T))
             => !EqualityComparer<T>.Default.Equals(obj, default(T)) ? Request.CreateResponse(HttpStatusCode.Accepted, obj) : Request.CreateResponse(HttpStatusCode.Accepted);

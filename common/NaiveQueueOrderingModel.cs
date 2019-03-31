@@ -66,7 +66,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        bool HostsAreEqual(QueueItem item) => item.SourceUri.Host == item.TargetUri.Host;
+        bool HostsAreEqual(QueueItem item) => item.SourceUri == null || item.SourceUri.Host == item.TargetUri.Host;
 
         /// <summary>
         /// Returns true if the source and target hosts share common IPs
