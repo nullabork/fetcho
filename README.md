@@ -56,7 +56,7 @@ lang:en
 
 Tag the results by city where that city is in the United_States
 ```
-geo-ip-city:United_States:*
+geo-ip-city::* geo-ip-country:United_States
 ```
 
 Exclude all english language pages
@@ -69,6 +69,10 @@ Remove 1 in 100000 random pages from the search even if all other pages match
 burger -random:0.00001
 ```
 
+Get English language burger articles from the science model with a 99% confidence threshold. Tag them with the og:type meta tag. Only include results with titles and descriptions. Apply a distinct window filter to the results so we only get one from the same domain every 1000 results.
+```
+burger ml-model(science,0.99):* lang:en property(og_type):*:* has:title has:description distinct-window(domain):1000
+```
 # API
 
 ## End Points
