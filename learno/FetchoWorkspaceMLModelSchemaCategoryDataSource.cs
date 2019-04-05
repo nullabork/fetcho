@@ -12,6 +12,11 @@ namespace learno
     {
         public Guid WorkspaceId { get; set; }
 
+        public bool UseNameForCategory { get; set; }
+
+        public virtual BracketPipeTextFragment FilterRawTextFragments(BracketPipeTextFragment fragment)
+            => fragment;
+
         public FetchoWorkspaceMLModelSchemaCategoryDataSource(string category, Guid workspaceId)
         {
             WorkspaceId = workspaceId;
@@ -24,12 +29,20 @@ namespace learno
             using (var db = new Database())
             {
                 var results = db.GetRandomWorkspaceResultsByWorkspaceId(WorkspaceId, maxRecords).GetAwaiter().GetResult();
-                l.AddRange(GetPages(db, Name, results));
+                l.AddRange(GetPages(db, results));
             }
             return l;
         }
 
-        private IEnumerable<TextPageData> GetPages(Database db, string label, IEnumerable<WorkspaceResult> results)
+        private string MakeCategory(WorkspaceResult result)
+        {
+            string tags = result.Tags.FirstOrDefault();
+            if (String.IsNullOrWhiteSpace(tags) || UseNameForCategory)
+                return Name;
+            return tags;
+        }
+
+        private IEnumerable<TextPageData> GetPages(Database db, IEnumerable<WorkspaceResult> results)
         {
             var parser = new BracketPipeTextExtractor();
 
@@ -42,14 +55,14 @@ namespace learno
 
                 if (data == null) continue;
 
-                var t = new List<string>();
+                var t = new List<BracketPipeTextFragment>();
                 using (var ms = new MemoryStream(data))
-                    parser.Parse(ms, t.Add);
+                    parser.Parse(ms, (x) => { var y = FilterRawTextFragments(x); if ( y != null ) t.Add(y); });
 
                 l.Add(new TextPageData
                 {
-                    TextData = t.Aggregate("", (x, y) => x + " " + y),
-                    Category = label
+                    TextData = t.Aggregate("", (x, y) => string.Format("{0} {1} {2}", x, y.Tag, y.Text)),
+                    Category = MakeCategory(result)
                 });
             }
 

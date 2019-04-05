@@ -10,13 +10,13 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "List all settings";
 
-        public override void Execute(Controlo controlo, string[] args)
+        public override void Execute(string[] args)
         {
             var t = typeof(FetchoConfiguration);
             foreach (var p in t.GetProperties())
             {
                 if (p.GetCustomAttributes(typeof(ConfigurationSettingAttribute), false).Any())
-                    controlo.ReportInfo("\t{0,-50} {1,-16} = {2}", p.Name, p.PropertyType, p.GetValue(FetchoConfiguration.Current));
+                    Controlo.ReportInfo("\t{0,-50} {1,-16} = {2}", p.Name, p.PropertyType, p.GetValue(FetchoConfiguration.Current));
             }
         }
     }

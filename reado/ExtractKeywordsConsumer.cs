@@ -48,8 +48,9 @@ namespace Fetcho
         }
 
         private bool writtenUri = false;
-        private void WriteExtractedText(string value)
+        private void WriteExtractedText(BracketPipeTextFragment fragment)
         {
+            string value = fragment.Text;
             value = value.Trim();
             if (cache.Contains(value)) return;
             cache.Enqueue(value);

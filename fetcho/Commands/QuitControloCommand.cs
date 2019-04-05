@@ -8,9 +8,9 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "Exit the program hard"; 
 
-        public override void Execute(Controlo controlo, string[] args)
+        public override void Execute(string[] args)
         {
-            controlo.ReportInfo("Quitting");
+            Controlo.ReportInfo("Quitting");
             Environment.Exit(1);
         }
     }

@@ -6,7 +6,7 @@ namespace Fetcho.Common
 {
     [Filter(
         "has:", 
-        "has:[property_name|*][:property_name|*]",
+        "has:property_name",
         Description = "Filter or tag by if the result has this property. eg. 'title', 'description'")]
     public class HasFilter : Filter
     {

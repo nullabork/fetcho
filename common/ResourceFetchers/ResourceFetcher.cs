@@ -28,10 +28,11 @@ namespace Fetcho.Common
         static int _waitingToWrite;
 
         public abstract Task Fetch(
+            QueueItem queueItem,
             Uri uri,
             Uri refererUri,
             DateTime? lastFetchedDate,
-            BufferBlock<WebDataPacketWriter> writerPool
+            BufferBlock<IWebResourceWriter> writerPool
             );
 
         /// <summary>
@@ -44,16 +45,18 @@ namespace Fetcho.Common
         /// <param name="lastFetchedDate"></param>
         /// <returns></returns>
         public static async Task FetchFactory(
+            QueueItem queueItem,
             Uri uri,
             Uri refererUri,
             DateTime? lastFetchedDate,
-            BufferBlock<WebDataPacketWriter> writerPool
+            BufferBlock<IWebResourceWriter> writerPool
             )
         {
             if (!HasHandler(uri))
                 log.Error("No handler for URI " + uri);
             else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
                 await new HttpResourceFetcher().Fetch(
+                    queueItem,
                     uri,
                     refererUri,
                     lastFetchedDate,
@@ -73,71 +76,9 @@ namespace Fetcho.Common
 
         protected void EndRequest() => Interlocked.Decrement(ref _activeFetches);
 
-        protected void OutputRequest(WebRequest request, XmlWriter outstream, DateTime startTime)
-        {
-            if (request == null)
-            {
-                outstream.WriteStartElement("request");
-                outstream.WriteEndElement();
-            }
-            else
-            {
-                DateTime now = DateTime.UtcNow;
-                outstream.WriteStartElement("request");
-                outstream.WriteString(string.Format("Uri: {0}\n", request.RequestUri == null ? "" : request.RequestUri.ToString().CleanupForXml()));
-                outstream.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
-                outstream.WriteString(string.Format("Date: {0}\n", now));
-                // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
-                if ( request.Headers != null)
-                {
-                    foreach (string key in request.Headers.AllKeys)
-                    {
-                        outstream.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
-                    }
-                }
-                outstream.WriteEndElement();
-            }
-        }
 
-        protected void OutputResponse(WebResponse response, byte[] buffer, int bytesRead, XmlWriter outStream)
-        {
-            outStream.WriteStartElement("response");
-            outStream.WriteStartElement("header");
 
-            if ( response is HttpWebResponse httpWebResponse)
-            {
-                outStream.WriteString(string.Format("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription));
-            }
 
-            foreach (string key in response.Headers)
-            {
-                outStream.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
-            }
-            outStream.WriteEndElement(); // header
-
-            try
-            {
-                outStream.WriteStartElement("data");
-                outStream.WriteBase64(buffer, 0, bytesRead);
-
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                outStream.WriteEndElement(); // data
-                outStream.WriteEndElement(); // response
-                response.Close();
-            }
-        }
-
-        protected void OutputException(Exception ex, XmlWriter outStream)
-        {
-            if (ex == null) return;
-            outStream.WriteElementString("exception", ex.ToString().CleanupForXml());
-        }
 
         protected void IncWaitingToWrite() => Interlocked.Increment(ref _waitingToWrite);
         protected void DecWaitingToWrite() => Interlocked.Decrement(ref _waitingToWrite);

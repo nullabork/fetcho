@@ -1,10 +1,11 @@
 ﻿using System;
 using System.IO;
 using Fetcho.Common.Entities;
+using HtmlAgilityPack;
 
 namespace Fetcho.Common
 {
-    [Filter("xpath:", "xpath:[xpath|*][:xpath|*]", Hidden = true)]
+    [Filter("xpath:", "xpath:query_path")]
     public class XPathFilter : Filter
     {
         public string XPath { get; set; }
@@ -13,11 +14,13 @@ namespace Fetcho.Common
 
         public override bool RequiresStreamInput { get => true; }
 
+        public override decimal Cost => 1000m;
+
         public override bool CallOncePerPage => true;
 
         public override bool IsReducingFilter => true;
 
-        public XPathFilter(string xpath) 
+        public XPathFilter(string xpath)
             => XPath = xpath;
 
         public override string GetQueryText()
@@ -31,8 +34,25 @@ namespace Fetcho.Common
             // the closest I've come to solving this problem but that required
             // the entire page to be stored in memory which is not workable here
 
-            // pass out nothing until i get it working
-            return EmptySet;
+            try
+            {
+                var doc = new HtmlDocument();
+                doc.OptionFixNestedTags = true;
+                doc.Load(stream);
+
+                var nodes = doc.DocumentNode.SelectNodes(XPath);
+
+                if (nodes != null && nodes.Count > 0)
+                    return new string[1];
+                else
+                    return EmptySet;
+            }
+            catch( Exception ex)
+            {
+                Utility.LogException(ex);
+                return EmptySet;
+            }
+
         }
 
         /// <summary>
@@ -48,10 +68,15 @@ namespace Fetcho.Common
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == "*") searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new XPathFilter(searchText);
+            // TODO: Check for bogus Xpath
+
+            if (String.IsNullOrWhiteSpace(searchText))
+                return null;
+            else
+                return new XPathFilter(searchText);
         }
 
     }

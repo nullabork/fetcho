@@ -12,11 +12,11 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "set [settingName] [settingValue]";
 
-        public override void Execute(Controlo controlo, string[] args)
+        public override void Execute(string[] args)
         {
             if ( args.Length < 2 )
             {
-                controlo.ReportError("Usage: {0}", ShortHelp);
+                Controlo.ReportError("Usage: {0}", ShortHelp);
                 return;
             }
 
@@ -27,7 +27,7 @@ namespace Fetcho.Commands
 
             if (p == null)
             {
-                controlo.ReportError("Setting doesn't exist {0}", settingName);
+                Controlo.ReportError("Setting doesn't exist {0}", settingName);
             }
             else
             {
@@ -39,7 +39,7 @@ namespace Fetcho.Commands
                 }
                 catch (NotSupportedException)
                 {
-                    controlo.ReportError("Not a valid {0}", p.PropertyType);
+                    Controlo.ReportError("Not a valid {0}", p.PropertyType);
                 }
             }
         }

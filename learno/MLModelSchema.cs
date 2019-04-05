@@ -6,8 +6,8 @@ namespace learno
 {
     public class MLModelSchema
     {
-        public const int DefaultMinResultsPerCategory = 500;
-        public const int DefaultMaxResultsPerCategory = 5000;
+        public const int DefaultMinResultsPerCategory = 300;
+        public const int DefaultMaxResultsPerCategory = 25000;
 
         /// <summary>
         /// Data sources to fetch and their name - note the datasource is the ultimate arbiter of category

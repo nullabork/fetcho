@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Fetcho.Common
 {
@@ -25,12 +27,17 @@ namespace Fetcho.Common
         /// <param name="status"></param>
         protected void OnStatusUpdate()
         {
-            lock(statusUpdateLock)
+            if (StatusUpdate == null) return;
+
+            var e = new QueueItemStatusUpdateEventArgs
             {
-                StatusUpdate?.Invoke(this, new QueueItemStatusUpdateEventArgs
-                {
-                    Item = this
-                });
+                Item = this
+            };
+
+            lock (statusUpdateLock)
+            {
+                e.Status = Status;
+                StatusUpdate?.Invoke(this, e);
             }
         }
 
@@ -135,6 +142,11 @@ namespace Fetcho.Common
         public int ChunkSequence { get; set; }
 
         /// <summary>
+        /// Number of milliseconds to timeout
+        /// </summary>
+        public int ReadTimeoutInMilliseconds { get; set; }
+
+        /// <summary>
         /// Combined statecode for the flags
         /// </summary>
         public string StateCode
@@ -177,6 +189,7 @@ namespace Fetcho.Common
             Priority = QueueItem.BadQueueItemPriorityNumber;
             TargetIP = IPAddress.None;
             CanBeDiscarded = true;
+            ReadTimeoutInMilliseconds = FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds;
         }
 
         public override string ToString()

@@ -296,7 +296,7 @@ namespace Fetcho.Common
                 "select count(*) " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_id = :workspace_id " +
-                "       and access_key = :account_name;";
+                "       and account_name = :account_name;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
@@ -491,19 +491,19 @@ namespace Fetcho.Common
             cmd.Prepare();
         }
 
-        public async Task SaveAccount(Account accessKey)
+        public async Task SaveAccount(Account account)
         {
-            string updateSql = "set client_encoding='UTF8'; update \"AccessKey\" " +
+            string updateSql = "set client_encoding='UTF8'; update \"Account\" " +
               "set    is_active = :is_active " +
-              "where  access_key = :access_key;";
+              "where  name = :name;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"AccessKey\" ( access_key, is_active, created) " +
-              "values ( :access_key, :is_active, :created);";
+            string insertSql = "set client_encoding='UTF8'; insert into \"Account\" ( name, is_active, created) " +
+              "values ( :name, :is_active, :created);";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
-            cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey.Name));
-            cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", accessKey.IsActive));
-            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", accessKey.Created));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", account.Name));
+            cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", account.IsActive));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", account.Created));
             int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (count == 0) // no record to update
@@ -513,12 +513,12 @@ namespace Fetcho.Common
             }
         }
 
-        public async Task<Account> GetAccount(string accessKey)
+        public async Task<Account> GetAccount(string accountName)
         {
-            string sql = "select access_key, is_active, created from \"AccessKey\" where access_key = :access_key;";
+            string sql = "select name, is_active, created from \"Account\" where name = :name;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
-            cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", accountName));
 
             using (var reader = await cmd.ExecuteReaderAsync())
             {
@@ -538,13 +538,84 @@ namespace Fetcho.Common
             return null;
         }
 
-        public async Task DeleteAccount(string accessKey)
+        public async Task DeleteAccount(string accountName)
         {
-            string sql = "delete from \"AccessKey\" where access_key = :access_key;";
+            string sql = "delete from \"Account\" where name = :name;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
-            cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accessKey));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", accountName));
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task SetAccountProperty(string accountName, string name, string value)
+        {
+            string updateSql = 
+                "update \"AccountProperty\" " + 
+                "set    name = :name " + 
+                "       value = :value " + 
+                "where  account_name = :account_name;";
+
+            string insertSql =
+                "insert into \"AccountProperty\" (name, value, account_name) values(:name, :value, :account_name);";
+
+            NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", name));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("value", value));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0) // no record to update
+            {
+                cmd.CommandText = insertSql;
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+        }
+
+        public async Task<AccountProperty> GetAccountProperty(string accountName, string name)
+        {
+            string sql = "select name, value from \"AccountProperty\" where account_name = :account_name and name = :name;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", name));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                if (reader.Read())
+                {
+                    return new AccountProperty()
+                    {
+                        Key = reader.GetString(0),
+                        Value = reader.IsDBNull(1) ? String.Empty : reader.GetString(1)
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        public async Task<IEnumerable<AccountProperty>> GetAccountProperties(string accountName)
+        {
+            string sql = "select name, value from \"AccountProperty\" where account_name = :account_name;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
+
+            var l = new List<AccountProperty>();
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                while (reader.Read())
+                {
+                    l.Add(new AccountProperty()
+                    {
+                        Key = reader.GetString(0),
+                        Value = reader.IsDBNull(1) ? String.Empty : reader.GetString(1)
+                    });
+                }
+            }
+
+            return l;
         }
 
         public async Task DeleteWorkspaceKey(Guid workspaceAccessKeyId)
@@ -635,9 +706,8 @@ namespace Fetcho.Common
         {
             var l = new List<AccessKey>();
 
-
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
+                "select workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_id = :workspace_id;";
 
@@ -671,16 +741,16 @@ namespace Fetcho.Common
             var l = new List<AccessKey>();
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
+                "select workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" ";
 
             if (!String.IsNullOrWhiteSpace(accountName))
-                sql += "where  access_key = :access_key;";
+                sql += "where  account_name = :account_name;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
 
             if (!String.IsNullOrWhiteSpace(accountName))
-                cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", accountName));
+                cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
 
             Dictionary<Guid, Guid> wsak = new Dictionary<Guid, Guid>();
 
@@ -718,7 +788,7 @@ namespace Fetcho.Common
             Guid workspaceId = Guid.Empty;
 
             string sql =
-                "select workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, name, revision " +
+                "select workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" " +
                 "where  workspace_access_key_id = :access_key_id;";
 
@@ -769,10 +839,10 @@ namespace Fetcho.Common
               "       expiry = :expiry, " +
               "       is_wellknown = :is_wellknown, " +
               "       revision = :revision " +
-              "where  workspace_id = :workspace_id and access_key = :access_key;";
+              "where  workspace_id = :workspace_id and account_name = :account_name;";
 
-            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( name, workspace_access_key_id, workspace_id, access_key, is_active, permissions, created, expiry, is_wellknown, revision) " +
-              "values ( :name, :workspace_access_key_id, :workspace_id, :access_key, :is_active, :permissions, :created, :expiry, :is_wellknown, :revision);";
+            string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( name, workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, revision) " +
+              "values ( :name, :workspace_access_key_id, :workspace_id, :account_name, :is_active, :permissions, :created, :expiry, :is_wellknown, :revision);";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             _saveAccessKeysSetParams(cmd, workspaceAccessKey);
@@ -792,7 +862,7 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<string>("name", wak.Name));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_access_key_id", wak.Id));
             cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", wak.Workspace.WorkspaceId.GetValueOrDefault()));
-            cmd.Parameters.Add(new NpgsqlParameter<string>("access_key", wak.AccountName));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", wak.AccountName));
             cmd.Parameters.Add(new NpgsqlParameter<int>("permissions", (int)wak.Permissions));
             cmd.Parameters.Add(new NpgsqlParameter<bool>("is_active", wak.IsActive));
             cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", wak.Created));
@@ -979,7 +1049,7 @@ namespace Fetcho.Common
                 "                                group  by workspace_id), 0) "
                 );
 
-        public async Task AddWebResourceDataCache(MD5Hash datahash, MemoryStream stream)
+        public async Task AddWebResourceDataCache(MD5Hash datahash, byte[] data)
         {
             try
             {
@@ -987,7 +1057,7 @@ namespace Fetcho.Common
 
                 var cmd = await SetupCommand(insertSql).ConfigureAwait(false);
                 cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", datahash.Values));
-                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("data", stream.GetBuffer()));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("data", data));
                 cmd.Prepare();
                 await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }

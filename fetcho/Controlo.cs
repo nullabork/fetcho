@@ -16,13 +16,16 @@ namespace Fetcho
 
         public ITargetBlock<IEnumerable<QueueItem>> PrioritisationBufferIn;
         public ITargetBlock<IEnumerable<QueueItem>> FetchQueueBufferOut;
+        public BufferBlock<IWebResourceWriter> DataWriterPool;
 
         public Controlo(
             ITargetBlock<IEnumerable<QueueItem>> prioritisationBufferIn,
-            ITargetBlock<IEnumerable<QueueItem>> fetchQueueBufferOut)
+            ITargetBlock<IEnumerable<QueueItem>> fetchQueueBufferOut,
+            BufferBlock<IWebResourceWriter> dataWriterPool)
         {
             PrioritisationBufferIn = prioritisationBufferIn;
             FetchQueueBufferOut = fetchQueueBufferOut;
+            DataWriterPool = dataWriterPool;
             Running = true;
             Commands = new Dictionary<string, ControloCommand>();
             RegisterAllCommands();
@@ -49,9 +52,11 @@ namespace Fetcho
 
                     if ( Commands.ContainsKey(commandName))
                     {
+                        var args = new ArraySegment<string>(tokens, 1, tokens.Length - 1).ToArray();
+                        Utility.LogInfo("Command: {0} {1}", commandName, args.Aggregate(String.Empty, (x, y) => x + " " + y));
                         try
                         {
-                            Commands[commandName].Execute(this, new ArraySegment<string>(tokens, 1, tokens.Length - 1).ToArray());
+                            Commands[commandName].Execute(args);
                         }
                         catch( Exception ex)
                         {
@@ -66,9 +71,11 @@ namespace Fetcho
             }
         }
 
-        public void ReportError(string format, params object[] args) => Console.WriteLine(format, args);
+        public void ReportError(string format, params object[] args) 
+            => Console.WriteLine(format, args);
 
-        public void ReportInfo(string format, params object[] args) => Console.WriteLine(format, args);
+        public void ReportInfo(string format, params object[] args) 
+            => Console.WriteLine(format, args);
 
         private void RegisterAllCommands()
         {
@@ -78,6 +85,7 @@ namespace Fetcho
                 {
                     var cinfo = t.GetConstructor(new Type[]{ });
                     ControloCommand o = cinfo.Invoke(null) as ControloCommand;
+                    o.Controlo = this;
                     Commands.Add(o.CommandName, o);
                 }
             }

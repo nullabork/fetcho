@@ -25,21 +25,22 @@ namespace Fetcho
 
         private ISourceBlock<IEnumerable<QueueItem>> FetchQueueIn;
         private ITargetBlock<IEnumerable<QueueItem>> RequeueOut;
-        private BufferBlock<WebDataPacketWriter> DataWritersPool;
+        private BufferBlock<IWebResourceWriter> DataWritersPool;
 
         public bool Running { get; set; }
 
         public Fetcho(
             ISourceBlock<IEnumerable<QueueItem>> fetchQueueIn,
-            ITargetBlock<IEnumerable<QueueItem>> requeueOut)
+            ITargetBlock<IEnumerable<QueueItem>> requeueOut,
+            BufferBlock<IWebResourceWriter> dataWritersPool)
         {
             Running = true;
             valve = CreatePressureReliefValve();
             FetchQueueIn = fetchQueueIn;
             RequeueOut = requeueOut;
+            DataWritersPool = dataWritersPool;
             fetchLock = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentFetches);
             FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
-
         }
 
         public async Task Process()
@@ -48,7 +49,6 @@ namespace Fetcho
             {
                 log.Info("Fetcho.Process() commenced");
                 RunPreStartChecks();
-                await CreateDataPacketWriters();
 
                 var r = ReportStatus();
 
@@ -73,7 +73,6 @@ namespace Fetcho
             }
             finally
             {
-                CloseAllWriters();
                 log.Info("Fetcho.Process() complete");
             }
         }
@@ -167,7 +166,7 @@ namespace Fetcho
         {
             try
             {
-                if (!await valve.WaitToEnter(item))
+                if (!await valve.WaitToEnter(item, item.CanBeDiscarded))
                 {
                     LogStatus(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
                     await SendItemsForRequeuing(new QueueItem[] { item });
@@ -177,6 +176,7 @@ namespace Fetcho
                     try
                     {
                         await ResourceFetcher.FetchFactory(
+                            item,
                             item.TargetUri,
                             item.SourceUri,
                             DateTime.MinValue, // TODO: Get this from the DB
@@ -184,10 +184,6 @@ namespace Fetcho
                             );
 
                         item.Status = QueueItemStatus.Fetched;
-
-                        var writer = await DataWritersPool.ReceiveAsync().ConfigureAwait(false);
-                        writer = ReplaceDataPacketWriterIfQuotaReached(writer);
-                        await DataWritersPool.SendAsync(writer);
                     }
                     catch (Exception)
                     {
@@ -215,44 +211,6 @@ namespace Fetcho
             await RequeueOut.SendAsync(items);
         }
 
-        private async Task CreateDataPacketWriters()
-        {
-            DataWritersPool = new BufferBlock<WebDataPacketWriter>();
-            var packet = CreateNewDataPacketWriter();
-            await DataWritersPool.SendAsync(packet);
-        }
-
-        private WebDataPacketWriter CreateNewDataPacketWriter()
-        {
-            if (String.IsNullOrWhiteSpace(FetchoConfiguration.Current.DataSourcePath))
-                throw new FetchoException("No output data file is set");
-
-            string fileName = Path.Combine(FetchoConfiguration.Current.DataSourcePath, "packet.xml");
-
-            return new WebDataPacketWriter(fileName);
-        }
-
-        private WebDataPacketWriter ReplaceDataPacketWriterIfQuotaReached(WebDataPacketWriter writer)
-        {
-            if (writer.ResourcesWritten > FetchoConfiguration.Current.MaxResourcesPerDataPacket)
-                return ReplaceDataPacketWriter(writer);
-            return writer;
-        }
-
-        private WebDataPacketWriter ReplaceDataPacketWriter(WebDataPacketWriter writer)
-        {
-            writer.Dispose();
-            return CreateNewDataPacketWriter();
-        }
-
-        private void CloseAllWriters()
-        {
-            while (DataWritersPool.Count > 0)
-            {
-                var packet = DataWritersPool.Receive();
-                packet.Dispose();
-            }
-        }
 
         private void RunPreStartChecks()
         {

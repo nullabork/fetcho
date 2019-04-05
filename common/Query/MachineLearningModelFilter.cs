@@ -20,7 +20,6 @@ namespace Fetcho.Common
         const float DefaultConfidenceThreshold = 0.98f;
         const string MachineLearningModelFilterKey = "ml-model(";
 
-        private PredictionEngine<PageData, PageClassPrediction> PredictionEngine { get; set; }
         private string lastDataHash = String.Empty;
         private PageClassPrediction lastPrediction = null;
 
@@ -41,7 +40,7 @@ namespace Fetcho.Common
             ModelName = modelName.CleanInput();
             SearchText = filterTags.CleanInput();
             ConfidenceThreshold = confidenceThreshold.ConstrainRange(0, 1);
-            PredictionEngine = LoadPredictionEngineFromCache();
+            ThrowIfModelDoesntExist();
         }
 
         public override string GetQueryText()
@@ -55,10 +54,11 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
+            var engine = LoadPredictionEngineFromCache();
 
             if (result.DataHash != lastDataHash)
             {
-                lastPrediction = PredictionEngine.Predict(new PageData { TextData = fragment });
+                lastPrediction = engine.Predict(new PageData { TextData = fragment });
                 lastDataHash = result.DataHash;
             }
 
@@ -73,6 +73,12 @@ namespace Fetcho.Common
             return EmptySet;
         }
 
+        private void ThrowIfModelDoesntExist()
+        {
+            if (!File.Exists(GetModelFilePath()))
+                throw new FetchoException("{0} model doesn't exist", ModelName);
+        }
+
         private PredictionEngine<PageData, PageClassPrediction> LoadPredictionEngineFromCache()
         {
             if (!PredictionEngineCache.ContainsKey(ModelName))
@@ -81,9 +87,12 @@ namespace Fetcho.Common
             return PredictionEngineCache[ModelName];
         }
 
+        private string GetModelFilePath()
+            => Path.Combine(FetchoConfiguration.Current.DataSourcePath, ModelName + DefaultMLModelFileNameExtension);
+
         private void LoadPredictionEngineFromDiskIntoCache(string modelName)
         {
-            string path = Path.Combine(FetchoConfiguration.Current.DataSourcePath, ModelName + DefaultMLModelFileNameExtension);
+            string path = GetModelFilePath();
 
             if (!File.Exists(path))
                 throw new FetchoException("{0} model doesn't exist", ModelName);

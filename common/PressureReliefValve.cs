@@ -60,7 +60,7 @@ namespace Fetcho.Common
         /// Wait to enter the valve
         /// </summary>
         /// <returns>True if successful, false if not</returns>
-        public async Task<bool> WaitToEnter(T item)
+        public async Task<bool> WaitToEnter(T item, bool allowPressureRelief)
         {
             if (disposedValue)
                 throw new ObjectDisposedException("PressureReliefValve");

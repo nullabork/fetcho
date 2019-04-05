@@ -67,6 +67,9 @@
     <Reference Include="BracketPipe, Version=0.7.6772.37409, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\BracketPipe.0.7.6772.37409\lib\net40\BracketPipe.dll</HintPath>
     </Reference>
+    <Reference Include="HtmlAgilityPack, Version=1.11.1.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
+      <HintPath>..\packages\HtmlAgilityPack.1.11.1\lib\Net45\HtmlAgilityPack.dll</HintPath>
+    </Reference>
     <Reference Include="LanguageDetection, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\LanguageDetection.1.2.0\lib\net45\LanguageDetection.dll</HintPath>
     </Reference>
@@ -203,6 +206,9 @@
     <Compile Include="ConfigurationChangeEventArgs.cs" />
     <Compile Include="Configuration\ConfigurationSetting.cs" />
     <Compile Include="ContentReader\BracketPipeTextExtractor.cs" />
+    <Compile Include="ContentReader\BracketPipeTextExtractorFilterType.cs" />
+    <Compile Include="ContentReader\BracketPipeTextFragment.cs" />
+    <Compile Include="ContentReader\ExtractionGranularity.cs" />
     <Compile Include="ContentReader\HtmlFileLinkExtractor.cs" />
     <Compile Include="ContentReader\WorkspaceResultBuilder.cs" />
     <Compile Include="DatabasePool.cs" />
@@ -217,18 +223,22 @@
     <Compile Include="Database.cs" />
     <Compile Include="Entities\AccessKey.cs" />
     <Compile Include="Entities\Account.cs" />
+    <Compile Include="Entities\AccountProperty.cs" />
     <Compile Include="Entities\FilterHelpInfo.cs" />
     <Compile Include="Entities\InvalidObjectFetchoException.cs" />
     <Compile Include="Entities\IWebResource.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessPermissions.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
+    <Compile Include="Entities\WorkspaceResultSocialFormat.cs" />
     <Compile Include="Entities\WorkspaceResultTransform.cs" />
     <Compile Include="ExceptionClassifier.cs" />
     <Compile Include="FastLookupCache.cs" />
     <Compile Include="FetchoConfiguration.cs" />
     <Compile Include="FetchoResourceBlockedException.cs" />
+    <Compile Include="ImmediateWorkspaceQueueItem.cs" />
     <Compile Include="IQueueCalculationModel.cs" />
+    <Compile Include="IWebResourceWriter.cs" />
     <Compile Include="NaiveQueueOrderingModel.cs" />
     <Compile Include="Net\FetchoAPIV1Client.cs" />
     <Compile Include="Net\RedditSubmission.cs" />
@@ -296,6 +306,7 @@
     <Compile Include="WebDataPacketReader.cs" />
     <Compile Include="ContentReader\WordTokenizer.cs" />
     <Compile Include="WebDataPacketWriter.cs" />
+    <Compile Include="WorkspaceResourcePacketWriter.cs" />
     <Compile Include="XmlBase64ElementStream.cs" />
   </ItemGroup>
   <ItemGroup>

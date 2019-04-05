@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Cors;
@@ -16,7 +17,7 @@ using System.Web.Http.Cors;
 namespace Fetcho.FetchoAPI.Controllers
 {
     [EnableCors(origins: "*", headers: "*", methods: "*")]
-    public class WorkspacesController : ApiController
+    public partial class WorkspacesController : ApiController
     {
         public const int MaxResultsReturned = 200;
 
@@ -75,19 +76,98 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                Account key = null;
+                Account acct = null;
 
                 using (var db = new Database())
                 {
-                    key = await db.GetAccount(accountName);
+                    acct = await db.GetAccount(accountName);
 
-                    if (key == null)
-                        return Create404Response(key);
+                    if (acct == null)
+                        return Create404Response(accountName);
 
-                    key.AccessKeys.AddRange(await db.GetAccessKeys(accountName, true));
+                    acct.AccessKeys.AddRange(await db.GetAccessKeys(accountName, true));
+                    acct.Properties.AddRange(await db.GetAccountProperties(accountName));
                 }
 
-                return CreateOKResponse(key);
+                return CreateOKResponse(acct);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accounts/{accountName}/properties")]
+        [HttpPost()]
+        public async Task<HttpResponseMessage> GetAccountProperties(string accountName)
+        {
+            try
+            {
+                IEnumerable<AccountProperty> props = null;
+
+                using (var db = new Database())
+                {
+                    var acct = await db.GetAccount(accountName);
+
+                    if (acct == null)
+                        return Create404Response(accountName);
+
+                    props = await db.GetAccountProperties(accountName);
+                }
+
+                return CreateOKResponse(props);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accounts/{accountName}/properties")]
+        [HttpPost()]
+        public async Task<HttpResponseMessage> SetAccountProperty(string accountName, [FromBody]AccountProperty property)
+        {
+            try
+            {
+                Account acct = null;
+
+                using (var db = new Database())
+                {
+                    acct = await db.GetAccount(accountName);
+
+                    if (acct == null)
+                        return Create404Response(accountName);
+
+                    await db.SetAccountProperty(accountName, property.Key, property.Value);
+                }
+
+                return CreateOKResponse(acct);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/accounts/{accountName}/properties")]
+        [HttpDelete()]
+        public async Task<HttpResponseMessage> DeleteAccountProperty(string accountName, [FromBody]AccountProperty property)
+        {
+            try
+            {
+                Account acct = null;
+
+                using (var db = new Database())
+                {
+                    acct = await db.GetAccount(accountName);
+
+                    if (acct == null)
+                        return Create404Response(accountName);
+
+                    await db.SetAccountProperty(accountName, property.Key, String.Empty);
+                }
+
+                return CreateOKResponse(acct);
             }
             catch (Exception ex)
             {
@@ -298,6 +378,25 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/accesskey/{accessKeyId}/results/social")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyIdFormatedForSocial(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
+        {
+            try
+            {
+                using (var db = new Database())
+                    await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
+                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
+                return await GetWorkspaceResultsByWorkspaceIdFormatedForSocial(workspaceId, offset, count, order);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+
+
         [Route("api/v1/accesskey/{accessKeyId}/supportedFilters")]
         [HttpGet()]
         public async Task<HttpResponseMessage> GetWorkspaceSupportedFiltersByAccessKey(Guid accessKeyId)
@@ -423,6 +522,58 @@ namespace Fetcho.FetchoAPI.Controllers
                 using (var db = new Database())
                     results = await db.GetWorkspaceResults(workspaceId, offset, count, BuildSqlOrderByStringFromQueryStringOrderString(order));
                 return CreateOKResponse(results);
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        /// <summary>
+        /// Get some results from a workspace
+        /// </summary>
+        /// <param name="workspaceId">Workspace guid</param>
+        /// <param name="offset">Minimum sequence value to start from</param>
+        /// <param name="count">Max number of results to get</param>
+        /// <returns>An enumerable array of results</returns>
+        [Route("api/v1/workspaces/{workspaceId}/results/social")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceIdFormatedForSocial(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
+        {
+            string[] acceptableOrderByTokens = { "sequence", "updated", "asc", "desc" };
+
+            try
+            {
+                count = count.ConstrainRange(1, MaxResultsReturned);
+                offset = offset.ConstrainMin(0);
+                ThrowIfOrderParameterIsInvalid(acceptableOrderByTokens, order);
+
+                using (var db = new Database())
+                {
+
+                    IEnumerable<WorkspaceResult> results = await db.GetWorkspaceResults(workspaceId, offset, count, BuildSqlOrderByStringFromQueryStringOrderString(order));
+
+                    var sresults = WorkspaceResultSocialFormat.FromWorkspaceResults(results);
+                    var builder = new WorkspaceResultBuilder();
+
+                    foreach (var sresult in sresults)
+                    {
+                        var data = await db.GetWebResourceCacheData(new MD5Hash(sresult.DataHash));
+                        if (data == null) continue;
+
+                        using (var ms = new MemoryStream(data))
+                        {
+                            var t = builder.Build(ms, "", "content-type: text/html", out string s);
+
+                            sresult.ImageUrl = t.PropertyCache.SafeGet("og_image")?.ToString();
+                            sresult.Author = t.PropertyCache.SafeGet("og_author")?.ToString();
+                            sresult.ResultType = t.PropertyCache.SafeGet("og_type")?.ToString();
+                            sresult.SiteName = t.PropertyCache.SafeGet("og_site_name")?.ToString();
+                        }
+                    }
+
+                    return CreateOKResponse(sresults);
+                }
             }
             catch (Exception ex)
             {
@@ -622,7 +773,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     ms.Seek(0, SeekOrigin.Begin);
 
                     using (var db = new Database())
-                        await db.AddWebResourceDataCache(hash, ms);
+                        await db.AddWebResourceDataCache(hash, ms.GetBuffer());
                 }
 
                 return CreateCreatedResponse((Object)null);
@@ -680,7 +831,15 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/resources/{datahash}/text")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWebResourceCacheDataText(string datahash)
+        public async Task<HttpResponseMessage> GetWebResourceCacheDataText(
+            string datahash, 
+            BracketPipeTextExtractorFilterType filter = BracketPipeTextExtractorFilterType.Raw,
+            int minlen = int.MinValue,
+            int maxlen = int.MaxValue,
+            bool distinct = true,
+            bool stopWords = true,
+            ExtractionGranularity granularity = ExtractionGranularity.Raw 
+            )
         {
             try
             {
@@ -691,17 +850,19 @@ namespace Fetcho.FetchoAPI.Controllers
                     if (bytes == null)
                         return Create404Response((Object)null);
 
-                    var l = new List<string>();
+                    var l = new List<BracketPipeTextFragment>();
                     using (var ms = new MemoryStream(bytes))
                     {
                         var parser = new BracketPipeTextExtractor
                         {
-                            Distinct = true,
-                            Granularity = ExtractionGranularity.Raw,
-                            MaximumLength = int.MaxValue,
-                            MinimumLength = int.MinValue,
-                            StopWords = false
+                            Distinct = distinct,
+                            Granularity = granularity,
+                            MaximumLength = maxlen,
+                            MinimumLength = minlen,
+                            StopWords = stopWords,
+                            Filter = filter
                         };
+
                         parser.Parse(ms, l.Add);
                     }
 
@@ -713,6 +874,31 @@ namespace Fetcho.FetchoAPI.Controllers
                 return CreateExceptionResponse(ex);
             }
         }
+
+        #endregion
+
+        #region
+
+        [Route("api/v1/parser/query")]
+        [HttpPost()]
+        public HttpResponseMessage GetQueryParserOutput([FromBody]JsonQuery jsonQuery)
+        {
+            try
+            {
+                Filter.InitaliseFilterTypes();
+                var response = QueryParserResponse.Create(jsonQuery.QueryText);
+
+                return CreateOKResponse(response);
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+                if (ex is ReflectionTypeLoadException rex)
+                    Utility.LogException(rex.LoaderExceptions.First());
+                return CreateExceptionResponse(ex);
+            }
+        }
+
 
         #endregion
 
@@ -866,6 +1052,5 @@ namespace Fetcho.FetchoAPI.Controllers
         }
 
         #endregion
-
     }
 }

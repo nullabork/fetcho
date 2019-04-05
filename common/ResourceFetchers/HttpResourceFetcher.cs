@@ -22,10 +22,11 @@ namespace Fetcho.Common
         /// <param name="lastFetchedDate">Date we last fetched the resource - helps in optimising resources</param>
         /// <returns></returns>
         public override async Task Fetch(
+            QueueItem queueItem,
             Uri uri,
             Uri refererUri,
             DateTime? lastFetchedDate,
-            BufferBlock<WebDataPacketWriter> writerPool
+            BufferBlock<IWebResourceWriter> writerPool
             )
         {
 
@@ -53,7 +54,7 @@ namespace Fetcho.Common
                 await db.SaveWebResource(uri, DateTime.UtcNow.AddDays(FetchoConfiguration.Current.PageCacheExpiryInDays));
                 await DatabasePool.GiveBackToPool(db);
 
-                request = CreateRequest(refererUri, uri, lastFetchedDate);
+                request = CreateRequest(queueItem, refererUri, uri, lastFetchedDate);
 
                 var netTask = request.GetResponseAsync();
 
@@ -76,13 +77,13 @@ namespace Fetcho.Common
                 else
                 {
                     bool firstTime = true;
-                    var rspw = WriteOutResponse(writerPool, request, response, startTime);
+                    var rspw = WriteOutResponse(queueItem, writerPool, request, response, startTime);
 
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
                     {
                         if (!firstTime)
                             throw new FetchoException("WriteOutResponse timed out");
-                        var wait = Task.Delay(FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds);
+                        var wait = Task.Delay( queueItem == null ? FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds : queueItem.ReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
                         if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
@@ -103,9 +104,9 @@ namespace Fetcho.Common
                     if (!wroteOk)
                     {
                         var packet = await writerPool.ReceiveAsync();
-                        packet.OutputStartResource();
-                        OutputRequest(request, packet.Writer, startTime);
-                        OutputException(exception, packet.Writer);
+                        packet.OutputStartResource(queueItem);
+                        packet.OutputRequest(request, startTime);
+                        packet.OutputException(exception);
                         packet.OutputEndResource();
                         await writerPool.SendAsync(packet);
                     }
@@ -129,13 +130,14 @@ namespace Fetcho.Common
         /// <param name="startTime"></param>
         /// <returns></returns>
         private async Task<bool> WriteOutResponse(
-            BufferBlock<WebDataPacketWriter> writers, 
+            QueueItem queueItem,
+            BufferBlock<IWebResourceWriter> writers, 
             HttpWebRequest request, 
             HttpWebResponse response, 
             DateTime startTime
             )
         {
-            WebDataPacketWriter packet = null;
+            IWebResourceWriter packet = null;
             Exception exception = null;
             bool wroteOk = false;
 
@@ -171,15 +173,15 @@ namespace Fetcho.Common
                 packet = await writers.ReceiveAsync().ConfigureAwait(false);
                 DecWaitingToWrite();
 
-                packet.OutputStartResource();
-                OutputRequest(request, packet.Writer, startTime);
+                packet.OutputStartResource(queueItem);
+                packet.OutputRequest(request, startTime);
                 if (bytesread > 0)
-                    OutputResponse(response, buffer, bytesread, packet.Writer);
+                    packet.OutputResponse(response, buffer, bytesread);
             }
             catch (Exception ex) { ErrorHandler(ex, request, false); exception = ex; }
             finally
             {
-                OutputException(exception, packet.Writer);
+                packet.OutputException(exception);
                 packet.OutputEndResource();
                 await writers.SendAsync(packet);
                 wroteOk = true;
@@ -194,7 +196,7 @@ namespace Fetcho.Common
         /// <param name="uri"></param>
         /// <param name="lastFetchedDate"></param>
         /// <returns></returns>
-        private HttpWebRequest CreateRequest(Uri refererUri, Uri uri, DateTime? lastFetchedDate)
+        private HttpWebRequest CreateRequest(QueueItem queueItem, Uri refererUri, Uri uri, DateTime? lastFetchedDate)
         {
             var request = WebRequest.Create(uri) as HttpWebRequest;
 
@@ -203,7 +205,11 @@ namespace Fetcho.Common
             request.Method = "GET";
 
             // we need to check the redirect URL is OK from a robots standpoint
-            request.AllowAutoRedirect = false; 
+
+            if (queueItem != null)
+                request.AllowAutoRedirect = !queueItem.CanBeDiscarded;
+            else
+                request.AllowAutoRedirect = false;
 
             // compression yes please!
             request.AutomaticDecompression =

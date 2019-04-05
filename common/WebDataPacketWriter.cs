@@ -1,24 +1,31 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Xml;
 
 namespace Fetcho.Common
 {
-    public class WebDataPacketWriter : IDisposable
+
+    public class WebDataPacketWriter : IDisposable, IWebResourceWriter
     {
         public XmlWriter Writer { get; private set; }
 
         public int ResourcesWritten { get; private set; }
 
-        public WebDataPacketWriter(string fileName) : this(OpenFile(fileName))
+        public string FileName { get; set; }
+
+        public WebDataPacketWriter(string fileName)
         {
+            FileName = fileName;
+            StartPacket(new StreamWriter(OpenFile(FileName)));
         }
 
-        public WebDataPacketWriter(Stream stream) : this(new StreamWriter(stream))
+        public WebDataPacketWriter(Stream stream)
         {
+            StartPacket(new StreamWriter(stream));
         }
 
-        public WebDataPacketWriter(TextWriter writer) 
+        private void StartPacket(TextWriter writer)
         {
             ResourcesWritten = 0;
             Writer = GetWriter(writer);
@@ -40,6 +47,7 @@ namespace Fetcho.Common
         private static Stream OpenFile(string fileName)
         {
             fileName = Utility.CreateNewFileOrIndexNameIfExists(fileName);
+            Utility.LogInfo("New packet: {0}", fileName);
             return new FileStream(fileName, FileMode.Open, FileAccess.Write, FileShare.Read);
         }
 
@@ -52,19 +60,86 @@ namespace Fetcho.Common
             Writer.WriteEndElement();
         }
 
-        public void OutputStartResource()
+        public void OutputStartResource(QueueItem item)
         {
             Writer.WriteStartElement("resource");
+        }
+
+        public void OutputRequest(WebRequest request, DateTime startTime)
+        {
+            if (request == null)
+            {
+                Writer.WriteStartElement("request");
+                Writer.WriteEndElement();
+            }
+            else
+            {
+                DateTime now = DateTime.UtcNow;
+                Writer.WriteStartElement("request");
+                Writer.WriteString(string.Format("Uri: {0}\n", request.RequestUri == null ? "" : request.RequestUri.ToString().CleanupForXml()));
+                Writer.WriteString(string.Format("ResponseTime: {0}\n", now - startTime));
+                Writer.WriteString(string.Format("Date: {0}\n", now));
+                // AllKeys is slower than Keys but is a COPY to prevent errors from updates to the collection
+                if (request.Headers != null)
+                {
+                    foreach (string key in request.Headers.AllKeys)
+                    {
+                        Writer.WriteString(string.Format("{0}: {1}\n", key, request.Headers[key].CleanupForXml()));
+                    }
+                }
+                Writer.WriteEndElement();
+            }
+        }
+
+        public void OutputResponse(WebResponse response, byte[] buffer, int bytesRead)
+        {
+            Writer.WriteStartElement("response");
+            Writer.WriteStartElement("header");
+
+            if (response is HttpWebResponse httpWebResponse)
+            {
+                Writer.WriteString(string.Format("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription));
+            }
+
+            foreach (string key in response.Headers)
+            {
+                Writer.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
+            }
+            Writer.WriteEndElement(); // header
+
+            try
+            {
+                Writer.WriteStartElement("data");
+                Writer.WriteBase64(buffer, 0, bytesRead);
+
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                Writer.WriteEndElement(); // data
+                Writer.WriteEndElement(); // response
+                response.Close();
+            }
+        }
+
+        public void OutputException(Exception ex)
+        {
+            if (ex == null) return;
+            Writer.WriteElementString("exception", ex.ToString().CleanupForXml());
         }
 
         public void OutputEndResource()
         {
             Writer.WriteEndElement(); // resource
 
-            if ( ResourcesWritten++ % 1000 == 0)
+            if (ResourcesWritten++ % 1000 == 0)
                 Writer.Flush();
+            ReplaceDataPacketWriterIfQuotaReached();
         }
-        
+
         private void WriteEndOfFile()
         {
             Writer.WriteStartElement("endTime");
@@ -73,6 +148,22 @@ namespace Fetcho.Common
             Writer.WriteEndElement(); // resources
             Writer.WriteEndDocument();
             Writer.Flush();
+        }
+
+        private void EndPacket()
+        {
+            WriteEndOfFile();
+            Writer.Dispose();
+            Writer = null;
+        }
+
+        private void ReplaceDataPacketWriterIfQuotaReached()
+        {
+            if (ResourcesWritten > FetchoConfiguration.Current.MaxResourcesPerDataPacket)
+            {
+                EndPacket();
+                StartPacket(new StreamWriter(OpenFile(FileName)));
+            }
         }
 
         #region IDisposable Support
@@ -84,9 +175,7 @@ namespace Fetcho.Common
             {
                 if (disposing)
                 {
-                    WriteEndOfFile();
-                    Writer.Dispose();
-                    Writer = null;
+                    EndPacket();
                 }
 
                 disposedValue = true;

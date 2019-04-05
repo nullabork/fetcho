@@ -9,6 +9,13 @@ Useful concepts to understand it:
 
 # Filters
 
+Theres three types of filters - boolean, tagable and functional. 
+
+Boolean filters are usually related to page properties. For example 'has' is a boolean filter as it tests if a page _has_ as a certain property like title (eg. `has:title`).
+Tagable filters are more complex and allow both filtering and tagging. For example `lang:en` will filter by english pages. If you just want to tag pages with their language use `lang:*:*` or `lang::*`
+Functional filters are expensive to run but the most powerful and include running machine learning models on the pages or running entire other queries on the pages. Usually to run these filters you need to know some information to pass into the filter. For example: `ml-model(science, 0.99)::*` will tag each page with the category predicted by the ML model `science` where that prediction is > 99% confidence threshold.
+
+
 | Syntax                                                                     | Description                                                                                                                                                                                           |
 |-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |  `hash:[md5_hash\|*][:md5_hash\|*]`                                           | Search by a md5 hash of the page data                                                                                                                                                                 |
@@ -30,7 +37,26 @@ Useful concepts to understand it:
 |  `tag:[tagfilter\|*][:replace_with]`                                         | Filter by a tag                                                                                                                                                                                       |
 | `uri:[uri_fragment\|*][:uri_fragment\|*]`                                    | Filter by some part of the URI.                                                                                                                                                                       |
 |  `query(access_key_id):[search text\|*][:search text\|*]`                     | Include another workspace query within this query.                                                                                                                                                    |
-|  `xpath:[xpath\|*][:xpath\|*]`                                                | Filter pages by an xpath query. NOTE NOT WORKING YET                                                                                                                                                  |
+|  `xpath:[xpath\|*][:xpath\|*]`                                                | Filter pages by an xpath query.                                                                                                                                                   |
+
+# Science ML model
+
+To filter run: `ml-model(science,0.99):*`
+To Tag include: `ml-model(science,0.99)::*`
+
+Categories available:
+* Health
+* Environment
+* Psychology
+* Engineering
+* Computer_Science
+* Astronomy
+* Physics
+* Neuroscience
+* Medicine
+* Biology
+* Animal_Science
+* Anthropology
 
 # Search query examples
 
@@ -83,6 +109,7 @@ Use workspaces if you're building a server facing tool
 * /api/v1/accounts - access all the data for an `Account`  
 * /api/v1/accesskeys - access all the data by an `AccessKey`  
 * /api/v1/workspaces - access all the data for a `Workspace`
+* /api/v1/parser - access parsers for checking query text
 
 ### Accounts
 
@@ -115,29 +142,31 @@ Use this for server facing tools
 
 ## Models
 
-### AccessKey 
-Keys for accessing workspaces  
+### Account 
+A personal group of access keys
 
 ```
 {
-	"Key": "PurpleMonkeyDishwasher",
+	"Name": "PurpleMonkeyDishwasher",
 	"Created": "2019-02-15T14:25:06.639414+08:00",  
 	"IsActive": true
 }
 ```
 
-### WorkspaceAccessKey 
+### AccessKey 
 An access key to a Workspace Workspaces 
 
 ```
 {  
       "Id":"8cd40e60-5749-480a-a0e3-77d66f3bb5d6",  
-      "AccessKey":"PurpleMonkeyDishwasher",  
+      "AccountName":"PurpleMonkeyDishwasher",  
       "Expiry":"9999-12-31T00:00:00",  
       "IsActive":true,  
-      "Permissions":1, // flags 0 = none, 1 = owner 
+      "Permissions":1, // flags 0 = none, 1 = owner, 2 = Manager, 4 = Read 
 	  "IsWellKnown":true,
-      "Created":"2019-02-15T14:25:06.639414+08:00"  
+      "Created":"2019-02-15T14:25:06.639414+08:00",
+	  "Workspace": {...},
+	  "Revision": 1
 }  
 ```
 
@@ -171,7 +200,8 @@ Details of a running search query and it's results and other configuration for a
          "Permissions":1,
          "Created":"2019-03-08T17:39:50.25246+08:00"  
       }  
-   ]  
+   ],
+   "Revision": 1
 }  
 ```
 
@@ -192,6 +222,6 @@ Individual search results
     ],  
     "Created":"2019-03-07T20:17:38.838743+08:00",  
     "PageSize":62985,  
-    "Sequence":9241  
+    "GlobalSequence":9241  
 }
 ```

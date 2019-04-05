@@ -1,6 +1,8 @@
-﻿using System.Net.Http.Formatting;
+﻿using System.Configuration;
+using System.Net.Http.Formatting;
 using System.Net.Http.Headers;
 using System.Web.Http;
+using Fetcho.Common;
 
 namespace FetchoAPI
 {
@@ -33,6 +35,11 @@ namespace FetchoAPI
             // prettfy the JSON formatters
             var json = GlobalConfiguration.Configuration.Formatters.JsonFormatter;
             json.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
+
+            // setup configuration
+            var cfg = new FetchoConfiguration();
+            cfg.SetConfigurationSetting(() => cfg.DataSourcePath, ConfigurationManager.AppSettings["DataSourcePath"]);
+            FetchoConfiguration.Current = cfg;
         }
     }
 }

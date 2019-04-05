@@ -11,9 +11,9 @@ namespace Fetcho.Common.QueryEngine
     /// </summary>
     public class Query
     {
-        private FilterCollection IncludeFilters = new FilterCollection();
-        private FilterCollection ExcludeFilters = new FilterCollection();
-        private FilterCollection TagFilters = new FilterCollection();
+        public FilterCollection IncludeFilters { get; } 
+        public FilterCollection ExcludeFilters { get; } 
+        public FilterCollection TagFilters { get; } 
 
         public long MinCost { get; set; }
         public long MaxCost { get; set; }
@@ -35,6 +35,9 @@ namespace Fetcho.Common.QueryEngine
             MinCost = long.MaxValue;
             MaxCost = long.MinValue;
             TotalCost = 0;
+            IncludeFilters = new FilterCollection();
+            ExcludeFilters = new FilterCollection();
+            TagFilters = new FilterCollection();
             ParseQueryText(queryText);
             Console.WriteLine(this.ToString());
         }
@@ -52,20 +55,19 @@ namespace Fetcho.Common.QueryEngine
             var ticks = DateTime.UtcNow.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var exc = ExcludeFilters.AnyMatch(result, words, stream);
+            var inc = IncludeFilters.AllMatch(result, words, stream);
 
-            if (exc)
-                action = EvaluationResultAction.Exclude;
-            else
+            if (inc)
             {
-                var inc = IncludeFilters.AllMatch(result, words, stream);
+                var exc = ExcludeFilters.AnyMatch(result, words, stream);
 
-                if (inc)
+                if ( exc )  
+                    action = EvaluationResultAction.Exclude;
+                else 
                 {
                     action = EvaluationResultAction.Include;
                     tags = TagFilters.GetTags(result, words, stream);
                 }
-                else if (!inc) action = EvaluationResultAction.NotEvaluated;
             }
 
             var r = new EvaluationResult(action, tags, DateTime.UtcNow.Ticks - ticks);
@@ -124,8 +126,8 @@ namespace Fetcho.Common.QueryEngine
                         break;
 
                     case (FilterMode.Tag | FilterMode.Include):
-                        if ( filter != null && filter.IsReducingFilter ) IncludeFilters.Add(filter);
-                        if ( tagger != null ) TagFilters.Add(tagger);
+                        if (filter != null && filter.IsReducingFilter) IncludeFilters.Add(filter);
+                        if (tagger != null) TagFilters.Add(tagger);
                         break;
 
                     default:

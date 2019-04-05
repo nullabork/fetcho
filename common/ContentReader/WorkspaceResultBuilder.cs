@@ -73,9 +73,9 @@ namespace Fetcho.ContentReaders
                 }
             }
 
-            result.UriHash = MD5Hash.Compute(result.RequestProperties["uri"]).ToString();
+            result.UriHash = MD5Hash.Compute(result.RequestProperties.SafeGet("uri") ?? "").ToString();
             result.RefererUri = result.RequestProperties.SafeGet("referer");
-            result.Uri = result.RequestProperties["uri"];
+            result.Uri = result.RequestProperties.SafeGet("uri") ?? "";
             result.Title = result.PropertyCache.SafeGet("title")?.ToString();
             result.Description = result.PropertyCache.SafeGet("description")?.ToString();
             result.Created = DateTime.UtcNow;

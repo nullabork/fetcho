@@ -349,7 +349,7 @@ namespace Fetcho.Common
 
             try
             {
-                var bb = new BufferBlock<WebDataPacketWriter>();
+                var bb = new BufferBlock<IWebResourceWriter>();
 
                 using (var ms = new MemoryStream())
                 {
@@ -358,7 +358,7 @@ namespace Fetcho.Common
                         // this is annoying, I shouldn't have to create a buffer block to get a robots file
                         // or we should put robots into the standard flow of things
                         await bb.SendAsync(packet);
-                        await (new HttpResourceFetcher()).Fetch(robotsUri, null, lastFetched, bb);
+                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, null, lastFetched, bb);
                     }
                     ms.Seek(0, SeekOrigin.Begin);
                     robots = new RobotsFile(CreateXmlReader(ms));

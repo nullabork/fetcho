@@ -6,11 +6,11 @@
 
         public override string ShortHelp => "List all commands";
 
-        public override void Execute(Controlo controlo, string[] args)
+        public override void Execute(string[] args)
         {
-            foreach( var command in controlo.Commands.Values )
+            foreach( var command in Controlo.Commands.Values )
             {
-                controlo.ReportInfo("{0,10}\t{1}", command.CommandName, command.ShortHelp);
+                Controlo.ReportInfo("{0,10}\t{1}", command.CommandName, command.ShortHelp);
             }
         }
     }

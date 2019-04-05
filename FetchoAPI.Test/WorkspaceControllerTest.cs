@@ -40,5 +40,14 @@ namespace FetchoAPI.Test
             //workspace = await controller.Get(workspace.WorkspaceId);
             //Assert.IsNull(workspace);
         }
+
+        [TestMethod]
+        public void ParserTest()
+        {
+            var p = QueryParserResponse.Create("-ml-model(science,0.98)");
+            Assert.IsTrue(p.Success, p.ErrorReason);
+            Assert.IsTrue(p.Filters.Count == 1);
+          
+        }
     }
 }

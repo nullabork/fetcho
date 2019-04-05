@@ -220,11 +220,11 @@ namespace Fetcho
         }
 
         bool RejectItemEarly(QueueItem item) =>
-            item.IsBlockedByDomain ||
+            (item.IsBlockedByDomain ||
             item.IsProbablyBlocked ||
             item.UnsupportedUri ||
             item.TargetIP == null ||
-            item.TargetIP.Equals(IPAddress.None);
+            item.TargetIP.Equals(IPAddress.None)) && item.CanBeDiscarded;
 
         /// <summary>
         /// Returns true if theres no resource fetcher for the type of URL
@@ -343,7 +343,7 @@ namespace Fetcho
                         rejected.Add(item);
                     }
 
-                    else if (IsPriorityTooLow(item))
+                    else if (item.CanBeDiscarded && IsPriorityTooLow(item))
                     {
                         item.PriorityTooLow = true;
                         item.Status = QueueItemStatus.Discarded;
@@ -351,7 +351,7 @@ namespace Fetcho
                     }
 
                     // make it so one chunk isn't too big
-                    else if (IsChunkSequenceTooHigh(item))
+                    else if (item.CanBeDiscarded && IsChunkSequenceTooHigh(item))
                     {
                         item.ChunkSequenceTooHigh = true;
                         item.Status = QueueItemStatus.Discarded;
@@ -359,7 +359,7 @@ namespace Fetcho
                     }
 
                     // if seen IP recently
-                    else if (HasIPBeenSeenRecently(item))
+                    else if (item.CanBeDiscarded && HasIPBeenSeenRecently(item))
                     {
                         item.IPSeenRecently = true;
                         item.Status = QueueItemStatus.Discarded;

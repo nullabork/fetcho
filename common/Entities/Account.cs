@@ -14,6 +14,8 @@ namespace Fetcho.Common.Entities
         public bool IsActive { get; set; }
 
         public List<AccessKey> AccessKeys { get; set; }
+
+        public List<AccountProperty> Properties { get; set; }
         
         public Account()
         {
@@ -21,6 +23,7 @@ namespace Fetcho.Common.Entities
             IsActive = true;
             Name = Utility.GetRandomHashString();
             AccessKeys = new List<AccessKey>();
+            Properties = new List<AccountProperty>();
         }
 
         public static bool IsValid(Account key)

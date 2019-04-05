@@ -1,6 +1,7 @@
 ﻿using Fetcho.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,12 +65,15 @@ namespace Fetcho
             BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit * 100);
             //BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             //BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            BufferBlock<IWebResourceWriter> dataWriterPool = new BufferBlock<IWebResourceWriter>();
+            var packet = CreateNewDataPacketWriter();
+            dataWriterPool.SendAsync(packet).GetAwaiter().GetResult();
 
             // fetcho!
             var readLinko = new ReadLinko(prioritisationBuffer, startPacketIndex);
             var queueo = new Queueo(prioritisationBuffer, fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
-            var fetcho = new Fetcho(fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
-            var controlo = new Controlo(prioritisationBuffer, fetchQueueBuffer);
+            var fetcho = new Fetcho(fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>(), dataWriterPool);
+            var controlo = new Controlo(prioritisationBuffer, fetchQueueBuffer, dataWriterPool);
             //var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
             //var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", new NullTarget);
 
@@ -100,5 +104,25 @@ namespace Fetcho
             {
                 BoundedCapacity = boundedCapacity
             });
+
+        private static IWebResourceWriter CreateNewDataPacketWriter()
+        {
+            if (String.IsNullOrWhiteSpace(FetchoConfiguration.Current.DataSourcePath))
+                throw new FetchoException("No output data file is set");
+
+            string fileName = Path.Combine(FetchoConfiguration.Current.DataSourcePath, "packet.xml");
+
+            return new WebDataPacketWriter(fileName);
+        }
+
+        private static void CloseAllWriters(BufferBlock<IWebResourceWriter> dataWriterPool)
+        {
+            while (dataWriterPool.Count > 0)
+            {
+                var writer = dataWriterPool.Receive();
+                writer.Dispose();
+            }
+        }
+
     }
 }

@@ -341,5 +341,8 @@ namespace Fetcho.Common
         public static string MakeTag(string token)
             => token?.Trim().Replace(' ', '_');
 
+        public static IEnumerable<string> MakeTags(params string[] tokens)
+            => tokens.Select(MakeTag);
+
     }
 }

@@ -70,7 +70,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Cache of all the filter types
         /// </summary>
-        public static Dictionary<string, Type> FilterTypes = new Dictionary<string, Type>();
+        public static Dictionary<string, Type> FilterTypes = null;
 
         /// <summary>
         /// Create the cache of filter types
@@ -78,15 +78,25 @@ namespace Fetcho.Common
         [Obsolete("Need to figure out how to get rid of this without creating a race condition")]
         public static void InitaliseFilterTypes()
         {
-            foreach (var ft in GetAllFilterTypes())
+            if (FilterTypes != null) return;
+            lock (_filterTypesLock)
             {
-                var attr = ft.GetCustomAttributes(typeof(FilterAttribute), false).FirstOrDefault() as FilterAttribute;
-                if (attr != null)
+                if (FilterTypes == null)
                 {
-                    FilterTypes.Add(attr.TokenMatch, ft);
+                    FilterTypes = new Dictionary<string, Type>();
+                    foreach (var ft in GetAllFilterTypes())
+                    {
+                        var attr = ft.GetCustomAttributes(typeof(FilterAttribute), false).FirstOrDefault() as FilterAttribute;
+                        if (attr != null)
+                        {
+                            FilterTypes.Add(attr.TokenMatch, ft);
+                        }
+                    }
                 }
             }
         }
+
+        private static readonly object _filterTypesLock = new object();
 
         /// <summary>
         /// Get a specific filter type based on a token that might match it
@@ -107,7 +117,7 @@ namespace Fetcho.Common
 
             var t = GetFilterType(token);
 
-            if ( t == null )
+            if (t == null)
                 throw new FilterReflectionFetchoException("Can't find filter for token type {0}", token);
 
             var method = t.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
