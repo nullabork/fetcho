@@ -122,6 +122,8 @@ namespace Fetcho.Common
                 return result.RefererUri;
             if (fieldName == "datahash")
                 return result.DataHash;
+            if (fieldName == "tags")
+                return result.Tags.Aggregate("", (x, y) => x + y);
             return String.Empty;
         }
 
@@ -134,7 +136,8 @@ namespace Fetcho.Common
                 "ip",
                 "title",
                 "referer",
-                "datahash"
+                "datahash",
+                "tags"
             };
 
             if (fields.Count(x => x == fieldName) == 0)

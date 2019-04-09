@@ -32,6 +32,9 @@ namespace FetchoAPI
                 defaults: new { id = RouteParameter.Optional }
             );
 
+            GlobalConfiguration.Configuration.IncludeErrorDetailPolicy
+            = IncludeErrorDetailPolicy.Always;
+
             // prettfy the JSON formatters
             var json = GlobalConfiguration.Configuration.Formatters.JsonFormatter;
             json.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;

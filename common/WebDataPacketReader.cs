@@ -12,7 +12,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Use this to catch wierd errors
         /// </summary>
-        public const int MaxResourcesInAFile = 1000000;
+        public const int MaxResourcesInAFile = 500000;
 
         /// <summary>
         /// Raw stream we're accessing
@@ -48,7 +48,7 @@ namespace Fetcho.Common
         /// Create a packet from a file
         /// </summary>
         /// <param name="fileName"></param>
-        public WebDataPacketReader(string fileName) : this(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        public WebDataPacketReader(string fileName) : this(Utility.GetDecompressedStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
         {
 
         }

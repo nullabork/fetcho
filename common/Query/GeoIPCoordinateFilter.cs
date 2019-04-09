@@ -15,7 +15,7 @@ namespace Fetcho.Common
 
         public override string Property => "ll";
 
-        public override string FilterData => Bounds.ToString();
+        public override string FilterData => Bounds?.ToString();
 
         public override decimal Cost => 500m;
 

@@ -20,13 +20,15 @@ namespace Fetcho
                 ThrowIfFileDoesntExist(filepath);
                 using (var fs = GetFileStream(filepath))
                 {
+                    Utility.LogInfo(filepath);
                     var packet = new WebDataPacketReader(fs);
                     Processor.Process(packet);
                 }
             });
         }
 
-        private FileStream GetFileStream(string filepath) => new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        private Stream GetFileStream(string filepath) 
+            => Utility.GetDecompressedStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
         private void ThrowIfFileDoesntExist(string packetPath)
         {

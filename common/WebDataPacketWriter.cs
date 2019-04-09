@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Xml;
 
@@ -48,7 +49,8 @@ namespace Fetcho.Common
         {
             fileName = Utility.CreateNewFileOrIndexNameIfExists(fileName);
             Utility.LogInfo("New packet: {0}", fileName);
-            return new FileStream(fileName, FileMode.Open, FileAccess.Write, FileShare.Read);
+            return new GZipStream(new FileStream(fileName, FileMode.Open, FileAccess.Write, FileShare.Read),
+                                  CompressionLevel.Optimal, false);
         }
 
         private void WriteStartOfFile()

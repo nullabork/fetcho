@@ -13,6 +13,11 @@ namespace Fetcho.Common.Entities
         /// GUID for the workspace
         /// </summary>
         public Guid? WorkspaceId { get; set; }
+        
+        /// <summary>
+        /// Query search text
+        /// </summary>
+        public string QueryText { get; set; }
 
         /// <summary>
         /// Name of the workspace
@@ -23,11 +28,6 @@ namespace Fetcho.Common.Entities
         /// Description of the workspace
         /// </summary>
         public string Description { get; set; }
-
-        /// <summary>
-        /// Query search text
-        /// </summary>
-        public string QueryText { get; set; }
 
         /// <summary>
         /// Date this workspace was created

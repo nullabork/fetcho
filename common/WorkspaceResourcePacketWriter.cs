@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using Fetcho.ContentReaders;
@@ -91,7 +92,8 @@ namespace Fetcho.Common
                         try
                         {
                             await db.AddWorkspaceResults(wqi.DestinationWorkspaceId, new[] { result });
-                            await db.AddWebResourceDataCache(hash, buffer);
+                            // OPTIMISE: Remove ToArray and just pass IEnumerable<> 
+                            await db.AddWebResourceDataCache(hash, buffer.Take(bytesRead).ToArray());
                         }
                         catch( Exception ex)
                         {

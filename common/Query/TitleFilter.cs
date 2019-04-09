@@ -4,27 +4,31 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("uri:", "uri:[uri_fragment|*][:uri_fragment|*]")]
-    public class UriFilter : Filter
+    [Filter("title:", "title:[text|*][:text|*]")]
+    public class TitleFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "URI filter";
+        public override string Name => "Title filter";
 
-        public override bool RequiresResultInput { get => true; }
+        public TitleFilter(string title)
+            => SearchText = title;
+
+        public override decimal Cost => 1m;
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => true;
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
 
-        public UriFilter(string searchText)
-            => SearchText = searchText;
+        public override bool RequiresResultInput { get => true; }
 
         public override string GetQueryText()
-            => string.Format("uri:{0}", SearchText);
+            => string.Format("title:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
-            => result.Uri.Contains(SearchText) ? new string[1] { Utility.MakeTag(result.Uri) } : EmptySet;
+        {
+            return result.Title.Contains(SearchText) ? new string[1] : EmptySet;
+        }
 
         /// <summary>
         /// Parse some text to create this object
@@ -42,8 +46,7 @@ namespace Fetcho.Common
                 if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new UriFilter(searchText);
+            return new TitleFilter(searchText);
         }
     }
-
 }

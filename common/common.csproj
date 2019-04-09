@@ -229,6 +229,7 @@
     <Compile Include="Entities\IWebResource.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessPermissions.cs" />
+    <Compile Include="Entities\WorkspaceQueryStats.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
     <Compile Include="Entities\WorkspaceResultSocialFormat.cs" />
     <Compile Include="Entities\WorkspaceResultTransform.cs" />
@@ -249,6 +250,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Query\ComplexTextFilter.cs" />
     <Compile Include="Query\DataHashFilter.cs" />
     <Compile Include="Query\DistinctWindowFilter.cs" />
     <Compile Include="Query\EvaluationResult.cs" />
@@ -276,6 +278,7 @@
     <Compile Include="Query\SiteFilter.cs" />
     <Compile Include="Query\TagFilter.cs" />
     <Compile Include="Query\TextMatchFilter.cs" />
+    <Compile Include="Query\TitleFilter.cs" />
     <Compile Include="Query\UriFilter.cs" />
     <Compile Include="Query\WorkspaceSubQueryFilter.cs" />
     <Compile Include="Query\XPathFilter.cs" />

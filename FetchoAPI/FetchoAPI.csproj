@@ -138,6 +138,7 @@
     <Compile Include="Controllers\AccessKeyDoesntExistFetchoException.cs" />
     <Compile Include="Controllers\DataConcurrencyFetchoException.cs" />
     <Compile Include="Controllers\InvalidRequestFetchoException.cs" />
+    <Compile Include="Models\WorkspaceResultResponse.cs" />
     <Compile Include="Models\JsonQuery.cs" />
     <Compile Include="Controllers\PermissionDeniedFetchoException.cs" />
     <Compile Include="Models\QueryParserResponse.cs" />

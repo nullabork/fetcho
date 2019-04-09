@@ -27,8 +27,8 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            var uri = new Uri(result.RequestProperties["uri"]);
-            return uri.Host.Contains(SearchText) ? new string[1] { uri.Host } : EmptySet;
+            var uri = new Uri(result.Uri);
+            return uri.Host.Contains(SearchText) ? new string[1] { Utility.MakeTag(uri.Host) } : EmptySet;
         }
 
         /// <summary>

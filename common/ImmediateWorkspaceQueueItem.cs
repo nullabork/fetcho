@@ -1,8 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-using Fetcho.Common;
-using Fetcho.ContentReaders;
 
 namespace Fetcho.Common
 {

@@ -18,7 +18,6 @@ namespace Fetcho
         Dictionary<Guid, Query> Queries { get; }
 
         private FetchoAPIV1Client fetchoClient;
-        private List<Guid> postTo = new List<Guid>();
         private string requestString = String.Empty;
         private string responseHeaders = String.Empty;
 
@@ -48,6 +47,7 @@ namespace Fetcho
             try
             {
                 if (dataStream == null) return;
+                var postTo = new List<PostToWorkspace>();
 
                 using (Stream stream = new MemoryStream())
                 {
@@ -65,10 +65,11 @@ namespace Fetcho
                             var r = qry.Value.Evaluate(result, evaluationText.ToString(), stream);
                             if (r.Action == EvaluationResultAction.Include)
                             {
-
-                                result.Tags.AddRange(r.Tags.Distinct().Where( x => !result.Tags.Contains(x)));
                                 result.DebugInfo += String.Format("Cost: {0}\nQuery stats:{1}\n", r.Cost, qry.Value.CostDetails());
-                                postTo.Add(qry.Key);
+                                postTo.Add(new PostToWorkspace() {
+                                    WorkspaceId = qry.Key,
+                                    Tags = r.Tags.Distinct().Where(x => !result.Tags.Contains(x)).ToArray()
+                                });
                             }
                         }
                         catch (Exception ex)
@@ -82,9 +83,11 @@ namespace Fetcho
 
                     stream.Seek(0, SeekOrigin.Begin);
                     fetchoClient.PostWebResourceDataCache(stream).GetAwaiter().GetResult();
-                    foreach (var workspaceId in postTo.ToArray())
+                    foreach (var workspace in postTo)
                     {
-                        fetchoClient.PostWorkspaceResultsByWorkspaceIdAsync(workspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
+                        result.Tags.Clear();
+                        result.Tags.AddRange(workspace.Tags);
+                        fetchoClient.PostWorkspaceResultsByWorkspaceIdAsync(workspace.WorkspaceId, new WorkspaceResult[] { result }).GetAwaiter().GetResult();
                     }
                 }
             }
@@ -100,7 +103,7 @@ namespace Fetcho
                     {
                         UpdateStatistics(db);
                         SetupQueries(db);
-                        ReportStatus();
+                        ReportStatus(db);
                     }
                 }
             }
@@ -112,7 +115,7 @@ namespace Fetcho
         DateTime lastCall = DateTime.UtcNow;
         long lastResourcesSeen = 0;
 
-        void ReportStatus()
+        void ReportStatus(Database db)
         {
             var timing = DateTime.UtcNow - lastCall;
             var diff = ResourcesSeen - lastResourcesSeen;
@@ -126,11 +129,12 @@ namespace Fetcho
                 var query = qry.Value;
                 Console.WriteLine("{0,-10} {1, -10} {2,-10} {3,-11} {4,-10} {5,-10} {6,-10} {7,-10} {8}",
                     query.MinCost, query.MaxCost, query.AvgCost, query.TotalCost, query.NumberOfEvaluations,
-                    query.NumberOfInclusions, query.NumberOfExclusions, query.NumberOfTags, query.ToString().Truncate(128));
+                    query.NumberOfInclusions, query.NumberOfExclusions, query.NumberOfTags, query.ToString().ReduceWhitespace().Truncate(128));
+
+                if ( ResourcesSeen % 10000 == 0 )
+                    db.AddWorkspaceQueryStats(new WorkspaceQueryStats(qry.Key, qry.Value)).GetAwaiter().GetResult();
             }
         }
-
-
 
         void UpdateStatistics(Database db)
             => db.UpdateWorkspaceStatistics().GetAwaiter().GetResult();
@@ -159,12 +163,16 @@ namespace Fetcho
 
         void ClearAll()
         {
-            postTo.Clear();
             requestString = String.Empty;
             responseHeaders = String.Empty;
         }
 
+        internal class PostToWorkspace
+        {
+            public Guid WorkspaceId;
 
+            public string[] Tags;
+        }
     }
 
 

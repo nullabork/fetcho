@@ -18,6 +18,7 @@ namespace Fetcho.Common
         public override bool CallOncePerPage => true;
 
         public override bool RequiresResultInput { get => true; }
+        public override bool RequiresStreamInput { get => true; } // indirectly via properties
 
         public override bool IsReducingFilter => true;
 

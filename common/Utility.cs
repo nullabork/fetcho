@@ -122,8 +122,12 @@ namespace Fetcho.Common
             }
         }
 
-        private static readonly byte[] GZipHeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0 };
+        private static readonly byte[] GZipHeaderBytes =        { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0 };
         private static readonly byte[] GZipLevel10HeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 0 };
+
+        // not sure what this is but GZipStream is now producing it. Reading the docs they indicate they switched to 
+        // zlib library in .NET 4.5 so it could be a new compression algorithm
+        private static readonly byte[] GZipHeaderBytes2 =       { 0x1f, 0x3f, 8, 0, 0, 0, 0, 0, 4, 0 }; 
 
         /// <summary>
         /// Attempts to detect if the current file is a GZip file
@@ -157,7 +161,7 @@ namespace Fetcho.Common
             var header = new ArraySegment<Byte>(bytes, 0, 10);
             byte[] a = header.Array;
 
-            return a.SequenceEqual(GZipHeaderBytes) || a.SequenceEqual(GZipLevel10HeaderBytes);
+            return a.SequenceEqual(GZipHeaderBytes2) || a.SequenceEqual(GZipHeaderBytes) || a.SequenceEqual(GZipLevel10HeaderBytes);
         }
 
         /// <summary>
@@ -165,15 +169,15 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="filepath"></param>
         /// <returns></returns>
-        public static Stream GetDecompressedStream(string filepath)
+        public static Stream GetDecompressedStream(string filepath, FileMode fileMode, FileAccess fileAccess, FileShare fileShare)
         {
             // in theory this should cache the file so that when we open it a second time it effectively is one call
-            if (IsPossibleGZippedFile(filepath))
-                return new GZipStream(new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read),
-                                      CompressionMode.Decompress,
-                                      false);
-            else
-                return new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            bool isZipped = IsPossibleGZippedFile(filepath);
+            var stm = new FileStream(filepath, fileMode, fileAccess, fileShare);
+
+            if ( isZipped )
+                return new GZipStream(stm, CompressionMode.Decompress, false);
+            return stm;
         }
 
         /// <summary>

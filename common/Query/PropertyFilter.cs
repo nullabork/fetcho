@@ -21,7 +21,7 @@ namespace Fetcho.Common
         public override decimal Cost => 50m;
 
         public override bool RequiresResultInput { get => true; }
-        public override bool RequiresTextInput { get => true; }
+        public override bool RequiresStreamInput { get => true; } // indirectly via properties
 
         public override bool IsReducingFilter => true;
 

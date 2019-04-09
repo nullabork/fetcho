@@ -78,6 +78,5 @@ namespace Fetcho.Common
             else
                 return new XPathFilter(searchText);
         }
-
     }
 }

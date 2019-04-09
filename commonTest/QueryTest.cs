@@ -1,5 +1,5 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Linq;
+using Fetcho.Common.Entities;
 using Fetcho.Common.QueryEngine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -11,14 +11,6 @@ namespace Fetcho.Common.Tests
         [TestInitialize]
         public void Setup()
         {
-            try
-            {
-                Filter.InitaliseFilterTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                Console.WriteLine(ex.LoaderExceptions[0]);
-            }
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
             cfg.SetConfigurationSetting(() => cfg.DataSourcePath, @"G:\fetcho\data\");
@@ -36,6 +28,33 @@ namespace Fetcho.Common.Tests
             Assert.IsTrue(q.ToString() == InputQuery, q.ToString());
             Assert.IsTrue(result.Action == EvaluationResultAction.Exclude);
 
+        }
+
+        [TestMethod]
+        public void Parse2Test()
+        {
+            const string InputQuery = "uri:reddit.com";
+
+            var q = new Query(InputQuery);
+            var result = q.Evaluate(null, "words", null);
+
+            Assert.IsTrue(q.OriginalQueryText == InputQuery, q.OriginalQueryText);
+            Assert.IsTrue(q.ToString() == InputQuery, q.ToString());
+            Assert.IsTrue(result.Action == EvaluationResultAction.Exclude);
+        }
+
+        [TestMethod]
+        public void Parse3Test()
+        {
+            const string InputQuery = "uri:reddit.com";
+
+            var r = new WorkspaceResult
+            {
+                Uri = InputQuery
+            };
+ 
+            var f = new UriFilter(InputQuery);
+            Assert.IsTrue(f.IsMatch(r, "", null).Any());
         }
 
     }

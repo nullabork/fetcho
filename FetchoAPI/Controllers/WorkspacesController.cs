@@ -19,7 +19,7 @@ namespace Fetcho.FetchoAPI.Controllers
     [EnableCors(origins: "*", headers: "*", methods: "*")]
     public partial class WorkspacesController : ApiController
     {
-        public const int MaxResultsReturned = 200;
+        public const int MaxResultsReturned = 1000;
 
         #region Accounts
 
@@ -98,7 +98,7 @@ namespace Fetcho.FetchoAPI.Controllers
         }
 
         [Route("api/v1/accounts/{accountName}/properties")]
-        [HttpPost()]
+        [HttpGet()]
         public async Task<HttpResponseMessage> GetAccountProperties(string accountName)
         {
             try
@@ -107,11 +107,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 using (var db = new Database())
                 {
-                    var acct = await db.GetAccount(accountName);
-
-                    if (acct == null)
-                        return Create404Response(accountName);
-
+                    await ThrowIfNotAValidAccount(db, accountName);
                     props = await db.GetAccountProperties(accountName);
                 }
 
@@ -129,19 +125,13 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                Account acct = null;
-
                 using (var db = new Database())
                 {
-                    acct = await db.GetAccount(accountName);
-
-                    if (acct == null)
-                        return Create404Response(accountName);
-
+                    await ThrowIfNotAValidAccount(db, accountName);
                     await db.SetAccountProperty(accountName, property.Key, property.Value);
                 }
 
-                return CreateOKResponse(acct);
+                return CreateNoContentResponse();
             }
             catch (Exception ex)
             {
@@ -155,25 +145,43 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                Account acct = null;
-
                 using (var db = new Database())
                 {
-                    acct = await db.GetAccount(accountName);
-
-                    if (acct == null)
-                        return Create404Response(accountName);
-
+                    await ThrowIfNotAValidAccount(db, accountName);
                     await db.SetAccountProperty(accountName, property.Key, String.Empty);
                 }
 
-                return CreateOKResponse(acct);
+                return CreateNoContentResponse();
             }
             catch (Exception ex)
             {
                 return CreateExceptionResponse(ex);
             }
         }
+
+        [Route("api/v1/accounts/{accountName}/stats")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetAccountStats(string accountName, string workspaceId = "", int offset = 0, int limit = 1)
+        {
+            try
+            {
+                offset = offset.ConstrainMin(0);
+                limit = limit.ConstrainRange(1, 250);
+                Guid.TryParse(workspaceId, out Guid guid);
+
+                using (var db = new Database())
+                {
+                    await ThrowIfNotAValidAccount(db, accountName);
+                    var results = await db.GetWorkspaceQueryStatsByAccount(accountName, guid, offset, limit);
+                    return CreateOKResponse(results);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
 
         [Route("api/v1/accesskeys/wellknown")]
         [HttpGet()]
@@ -223,7 +231,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     key.Workspace.AccessKeys.Clear();
                 }
 
-                if (!key.HasPermissionFlags(WorkspaceAccessPermissions.Read))
+                if (!key.HasPermissionFlags(WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner))
                 {
                     key.Workspace = null;
                 }
@@ -243,18 +251,19 @@ namespace Fetcho.FetchoAPI.Controllers
             try
             {
                 AccessKey.Validate(accessKey);
-                //            ThrowIfAccessKeyNotEqualWorkspace(accesskey, workspace);
 
                 if (accessKey.Workspace == null)
+                {
                     accessKey.Workspace = new Workspace()
                     {
                         Name = Utility.GetRandomHashString()
                     };
 
+                    accessKey.Permissions = WorkspaceAccessPermissions.Owner;
+                }
 
                 using (var db = new Database())
                 {
-
                     accessKey.Revision++;
                     accessKey.Workspace.Revision++;
 
@@ -363,14 +372,14 @@ namespace Fetcho.FetchoAPI.Controllers
 
         [Route("api/v1/accesskey/{accessKeyId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByAccessKeyId(Guid accessKeyId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc", string query = "")
         {
             try
             {
                 using (var db = new Database())
                     await ThrowIfNotValidPermission(db, accessKeyId, WorkspaceAccessPermissions.Read | WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
-                return await GetWorkspaceResultsByWorkspaceId(workspaceId, offset, count, order);
+                return await GetWorkspaceResultsByWorkspaceId(workspaceId, offset, count, order, query);
             }
             catch (Exception ex)
             {
@@ -455,9 +464,9 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
-        [Route("api/v1/accesskey/{accessKeyId}/results")]
-        [HttpDelete()]
-        public async Task<HttpResponseMessage> DeleteWorkspaceResultsByAccessKeyId(Guid accessKeyId, [FromBody]WorkspaceResultTransform transform)
+        [Route("api/v1/accesskey/{accessKeyId}/results/transform")]
+        [HttpPut()]
+        public async Task<HttpResponseMessage> TransformWorkspaceResultsByAccessKeyId(Guid accessKeyId, [FromBody]WorkspaceResultTransform transform)
         {
             try
             {
@@ -468,34 +477,15 @@ namespace Fetcho.FetchoAPI.Controllers
                         WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
                 Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
 
-                return await DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform);
+                return await TransformWorkspaceResultsByWorkspaceId(workspaceId, transform);
             }
             catch (Exception ex)
             {
+                Utility.LogException(ex);
                 return CreateExceptionResponse(ex);
             }
         }
 
-        [Route("api/v1/accesskey/{accessKeyId}/results/{urihash}")]
-        [HttpDelete()]
-        public async Task<HttpResponseMessage> DeleteWorkspaceResultByAccessKeyId(Guid accessKeyId, string urihash)
-        {
-            try
-            {
-                using (var db = new Database())
-                    await ThrowIfNotValidPermission(
-                        db,
-                        accessKeyId,
-                        WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Manage | WorkspaceAccessPermissions.Owner);
-                Guid workspaceId = await GetWorkspaceIdOrThrowIfNoAccess(accessKeyId);
-
-                return await DeleteWorkspaceResultByWorkspaceId(workspaceId, urihash);
-            }
-            catch (Exception ex)
-            {
-                return CreateExceptionResponse(ex);
-            }
-        }
         #endregion
 
         #region Workspaces
@@ -508,8 +498,9 @@ namespace Fetcho.FetchoAPI.Controllers
         /// <returns>An enumerable array of results</returns>
         [Route("api/v1/workspaces/{workspaceId}/results")]
         [HttpGet()]
-        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc")
+        public async Task<HttpResponseMessage> GetWorkspaceResultsByWorkspaceId(Guid workspaceId, long offset = 0, int count = MaxResultsReturned, string order = "sequence:asc", string query = "")
         {
+            IEnumerable<WorkspaceResult> results = null;
             string[] acceptableOrderByTokens = { "sequence", "updated", "asc", "desc" };
 
             try
@@ -518,10 +509,34 @@ namespace Fetcho.FetchoAPI.Controllers
                 offset = offset.ConstrainMin(0);
                 ThrowIfOrderParameterIsInvalid(acceptableOrderByTokens, order);
 
-                IEnumerable<WorkspaceResult> results = null;
-                using (var db = new Database())
-                    results = await db.GetWorkspaceResults(workspaceId, offset, count, BuildSqlOrderByStringFromQueryStringOrderString(order));
-                return CreateOKResponse(results);
+                Query qry = null;
+                if (!String.IsNullOrWhiteSpace(query))
+                {
+                    qry = new Query(query);
+                    ThrowIfQueryContainsInvalidOptions(qry);
+
+                    var r = new WorkspaceResultResponse();
+                    using (var db = new Database())
+                    {
+                        results = await db.GetWorkspaceResults(workspaceId, -1, -1, BuildSqlOrderByStringFromQueryStringOrderString(order));
+                        var distilled = qry.Distill(results);
+                        r.Results = distilled.Skip((int)offset).Take(count);
+                        r.QueryText = query;
+                        r.TotalWorkspaceResults = results.Count();
+                        r.PageSize = Math.Min(r.Results.Count(), count);
+                        r.PageNumber = (long)Math.Floor((decimal)offset/count);
+                        r.SubsetCount = distilled.Count();
+                    }
+
+                    return CreateOKResponse(r);
+                }
+                else // remove this once the new looko is released
+                {
+                    using (var db = new Database())
+                        results = await db.GetWorkspaceResults(workspaceId, offset, count, BuildSqlOrderByStringFromQueryStringOrderString(order));
+
+                    return CreateOKResponse(results);
+                }
             }
             catch (Exception ex)
             {
@@ -646,68 +661,128 @@ namespace Fetcho.FetchoAPI.Controllers
         /// </summary>
         /// <param name="workspaceId"></param>
         /// <param name="results"></param>
-        [Route("api/v1/workspaces/{workspaceId}/result/{urihash}")]
-        [HttpDelete()]
-        public async Task<HttpResponseMessage> DeleteWorkspaceResultByWorkspaceId(Guid workspaceId, string urihash)
+        [Route("api/v1/workspaces/{workspaceId}/results/transform")]
+        [HttpPut()]
+        public async Task<HttpResponseMessage> TransformWorkspaceResultsByWorkspaceId(Guid workspaceId, [FromBody]WorkspaceResultTransform transform)
         {
             try
             {
-                using (var db = new Database())
-                    await db.DeleteWorkspaceResultByWorkspaceId(workspaceId, new MD5Hash(urihash));
-
-                return CreateNoContentResponse();
-            }
-            catch (Exception ex)
-            {
-                return CreateExceptionResponse(ex);
-            }
-        }
-
-        /// <summary>
-        /// Delete some results from a workspace
-        /// </summary>
-        /// <param name="workspaceId"></param>
-        /// <param name="results"></param>
-        [Route("api/v1/workspaces/{workspaceId}/results")]
-        [HttpDelete()]
-        public async Task<HttpResponseMessage> DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, WorkspaceResultTransform transform)
-        {
-            try
-            {
-                ThrowIfNotADeleteTransform(transform);
+                WorkspaceResultTransform.Validate(transform);
 
                 using (var db = new Database())
                 {
+                    // do we have access to that target?
+                    if (transform.HasTarget)
+                        await ThrowIfNotValidPermission(
+                            db,
+                            transform.TargetAccessKeyId,
+                            WorkspaceAccessPermissions.Write | WorkspaceAccessPermissions.Owner | WorkspaceAccessPermissions.Manage);
+
                     if (transform.Action == WorkspaceResultTransformAction.DeleteAll)
                     {
-                        await db.DeleteAllWorkspaceResultsByWorkspaceId(workspaceId);
+                        transform.ResultsAffected = await db.DeleteAllWorkspaceResultsByWorkspaceId(workspaceId);
                     }
                     else if (transform.Action == WorkspaceResultTransformAction.DeleteSpecificResults)
                     {
-                        await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform.Results);
+                        transform.ResultsAffected = await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, transform.Results);
                     }
                     else if (transform.Action == WorkspaceResultTransformAction.DeleteByQueryText)
                     {
                         var query = new Query(transform.QueryText);
                         ThrowIfQueryContainsInvalidOptions(query);
                         var results = await db.GetWorkspaceResults(workspaceId);
-                        var resultsToDelete = new List<WorkspaceResult>();
-                        foreach (var result in results)
-                        {
-                            var eval = query.Evaluate(result, String.Empty, null);
-                            if (eval.Action == EvaluationResultAction.Include)
-                                resultsToDelete.Add(result);
-                        }
-
-                        await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, resultsToDelete);
+                        var resultsToDelete = query.Distill(results);
+                        transform.ResultsAffected = await db.DeleteWorkspaceResultsByWorkspaceId(workspaceId, resultsToDelete);
                     }
-                }
 
-                return CreateNoContentResponse();
+                    else if (transform.Action == WorkspaceResultTransformAction.MoveAllTo)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+                        await db.MoveAllWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.MoveSpecificTo)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+                        await db.MoveWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId, transform.Results);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.MoveByQueryText)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+
+                        var query = new Query(transform.QueryText);
+                        ThrowIfQueryContainsInvalidOptions(query);
+                        var results = await db.GetWorkspaceResults(workspaceId);
+                        var resultsToMove = query.Distill(results); 
+                        transform.ResultsAffected = await db.MoveWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId, resultsToMove);
+                    }
+
+                    else if (transform.Action == WorkspaceResultTransformAction.CopyAllTo)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+                        await db.MoveAllWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.CopySpecificTo)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+                        await db.MoveWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId, transform.Results);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.CopyByQueryText)
+                    {
+                        var targetWorkspaceId = await GetWorkspaceIdOrThrowIfNoAccess(transform.TargetAccessKeyId);
+
+                        var query = new Query(transform.QueryText);
+                        ThrowIfQueryContainsInvalidOptions(query);
+                        var results = await db.GetWorkspaceResults(workspaceId);
+                        var resultsToCopy = query.Distill(results);
+                        transform.ResultsAffected = await db.MoveWorkspaceResultsByWorkspaceId(workspaceId, targetWorkspaceId, resultsToCopy);
+                    }
+
+                    else if (transform.Action == WorkspaceResultTransformAction.TagAll)
+                    {
+                        await db.TagAllWorkspaceResultsByWorkspaceId(workspaceId, transform.Tag);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.TagSpecificResults)
+                    {
+                        await db.TagWorkspaceResultsByWorkspaceId(workspaceId, transform.Results, transform.Tag);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.TagByQueryText)
+                    {
+                        var query = new Query(transform.QueryText);
+                        ThrowIfQueryContainsInvalidOptions(query);
+                        var results = await db.GetWorkspaceResults(workspaceId);
+                        var resultsToTag = query.Distill(results);
+                        transform.ResultsAffected = await db.TagWorkspaceResultsByWorkspaceId(workspaceId, resultsToTag, transform.Tag);
+                    }
+
+                    else if (transform.Action == WorkspaceResultTransformAction.UntagAll)
+                    {
+                        await db.UntagAllWorkspaceResultsByWorkspaceId(workspaceId, transform.Tag);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.UntagSpecificResults)
+                    {
+                        await db.UntagWorkspaceResultsByWorkspaceId(workspaceId, transform.Results, transform.Tag);
+                    }
+                    else if (transform.Action == WorkspaceResultTransformAction.UntagByQueryText)
+                    {
+                        var query = new Query(transform.QueryText);
+                        ThrowIfQueryContainsInvalidOptions(query);
+                        var results = await db.GetWorkspaceResults(workspaceId);
+                        var resultsToTag = query.Distill(results);
+                        transform.ResultsAffected = await db.UntagWorkspaceResultsByWorkspaceId(workspaceId, resultsToTag, transform.Tag);
+                    }
+
+                    transform.Success = true;
+
+                    return CreateOKResponse(transform);
+                }
             }
             catch (Exception ex)
             {
-                return CreateExceptionResponse(ex);
+                Utility.LogException(ex);
+                transform.ErrorMessage = ex.Message;
+                transform.Success = false;
+                transform.ResultsAffected = 0;
+                return CreateConflictResponse(transform);
             }
         }
 
@@ -832,13 +907,13 @@ namespace Fetcho.FetchoAPI.Controllers
         [Route("api/v1/resources/{datahash}/text")]
         [HttpGet()]
         public async Task<HttpResponseMessage> GetWebResourceCacheDataText(
-            string datahash, 
+            string datahash,
             BracketPipeTextExtractorFilterType filter = BracketPipeTextExtractorFilterType.Raw,
             int minlen = int.MinValue,
             int maxlen = int.MaxValue,
             bool distinct = true,
             bool stopWords = true,
-            ExtractionGranularity granularity = ExtractionGranularity.Raw 
+            ExtractionGranularity granularity = ExtractionGranularity.Raw
             )
         {
             try
@@ -885,7 +960,6 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                Filter.InitaliseFilterTypes();
                 var response = QueryParserResponse.Create(jsonQuery.QueryText);
 
                 return CreateOKResponse(response);

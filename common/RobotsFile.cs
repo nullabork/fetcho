@@ -373,9 +373,11 @@ namespace Fetcho.Common
             return robots;
         }
 
-        private static XmlWriter CreateXmlWriter(Stream stream) => XmlWriter.Create(stream, new XmlWriterSettings() { ConformanceLevel = ConformanceLevel.Fragment });
+        private static XmlWriter CreateXmlWriter(Stream stream) => 
+            XmlWriter.Create(stream, new XmlWriterSettings() { ConformanceLevel = ConformanceLevel.Fragment });
 
-        private static XmlReader CreateXmlReader(Stream stream) => XmlReader.Create(stream, new XmlReaderSettings() { ConformanceLevel = ConformanceLevel.Fragment });
+        private static XmlReader CreateXmlReader(Stream stream) => 
+            XmlReader.Create(stream, new XmlReaderSettings() { ConformanceLevel = ConformanceLevel.Fragment });
         
         /// <summary>
         /// Dispose the robots file

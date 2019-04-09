@@ -191,10 +191,28 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static string CleanupForXml(this string value)
         {
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
 
             for (int i = 0; i < value.Length; i++)
                 if (XmlConvert.IsXmlChar(value[i]))
+                    sb.Append(value[i]);
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Removes duplicate whitespace from this string
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static string ReduceWhitespace(this string value)
+        {
+            if (value.Length == 0) return String.Empty;
+            var sb = new StringBuilder();
+
+            sb.Append(value[0]);
+            for ( int i=1;i<value.Length;i++)
+                if ( !Char.IsWhiteSpace(value[i]) || !Char.IsWhiteSpace(value[i-1]) )
                     sb.Append(value[i]);
 
             return sb.ToString();

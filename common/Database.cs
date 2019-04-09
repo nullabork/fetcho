@@ -11,6 +11,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Data.Common;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Fetcho.Common
 {
@@ -549,14 +550,13 @@ namespace Fetcho.Common
 
         public async Task SetAccountProperty(string accountName, string name, string value)
         {
-            string updateSql = 
-                "update \"AccountProperty\" " + 
-                "set    name = :name " + 
-                "       value = :value " + 
-                "where  account_name = :account_name;";
+            string updateSql =
+                "update \"AccountProperty\" " +
+                "set    value = :value " +
+                "where  account_name = :account_name and name = :name;";
 
             string insertSql =
-                "insert into \"AccountProperty\" (name, value, account_name) values(:name, :value, :account_name);";
+                "insert into \"AccountProperty\" (name, value, account_name, created) values(:name, :value, :account_name, :created);";
 
             NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
             cmd.Parameters.Add(new NpgsqlParameter<string>("name", name));
@@ -567,6 +567,7 @@ namespace Fetcho.Common
             if (count == 0) // no record to update
             {
                 cmd.CommandText = insertSql;
+                cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", DateTime.UtcNow));
                 await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
@@ -630,7 +631,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Delete workspace results by the workspace id
         /// </summary>
-        public async Task DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results)
+        public async Task<int> DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results)
         {
 
             string sql =
@@ -639,25 +640,30 @@ namespace Fetcho.Common
                 "where  workspace_id = :workspace_id " +
                 "       and urihash = :urihash;";
 
-            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            int total = 0;
 
             foreach (var result in results)
             {
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
                 cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
                 cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", new MD5Hash(result.UriHash).Values));
                 cmd.Prepare();
 
                 int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                if (count == 0)
-                    throw new FetchoException("No record was deleted");
+                total += count;
             }
+
+            if (total == 0)
+                throw new FetchoException("No record was deleted");
+
+            return total;
         }
 
         /// <summary>
         /// Delete workspace results by the workspace id
         /// </summary>
-        public async Task DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<MD5Hash> urihashes)
+        public async Task<int> DeleteWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<MD5Hash> urihashes)
         {
 
             string sql =
@@ -667,6 +673,8 @@ namespace Fetcho.Common
                 "       and urihash = :urihash;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            int total = 0;
 
             foreach (var hash in urihashes)
             {
@@ -676,12 +684,16 @@ namespace Fetcho.Common
 
                 int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                if (count == 0)
-                    throw new FetchoException("No records were deleted");
+                total += count;
             }
+
+            if (total == 0)
+                throw new FetchoException("No records were deleted");
+
+            return total;
         }
 
-        public async Task DeleteAllWorkspaceResultsByWorkspaceId(Guid workspaceId)
+        public async Task<int> DeleteAllWorkspaceResultsByWorkspaceId(Guid workspaceId)
         {
             string sql =
                 "delete  " +
@@ -697,10 +709,239 @@ namespace Fetcho.Common
 
             if (count == 0)
                 throw new FetchoException("No records were deleted");
+
+            return count;
         }
 
-        public async Task DeleteWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash)
+        public async Task<int> DeleteWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash)
             => await DeleteWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash });
+
+        public async Task<int> MoveAllWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    workspace_id = :destination_workspace_id " +
+                "where  workspace_id = :source_workspace_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("source_workspace_id", sourceWorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("destination_workspace_id", destinationWorkspaceId));
+            cmd.Prepare();
+
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0)
+                throw new FetchoException("No records were moved");
+
+            return count;
+        }
+
+        public async Task<int> MoveWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, IEnumerable<MD5Hash> hashes)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    workspace_id = :destination_workspace_id " +
+                "where  workspace_id = :source_workspace_id and urihash = :urihash;";
+
+            int total = 0;
+
+            foreach( var hash in hashes)
+            {
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("source_workspace_id", sourceWorkspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("destination_workspace_id", destinationWorkspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                total += count;
+            }
+
+            if (total == 0)
+                throw new FetchoException("No records were moved");
+
+            return total;
+        }
+
+        public async Task<int> MoveWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, IEnumerable<WorkspaceResult> results)
+            => await MoveWorkspaceResultsByWorkspaceId(sourceWorkspaceId, destinationWorkspaceId, results.Select(x => new MD5Hash(x.UriHash)));
+
+        public async Task<int> MoveWorkspaceResultByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, MD5Hash urihash)
+            => await MoveWorkspaceResultsByWorkspaceId(sourceWorkspaceId, destinationWorkspaceId, new[] { urihash });
+
+        public async Task<int> CopyAllWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId)
+        {
+            string sql =
+                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, debug_info) " +
+                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, 'CopyAll Transform' " +
+                "from   \"WorkspaceResult\" " + 
+                "where  workspace_id = :source_workspace_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("source_workspace_id", sourceWorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("destination_workspace_id", destinationWorkspaceId));
+            cmd.Prepare();
+
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0)
+                throw new FetchoException("No records were copied");
+
+            return count;
+        }
+
+        public async Task<int> CopyWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, IEnumerable<MD5Hash> hashes)
+        {
+            string sql =
+                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, debug_info) " +
+                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, 'Copy Transform' " +
+                "from   \"WorkspaceResult\" " +
+                "where  workspace_id = :source_workspace_id and urihash = :urihash;";
+
+            int total = 0;
+
+            foreach (var hash in hashes)
+            {
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("source_workspace_id", sourceWorkspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("destination_workspace_id", destinationWorkspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                total += count;
+            }
+
+            if (total == 0)
+                throw new FetchoException("No records were copied");
+
+            return total;
+        }
+
+        public async Task<int> CopyWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, IEnumerable<WorkspaceResult> results)
+            => await CopyWorkspaceResultsByWorkspaceId(sourceWorkspaceId, destinationWorkspaceId, results.Select(x => new MD5Hash(x.UriHash)));
+
+        public async Task<int> CopyWorkspaceResultByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, MD5Hash urihash)
+            => await CopyWorkspaceResultsByWorkspaceId(sourceWorkspaceId, destinationWorkspaceId, new[] { urihash });
+
+        public async Task<int> TagAllWorkspaceResultsByWorkspaceId(Guid workspaceId, string tag)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    tags = array_to_string((select distinct array_append(string_to_array(tags, ' '), :new_tag)), ' ') " + 
+                "where  workspace_id = :workspace_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<string>("new_tag", tag));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Prepare();
+
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0)
+                throw new FetchoException("No records were tagged");
+
+            return count;
+        }
+
+        public async Task<int> TagWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<MD5Hash> hashes, string tag)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    tags = array_to_string((select distinct array_append(string_to_array(tags, ' '), :new_tag)), ' ') " +
+                "where  workspace_id = :workspace_id and urihash = :urihash;";
+
+            int total = 0;
+
+            foreach (var hash in hashes)
+            {
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+                cmd.Parameters.Add(new NpgsqlParameter<string>("new_tag", tag));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                total += count;
+            }
+
+            if (total == 0)
+                throw new FetchoException("No records were tagged");
+
+            return total;
+        }
+
+        public async Task<int> TagWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results, string tag)
+            => await TagWorkspaceResultsByWorkspaceId(workspaceId, results.Select(x => new MD5Hash(x.UriHash)), tag);
+
+        public async Task<int> TagWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash, string tag)
+            => await TagWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash }, tag);
+
+        public async Task<int> UntagAllWorkspaceResultsByWorkspaceId(Guid workspaceId, string tag)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag)), ' ') " +
+                "where  workspace_id = :workspace_id;";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<string>("tag", tag));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Prepare();
+
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0)
+                throw new FetchoException("No records were tags");
+
+            return count;
+        }
+
+        public async Task<int> UntagWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<MD5Hash> hashes, string tag)
+        {
+            string sql =
+                "update \"WorkspaceResult\" " +
+                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag)), ' ') " +
+                "where  workspace_id = :workspace_id and urihash = :urihash;";
+
+            int total = 0;
+
+            foreach (var hash in hashes)
+            {
+                NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", hash.Values));
+                cmd.Parameters.Add(new NpgsqlParameter<string>("tag", tag));
+                cmd.Prepare();
+
+                int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                total += count;
+            }
+
+            if (total == 0)
+                throw new FetchoException("No records were tags");
+
+            return total;
+        }
+
+        public async Task<int> UntagWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results, string tag)
+            => await TagWorkspaceResultsByWorkspaceId(workspaceId, results.Select(x => new MD5Hash(x.UriHash)), tag);
+
+        public async Task<int> UntagWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash, string tag)
+            => await TagWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash }, tag);
+
 
         public async Task<IEnumerable<AccessKey>> GetWorkspaceAccessKeys(Guid workspaceId)
         {
@@ -729,6 +970,68 @@ namespace Fetcho.Common
                         IsWellknown = reader.GetBoolean(7),
                         Permissions = (WorkspaceAccessPermissions)reader.GetInt32(4),
                         Revision = reader.GetInt32(9)
+                    });
+                }
+            }
+
+            return l;
+        }
+
+        public async Task AddWorkspaceQueryStats(WorkspaceQueryStats stats)
+        {
+            string sql =
+                "insert into \"WorkspaceQueryStats\" (workspace_id, max_cost, avg_cost, total_cost, eval_count, include_count, exclude_count, tag_count, created) " +
+                "values (:workspace_id, :max_cost, :avg_cost, :total_cost, :eval_count, :include_count, :exclude_count, :tag_count, :created);";
+
+            var cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", stats.WorkspaceId));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("max_cost", stats.MaxCost));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("avg_cost", stats.AvgCost));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("total_cost", stats.TotalCost));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("eval_count", stats.NumberOfEvaluations));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("include_count", stats.NumberOfInclusions));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("exclude_count", stats.NumberOfExclusions));
+            cmd.Parameters.Add(new NpgsqlParameter<long>("tag_count", stats.NumberOfTags));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", stats.Created));
+
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
+
+        public async Task<IEnumerable<WorkspaceQueryStats>> GetWorkspaceQueryStatsByAccount(
+            string accountName, Guid workspaceId, int offset = 0, int limit = 1)
+        {
+            string sql =
+                "select w.workspace_id, q.max_cost, q.avg_cost, q.total_cost, q.eval_count, q.include_count, q.exclude_count, q.tag_count, q.sequence, q.created " +
+                "from   \"WorkspaceQueryStats\" q inner join \"WorkspaceAccessKey\" w on w.workspace_id = q.workspace_id " +
+                "where  w.account_name = :account_name " +
+                (workspaceId == Guid.Empty ? "" : "    and w.workspace_id = :workspace_id ") +
+                "order  by sequence desc " +
+                "limit  " + limit + " offset " + offset + ";";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+            cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
+            if (workspaceId != Guid.Empty)
+                cmd.Parameters.Add(new NpgsqlParameter<Guid>("workspace_id", workspaceId));
+            cmd.Prepare();
+
+            var l = new List<WorkspaceQueryStats>();
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                while (reader.Read())
+                {
+                    l.Add(new WorkspaceQueryStats()
+                    {
+                        WorkspaceId = reader.GetGuid(0),
+                        MaxCost = reader.GetInt64(1),
+                        AvgCost = reader.GetInt64(2),
+                        TotalCost = reader.GetInt64(3),
+                        NumberOfEvaluations = reader.GetInt64(4),
+                        NumberOfInclusions = reader.GetInt64(5),
+                        NumberOfExclusions = reader.GetInt64(6),
+                        NumberOfTags = reader.GetInt64(7),
+                        Sequence = reader.GetInt64(8),
+                        Created = reader.GetDateTime(9)
                     });
                 }
             }
@@ -839,7 +1142,7 @@ namespace Fetcho.Common
               "       expiry = :expiry, " +
               "       is_wellknown = :is_wellknown, " +
               "       revision = :revision " +
-              "where  workspace_id = :workspace_id and account_name = :account_name;";
+              "where  workspace_access_key_id = :workspace_access_key_id;";
 
             string insertSql = "set client_encoding='UTF8'; insert into \"WorkspaceAccessKey\" ( name, workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, revision) " +
               "values ( :name, :workspace_access_key_id, :workspace_id, :account_name, :is_active, :permissions, :created, :expiry, :is_wellknown, :revision);";
@@ -1061,9 +1364,12 @@ namespace Fetcho.Common
                 cmd.Prepare();
                 await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
+            catch (PostgresException ex)// probably throws when the result already exists
+            {
+            }
             catch (Exception ex)
             {
-                Utility.LogException(ex); // probably throws when the result already exists
+                Utility.LogException(ex); 
             }
         }
 

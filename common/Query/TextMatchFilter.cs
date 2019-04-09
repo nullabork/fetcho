@@ -8,7 +8,7 @@ namespace Fetcho.Common
     /// Simple text match filter to include results
     /// </summary>
     [Filter("NOWAYTOMATCHTHIS", "any_search_term")]
-    public class TextMatchFilter : Filter
+    public class SimpleTextMatchFilter : Filter
     {
         private FastLookupCache<string> seenFragments = new FastLookupCache<string>(1000);
 
@@ -32,13 +32,13 @@ namespace Fetcho.Common
         /// Constructor
         /// </summary>
         /// <param name="searchText"></param>
-        public TextMatchFilter(string searchText) 
+        public SimpleTextMatchFilter(string searchText) 
             => SearchText = searchText;
 
         /// <summary>
         /// Can't create using the default constructor
         /// </summary>
-        private TextMatchFilter() { }
+        private SimpleTextMatchFilter() { }
 
         /// <summary>
         /// Try and match the fragment from the file
@@ -85,7 +85,7 @@ namespace Fetcho.Common
         /// <param name="queryText"></param>
         /// <returns></returns>
         public static Filter Parse(string queryText)
-            => !String.IsNullOrWhiteSpace(queryText) ? new TextMatchFilter(queryText) : null;
+            => !String.IsNullOrWhiteSpace(queryText) ? new SimpleTextMatchFilter(queryText) : null;
 
         public static bool TokenIsFilter(string token)
             => !token.Contains(":");

@@ -75,8 +75,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Create the cache of filter types
         /// </summary>
-        [Obsolete("Need to figure out how to get rid of this without creating a race condition")]
-        public static void InitaliseFilterTypes()
+        private static void InitaliseFilterTypes()
         {
             if (FilterTypes != null) return;
             lock (_filterTypesLock)
@@ -104,7 +103,10 @@ namespace Fetcho.Common
         /// <param name="token"></param>
         /// <returns></returns>
         public static Type GetFilterType(string token)
-            => FilterTypes.FirstOrDefault(x => token.StartsWith(x.Key)).Value;
+        {
+            InitaliseFilterTypes();
+            return FilterTypes.FirstOrDefault(x => token.StartsWith(x.Key)).Value;
+        }
 
         /// <summary>
         /// Create a filter from a token

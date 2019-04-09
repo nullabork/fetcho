@@ -80,11 +80,6 @@ namespace Fetcho.Common.Entities
                 throw new InvalidObjectFetchoException("Account Name not set");
             if (String.IsNullOrWhiteSpace(accessKey.Name))
                 throw new InvalidObjectFetchoException("Name not set");
-            if (accessKey.Workspace == null)
-                throw new InvalidObjectFetchoException("Workspace is null");
-            if (accessKey.Workspace.WorkspaceId == null)
-                throw new InvalidObjectFetchoException("Workspace ID is null");
-
         }
     }
 }

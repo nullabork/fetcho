@@ -29,12 +29,13 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("tag:{0}", TagName);
 
-        public TagFilter(string tagName) => TagName = tagName.ToLower();
+        public TagFilter(string tagName) 
+            => TagName = tagName.ToLower();
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             foreach (var tag in result.Tags)
-                if (tag.Contains(TagName))
+                if (tag.IndexOf(TagName, StringComparison.InvariantCultureIgnoreCase) > -1)
                     return new string[] { Utility.MakeTag(TagName) };
             return EmptySet;
         }

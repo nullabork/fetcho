@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Fetcho.Common.Entities;
 
@@ -11,9 +12,9 @@ namespace Fetcho.Common.QueryEngine
     /// </summary>
     public class Query
     {
-        public FilterCollection IncludeFilters { get; } 
-        public FilterCollection ExcludeFilters { get; } 
-        public FilterCollection TagFilters { get; } 
+        public FilterCollection IncludeFilters { get; }
+        public FilterCollection ExcludeFilters { get; }
+        public FilterCollection TagFilters { get; }
 
         public long MinCost { get; set; }
         public long MaxCost { get; set; }
@@ -38,6 +39,9 @@ namespace Fetcho.Common.QueryEngine
             IncludeFilters = new FilterCollection();
             ExcludeFilters = new FilterCollection();
             TagFilters = new FilterCollection();
+            RequiresResultInput = false;
+            RequiresStreamInput = false;
+            RequiresTextInput = false;
             ParseQueryText(queryText);
             Console.WriteLine(this.ToString());
         }
@@ -61,9 +65,9 @@ namespace Fetcho.Common.QueryEngine
             {
                 var exc = ExcludeFilters.AnyMatch(result, words, stream);
 
-                if ( exc )  
+                if (exc)
                     action = EvaluationResultAction.Exclude;
-                else 
+                else
                 {
                     action = EvaluationResultAction.Include;
                     tags = TagFilters.GetTags(result, words, stream);
@@ -76,18 +80,26 @@ namespace Fetcho.Common.QueryEngine
         }
 
         /// <summary>
+        /// Distill the results by this query
+        /// </summary>
+        /// <param name="results"></param>
+        /// <returns></returns>
+        public IEnumerable<WorkspaceResult> Distill(IEnumerable<WorkspaceResult> results)
+            => results.Where((result) => Evaluate(result, String.Empty, null).Action == EvaluationResultAction.Include);
+
+        /// <summary>
         /// Parse query text to build the filter collections
         /// </summary>
         /// <param name="text">The query text</param>
         private void ParseQueryText(string text)
         {
             if (String.IsNullOrWhiteSpace(text)) return;
-            string[] tokens = text.Replace('\n', ' ').Replace('\r', ' ').Replace('\t', ' ').Split(' ');
+            var tokens = TokeniseQueryText(text);
 
             foreach (var token in tokens)
             {
                 string filterToken = token;
-                string tagToken = "";
+                string tagToken = String.Empty;
                 FilterMode filterMode = DetermineFilterMode(token);
                 if (filterMode == FilterMode.None) continue;
                 if ((filterMode & FilterMode.Exclude) == FilterMode.Exclude) filterToken = filterToken.Substring(1); // chop off the '-'
@@ -101,12 +113,15 @@ namespace Fetcho.Common.QueryEngine
                 Filter filter = null;
                 Filter tagger = null;
                 if (!IsComplexFilter(filterToken))
-                    filter = new TextMatchFilter(filterToken);
+                    filter = new SimpleTextMatchFilter(filterToken);
                 else
                 {
                     filter = Filter.CreateFilter(filterToken);
                     tagger = Filter.CreateFilter(tagToken);
                 }
+
+                CalculateFilteringDataRequirements(filter);
+                CalculateFilteringDataRequirements(tagger);
 
                 switch (filterMode)
                 {
@@ -229,6 +244,51 @@ namespace Fetcho.Common.QueryEngine
                 MinCost, MaxCost, AvgCost, TotalCost, NumberOfEvaluations);
 
         /// <summary>
+        /// Extracts each query command from the query text
+        /// </summary>
+        /// <param name="queryText"></param>
+        /// <returns></returns>
+        public static IEnumerable<string> TokeniseQueryText(string queryText)
+        {
+            var l = new List<string>();
+            queryText = queryText.Replace('\n', ' ').Replace('\r', ' ').Replace('\t', ' ');
+
+            bool inString = false;
+            var sb = new StringBuilder();
+            for (int i = 0; i < queryText.Length; i++)
+            {
+                if (Char.IsWhiteSpace(queryText[i]) && !inString)
+                {
+                    l.Add(sb.ToString());
+                    sb.Clear();
+                }
+                else
+                {
+                    if (queryText[i] == '"' && (i == 0 || queryText[i - 1] != '\\'))
+                        inString = !inString;
+                    else
+                        sb.Append(queryText[i]);
+                }
+            }
+
+            l.Add(sb.ToString());
+
+            return l.Where(x => !String.IsNullOrWhiteSpace(x)).Distinct();
+        }
+
+        /// <summary>
+        /// Updates the requirements of this query by the passed filter and tagger
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <param name="tagger"></param>
+        private void CalculateFilteringDataRequirements(Filter filter)
+        {
+            RequiresResultInput = RequiresResultInput || (filter != null && filter.RequiresResultInput);
+            RequiresTextInput = RequiresTextInput || (filter != null && filter.RequiresTextInput);
+            RequiresStreamInput = RequiresStreamInput || (filter != null && filter.RequiresStreamInput);
+        }
+
+        /// <summary>
         /// In theory this should output the same as OriginalQueryText
         /// </summary>
         /// <returns></returns>
@@ -258,7 +318,6 @@ namespace Fetcho.Common.QueryEngine
             string str = sb.ToString().Trim();
             return str;
         }
-
-
     }
+
 }

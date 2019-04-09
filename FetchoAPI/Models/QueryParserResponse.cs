@@ -22,6 +22,11 @@ namespace Fetcho.FetchoAPI.Controllers
         public string ParsedQueryText { get; set; }
 
         /// <summary>
+        /// The original query split into tokens for turning into filters
+        /// </summary>
+        public List<string> Tokens { get; set; }
+
+        /// <summary>
         /// Details about each filter in the query text
         /// </summary>
         public List<QueryParserResponseFilterInfo> Filters { get; set; }
@@ -49,6 +54,7 @@ namespace Fetcho.FetchoAPI.Controllers
             Success = false;
             ParsedQueryText = String.Empty;
             OriginalQueryText = String.Empty;
+            Tokens = new List<string>();
         }
 
         public void AddFilter(Filter f)
@@ -74,6 +80,7 @@ namespace Fetcho.FetchoAPI.Controllers
             {
                 var query = new Query(queryText);
 
+                r.Tokens.AddRange(Query.TokeniseQueryText(queryText));
                 r.Filters = new List<QueryParserResponseFilterInfo>();
                 foreach (var f in query.IncludeFilters.OrderBy(x => x.Cost))
                     r.AddFilter(f);

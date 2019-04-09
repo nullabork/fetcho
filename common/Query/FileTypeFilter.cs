@@ -25,7 +25,7 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            string contentType = result.RequestProperties.SafeGet("content-type");
+            string contentType = result.ResponseProperties.SafeGet("content-type") ?? String.Empty;
             return String.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
         }
 
@@ -42,7 +42,7 @@ namespace Fetcho.Common
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == "*") searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = String.Empty;
             }
 
             return new FileTypeFilter(searchText);

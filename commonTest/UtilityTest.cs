@@ -20,6 +20,5 @@ namespace Fetcho.Common.Tests
             Assert.IsTrue(Utility.GetPropertyName(() => u.SomePropertyName2) == "SomePropertyName2");
             Assert.IsTrue(Utility.GetPropertyName(() => UtilityTest.SomePropertyName3) == "SomePropertyName3");
         }
-
     }
 }
