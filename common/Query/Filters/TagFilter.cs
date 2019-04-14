@@ -40,7 +40,7 @@ namespace Fetcho.Common
             return EmptySet;
         }
 
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 

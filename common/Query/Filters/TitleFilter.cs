@@ -4,31 +4,30 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("site:", "site:[site|*][:site|*]")]
-    public class SiteFilter : Filter
+    [Filter("title:", "title:[text|*][:text|*]")]
+    public class TitleFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "Site filter";
+        public override string Name => "Title filter";
 
-        public SiteFilter(string site) 
-            => SearchText = site;
+        public TitleFilter(string title)
+            => SearchText = title;
 
         public override decimal Cost => 1m;
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText); 
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
 
         public override bool RequiresResultInput { get => true; }
 
         public override string GetQueryText()
-            => string.Format("site:{0}", SearchText);
+            => string.Format("title:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            var uri = new Uri(result.Uri);
-            return uri.Host.Contains(SearchText) ? new string[1] { Utility.MakeTag(uri.Host) } : EmptySet;
+            return result.Title.Contains(SearchText) ? new string[1] : EmptySet;
         }
 
         /// <summary>
@@ -36,7 +35,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 
@@ -47,7 +46,7 @@ namespace Fetcho.Common
                 if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new SiteFilter(searchText);
+            return new TitleFilter(searchText);
         }
     }
 }

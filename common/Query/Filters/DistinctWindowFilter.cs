@@ -83,7 +83,7 @@ namespace Fetcho.Common
             => string.Format("{0}{1}):{2}", DistinctWindowFilterKey, FieldName, WindowSize);
 
 
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             //try
             //{

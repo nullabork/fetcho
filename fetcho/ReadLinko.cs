@@ -3,6 +3,7 @@ using log4net;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -16,9 +17,15 @@ namespace Fetcho
 
         private BufferBlock<IEnumerable<QueueItem>> PrioritisationBufferOut = null;
 
-        private int CurrentPacketIndex = 0;
         private ReadoProcessor processor = null;
         private ExtractLinksAndBufferConsumer consumer = null;
+
+        public int CurrentPacketIndex { get; set; }
+        public int CurrentDataSourceIndex { get; set; }
+        public long ResourcesProcessed { get => processor.Processor.ResourcesProcessedCount; }
+        public long LinksExtracted { get => consumer.LinksExtracted; }
+        public int OutboxCount { get => PrioritisationBufferOut.Count; }
+
 
         public ReadLinko(BufferBlock<IEnumerable<QueueItem>> prioritisationBufferOut, int startPacketIndex)
         {
@@ -34,8 +41,7 @@ namespace Fetcho
         {
             try
             {
-
-                var r = ReportStatus();
+                ThrowIfDataSourcePathsIsEmpty();
 
                 log.Debug("ReadLinko started");
 
@@ -66,36 +72,31 @@ namespace Fetcho
 
         public void Shutdown() => Running = false;
 
-        async Task ReportStatus()
-        {
-            while (true)
-            {
-                await Task.Delay(FetchoConfiguration.Current.HowOftenToReportStatusInMilliseconds);
-                LogStatus("STATUS UPDATE");
-            }
-        }
-
-        void LogStatus(string status) =>
-        log.InfoFormat(
-            "{0}: resources processed {1}, links extracted {2}, outbox {3}",
-            status,
-            processor.Processor.ResourcesProcessedCount,
-            consumer.LinksExtracted,
-            PrioritisationBufferOut.Count
-            );
-
         string GetNextFile()
         {
-            var filepath = Path.Combine(FetchoConfiguration.Current.DataSourcePath, "packet-" + CurrentPacketIndex + ".xml");
+            var dataSourcePath = FetchoConfiguration.Current.DataSourcePaths.ElementAt(CurrentDataSourceIndex);
+            var filepath = Path.Combine(dataSourcePath, "packet-" + CurrentPacketIndex + ".xml");
+
             if (File.Exists(filepath))
             {
-                CurrentPacketIndex++;
+                CurrentDataSourceIndex++;
+                if (CurrentDataSourceIndex >= FetchoConfiguration.Current.DataSourcePaths.Count())
+                {
+                    CurrentDataSourceIndex = 0;
+                    CurrentPacketIndex++;
+                }
             }
             else
             {
                 CurrentPacketIndex = 0;
             }
             return filepath;
+        }
+
+        void ThrowIfDataSourcePathsIsEmpty()
+        {
+            if (!FetchoConfiguration.Current.DataSourcePaths.Any())
+                throw new FetchoException("Fetcho needs at least one data source path for packets");
         }
     }
 }

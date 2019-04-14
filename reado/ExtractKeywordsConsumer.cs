@@ -2,6 +2,7 @@
 using Fetcho.ContentReaders;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -18,13 +19,13 @@ namespace Fetcho
 
         public ExtractKeywordsConsumer() { }
 
-        public override void ProcessRequest(string request) =>
+        public override async Task ProcessRequest(string request) =>
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
-        public override void ProcessResponseHeaders(string responseHeaders) =>
+        public override async Task ProcessResponseHeaders(string responseHeaders) =>
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
-        public override void ProcessResponseStream(Stream dataStream)
+        public override async Task ProcessResponseStream(Stream dataStream)
         {
             if (ContentType.IsTextType || ContentType.IsXmlType)
             {

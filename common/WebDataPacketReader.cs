@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
@@ -70,7 +71,7 @@ namespace Fetcho.Common
         public string GetResponseHeaders()
         {
             ReadToElement("header", "exception");
-            if (inStream.Name == "exception") 
+            if (inStream.Name == "exception")
             {
                 ReadExceptionIntoCache();
                 ReadToElement("header");
@@ -125,9 +126,14 @@ namespace Fetcho.Common
         /// <returns></returns>
         public bool NextResource()
         {
-            while (inStream.Read() && !(inStream.Name == "resource" && inStream.NodeType == XmlNodeType.Element)) ;
+            while (inStream.Read())
+            {
+                if (inStream.Name == "resource" && inStream.NodeType == XmlNodeType.Element) break;
+            }
+
             ResourceCountSeen++;
 
+            // when the packet is malformed this may not ever be true
             return !inStream.EOF;
         }
 
@@ -144,7 +150,7 @@ namespace Fetcho.Common
                 currentException = String.Empty;
         }
 
-        private void ReadToElement(params string [] names)
+        private void ReadToElement(params string[] names)
         {
             if (inStream.NodeType == XmlNodeType.Element && names.Contains(inStream.Name)) return;
             if (inStream.NodeType == XmlNodeType.EndElement && inStream.Name == "resource") return;
@@ -179,7 +185,7 @@ namespace Fetcho.Common
 
             return new Uri(uri);
         }
-        
+
         /// <summary>
         /// Extract the Referer URI from the raw request string
         /// </summary>
@@ -206,14 +212,14 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="responseHeaders"></param>
         /// <returns></returns>
-        public static ContentType GetContentTypeFromResponseHeaders( string responseHeaders )
+        public static ContentType GetContentTypeFromResponseHeaders(string responseHeaders)
         {
             const string ContentTypePrefix = "content-type:";
 
             string contentType = String.Empty;
 
             int index = responseHeaders.IndexOf(ContentTypePrefix, StringComparison.InvariantCultureIgnoreCase);
-            if ( index >= 0 )
+            if (index >= 0)
             {
                 int endIndex = responseHeaders.IndexOf("\n", index);
                 if (endIndex > 0)
@@ -226,11 +232,39 @@ namespace Fetcho.Common
         }
 
         /// <summary>
+        /// Process a response string into a key value store
+        /// </summary>
+        /// <param name="responseHeaders"></param>
+        /// <returns></returns>
+        public static Dictionary<string, string> GetHeaders(string responseHeaders)
+        {
+            var d = new Dictionary<string, string>();
+
+            using (var lines = new StringReader(responseHeaders))
+            {
+                while (lines.Peek() > -1)
+                {
+                    var line = lines.ReadLine();
+
+                    int index = line.IndexOf(":", StringComparison.InvariantCultureIgnoreCase);
+                    if (index > -1)
+                    {
+                        var key = line.Substring(0, index).ToLower();
+                        var value = line.Substring(index + 1);
+                        d.Add(key.Trim(), value);
+                    }
+                }
+            }
+
+            return d;
+        }
+
+        /// <summary>
         /// Determines if the string passed represents an Exception
         /// </summary>
         /// <param name="exceptionString"></param>
         /// <returns></returns>
-        public static bool IsException(string exceptionString) 
+        public static bool IsException(string exceptionString)
             => !String.IsNullOrWhiteSpace(exceptionString);
     }
 }

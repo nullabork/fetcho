@@ -1,4 +1,6 @@
-﻿namespace Fetcho.Commands
+﻿using System.Threading.Tasks;
+
+namespace Fetcho.Commands
 {
     public class HelpControloCommand : ControloCommand
     {
@@ -6,7 +8,7 @@
 
         public override string ShortHelp => "List all commands";
 
-        public override void Execute(string[] args)
+        public override async Task Execute(string[] args)
         {
             foreach( var command in Controlo.Commands.Values )
             {

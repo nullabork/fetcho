@@ -41,7 +41,7 @@ namespace FetchoAPI
 
             // setup configuration
             var cfg = new FetchoConfiguration();
-            cfg.SetConfigurationSetting(() => cfg.DataSourcePath, ConfigurationManager.AppSettings["DataSourcePath"]);
+            cfg.SetConfigurationSetting(() => cfg.MLModelPath, ConfigurationManager.AppSettings["MLModelPath"]);
             FetchoConfiguration.Current = cfg;
         }
     }

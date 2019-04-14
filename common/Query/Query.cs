@@ -18,7 +18,7 @@ namespace Fetcho.Common.QueryEngine
 
         public long MinCost { get; set; }
         public long MaxCost { get; set; }
-        public long AvgCost { get => NumberOfEvaluations == 0 ? 0 : TotalCost / NumberOfEvaluations; }
+        public long AvgCost { get => NumberOfEvaluations == 0 ? -1 : TotalCost / NumberOfEvaluations; }
         public long TotalCost { get; set; }
         public int NumberOfEvaluations { get; set; }
         public int NumberOfInclusions { get; set; }
@@ -30,19 +30,19 @@ namespace Fetcho.Common.QueryEngine
         public bool RequiresStreamInput { get; protected set; }
         public bool RequiresResultInput { get; protected set; }
 
-        public Query(string queryText)
+        public Query(string queryText, int depth = 0)
         {
             OriginalQueryText = queryText;
             MinCost = long.MaxValue;
-            MaxCost = long.MinValue;
-            TotalCost = 0;
+            MaxCost = -1;
+            TotalCost = -1;
             IncludeFilters = new FilterCollection();
             ExcludeFilters = new FilterCollection();
             TagFilters = new FilterCollection();
             RequiresResultInput = false;
             RequiresStreamInput = false;
             RequiresTextInput = false;
-            ParseQueryText(queryText);
+            ParseQueryText(queryText, depth);
             Console.WriteLine(this.ToString());
         }
 
@@ -91,9 +91,11 @@ namespace Fetcho.Common.QueryEngine
         /// Parse query text to build the filter collections
         /// </summary>
         /// <param name="text">The query text</param>
-        private void ParseQueryText(string text)
+        /// <param name="depth">Depth of this query to throw exceptions if we have too much sub query depth</param>
+        private void ParseQueryText(string text, int depth)
         {
             if (String.IsNullOrWhiteSpace(text)) return;
+
             var tokens = TokeniseQueryText(text);
 
             foreach (var token in tokens)
@@ -116,8 +118,8 @@ namespace Fetcho.Common.QueryEngine
                     filter = new SimpleTextMatchFilter(filterToken);
                 else
                 {
-                    filter = Filter.CreateFilter(filterToken);
-                    tagger = Filter.CreateFilter(tagToken);
+                    filter = Filter.CreateFilter(filterToken, depth);
+                    tagger = Filter.CreateFilter(tagToken, depth);
                 }
 
                 CalculateFilteringDataRequirements(filter);
@@ -244,6 +246,35 @@ namespace Fetcho.Common.QueryEngine
                 MinCost, MaxCost, AvgCost, TotalCost, NumberOfEvaluations);
 
         /// <summary>
+        /// Removes comment and new line chars etc.
+        /// </summary>
+        /// <param name="queryText"></param>
+        /// <returns></returns>
+        public static string StripCommentsAndLines(string queryText)
+        {
+            var sb = new StringBuilder();
+
+            using (var sr = new StringReader(queryText))
+            {
+                while (sr.Peek() > -1)
+                {
+                    var line = sr.ReadLine().Trim();
+
+                    int commentIdx = line.IndexOf("//");
+                    if (commentIdx > -1)
+                    {
+                        line = line.Substring(0, commentIdx).Trim();
+                    }
+
+                    sb.Append(line.Replace("\t", " "));
+                    sb.Append(" ");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// Extracts each query command from the query text
         /// </summary>
         /// <param name="queryText"></param>
@@ -251,7 +282,7 @@ namespace Fetcho.Common.QueryEngine
         public static IEnumerable<string> TokeniseQueryText(string queryText)
         {
             var l = new List<string>();
-            queryText = queryText.Replace('\n', ' ').Replace('\r', ' ').Replace('\t', ' ');
+            queryText = StripCommentsAndLines(queryText);
 
             bool inString = false;
             var sb = new StringBuilder();

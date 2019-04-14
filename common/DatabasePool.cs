@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Fetcho.Common
@@ -10,12 +11,15 @@ namespace Fetcho.Common
 
         public static int Count { get => databasePool.Count; }
 
+        public static int WaitingForDatabase { get => _waitingForDatabase; }
+        private static int _waitingForDatabase;
+
         public static void Initialise()
         {
             lock (databasePoolLock)
             {
                 databasePool = new BufferBlock<Database>();
-                for (int i = 0; i < Database.MaxConcurrentConnections-5; i++)
+                for (int i = 0; i < Database.MaxConcurrentConnections - 5; i++)
                     databasePool.SendAsync(CreateDatabase().GetAwaiter().GetResult());
             }
         }
@@ -28,9 +32,15 @@ namespace Fetcho.Common
         }
 
         public static async Task<Database> GetDatabaseAsync()
-            => await databasePool.ReceiveAsync().ConfigureAwait(false);
+        {
+            Interlocked.Increment(ref _waitingForDatabase);
+            var db = await databasePool.ReceiveAsync().ConfigureAwait(false);
+            Interlocked.Decrement(ref _waitingForDatabase);
+            return db;
+        }
 
         public static async Task GiveBackToPool(Database db) => await databasePool.SendOrWaitAsync(db);
 
     }
+
 }

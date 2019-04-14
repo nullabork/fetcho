@@ -44,6 +44,11 @@ namespace Fetcho.Common
         public virtual bool RequiresStreamInput { get => false; }
 
         /// <summary>
+        /// True if this filter is a sub query filter
+        /// </summary>
+        public virtual bool IsSubQuery { get => false; }
+
+        /// <summary>
         /// True if this filter can be used to determine if a result should be included or excluded or whether it'll always pass all values
         /// </summary>
         /// ie. is it a useless filter?
@@ -113,7 +118,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="token"></param>
         /// <returns>A filter or null if it cantc match the token to a type</returns>
-        public static Filter CreateFilter(string token)
+        public static Filter CreateFilter(string token, int depth)
         {
             if (String.IsNullOrWhiteSpace(token)) return null;
 
@@ -127,7 +132,7 @@ namespace Fetcho.Common
             if (method == null)
                 throw new FilterReflectionFetchoException("Static Parse method is not declared on type {0}", t.Name);
 
-            return method.Invoke(null, new[] { token }) as Filter;
+            return method.Invoke(null, new object[] { token, depth }) as Filter;
         }
 
         /// <summary>

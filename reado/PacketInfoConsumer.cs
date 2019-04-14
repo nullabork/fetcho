@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -29,10 +30,14 @@ namespace Fetcho
         public ulong CountOfHeaderBytes = 0;
         public ulong CountOfRequestBytes = 0;
 
-        public Dictionary<string, int> ContentTypes = new Dictionary<string, int>();
+        public double ResponseTimeMilliseconds = 0.0;
+
         public Dictionary<string, int> TLDCounts = new Dictionary<string, int>();
         public Dictionary<string, int> HostCounts = new Dictionary<string, int>();
         public Dictionary<string, int> ExceptionCounts = new Dictionary<string, int>();
+        public Dictionary<string, int> ContentTypes = new Dictionary<string, int>();
+        public Dictionary<string, int> ContentEncoding = new Dictionary<string, int>();
+        public Dictionary<string, int> ContentLanguage = new Dictionary<string, int>();
 
         private DomainParser domainParser = new DomainParser(new WebTldRuleProvider());
 
@@ -43,7 +48,7 @@ namespace Fetcho
                 Summarise = false;
         }
 
-        public override void ProcessException(string exception)
+        public override async Task ProcessException(string exception)
         {
             if (WebDataPacketReader.IsException(exception))
             {
@@ -55,7 +60,7 @@ namespace Fetcho
             }
         }
 
-        public override void ProcessRequest(string request)
+        public override async Task ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
@@ -66,16 +71,32 @@ namespace Fetcho
 
             ResourceCount++;
             CountOfRequestBytes += (ulong)request.Length;
+
+            var headers = WebDataPacketReader.GetHeaders(request);
+            if (headers.ContainsKey("responsetime"))
+                ResponseTimeMilliseconds += TimeSpan.Parse(headers["responsetime"]).TotalMilliseconds;
         }
 
-        public override void ProcessResponseHeaders(string responseHeaders)
+        public override async Task ProcessResponseHeaders(string responseHeaders)
         {
             CountOfHeaderBytes += (ulong)responseHeaders.Length;
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
+            var headers = WebDataPacketReader.GetHeaders(responseHeaders);
+            if ( headers.ContainsKey("content-encoding"))
+                Increment(ContentEncoding, headers["content-encoding"].ToLower());
+            else
+                Increment(ContentEncoding, "(not specified)");
+
+            if (headers.ContainsKey("content-language"))
+                Increment(ContentLanguage, headers["content-language"].ToLower());
+            else
+                Increment(ContentLanguage, "(not specified)");
+
+
         }
 
-        public override void ProcessResponseStream(Stream dataStream)
+        public override async Task ProcessResponseStream(Stream dataStream)
         {
             using (var ms = new MemoryStream())
             {
@@ -130,20 +151,25 @@ namespace Fetcho
             Console.WriteLine("\tTLDs:       \t{0}", TLDCounts.Count);
             Console.WriteLine("\tHosts:      \t{0}", HostCounts.Count);
             Console.WriteLine("\tContent Types:\t{0}", ContentTypes.Count);
+            Console.WriteLine("\tEncodings:\t{0}", ContentEncoding.Count);
+            Console.WriteLine("\tLanguages:\t{0}", ContentLanguage.Count);
+            Console.WriteLine("\tAvg Response Time:\t{0}ms", ResourceCount == 0 ? 0 : ResponseTimeMilliseconds / ResourceCount);
             Console.WriteLine();
 
             Console.WriteLine("Sizes");
-            Console.WriteLine("\tRequests: \t{0} bytes", CountOfRequestBytes);
-            Console.WriteLine("\tHeaders:  \t{0} bytes", CountOfHeaderBytes);
-            Console.WriteLine("\tData:     \t{0} bytes\t{1} avg bytes/resource",
-                                CountOfDataBytes,
-                                ResourceCount == 0 ? 0 : CountOfDataBytes / (ulong)(ResourceCount - ExceptionCount));
+            Console.WriteLine("\tRequests: \t{0}kb", CountOfRequestBytes / 1024);
+            Console.WriteLine("\tHeaders:  \t{0}kb", CountOfHeaderBytes / 1024);
+            Console.WriteLine("\tData:     \t{0}kb\t{1} avg kb/resource",
+                                CountOfDataBytes / 1024,
+                                ResourceCount == 0 ? 0 : CountOfDataBytes / 1024 / (ulong)(ResourceCount - ExceptionCount));
             Console.WriteLine();
 
             OutputDictionary(ExceptionCounts, "Exceptions", 0); // don't summarise any of the data for exceptions
             OutputDictionary(TLDCounts, "TLDs", ResourceCount / 100);
-            OutputDictionary(ContentTypes, "Content Types", ResourceCount / 100);
             OutputDictionary(HostCounts, "Hosts", ResourceCount / 100);
+            OutputDictionary(ContentTypes, "Content Types", ResourceCount / 100);
+            OutputDictionary(ContentEncoding, "Content Encoding", 0);
+            OutputDictionary(ContentLanguage, "Content Language", ResourceCount / 100);
 
             if (PacketIsMalformed)
             {
@@ -159,8 +185,9 @@ namespace Fetcho
             foreach (var kvp in dict.OrderByDescending(x => x.Value))
                 if (kvp.Value > threshold || !Summarise)
                     Console.WriteLine(
-                        "\t{0}\t{1}",
+                        "\t{0}\t{1}%\t{2}",
                         kvp.Value,
+                        ResourceCount == 0 ? 0 : kvp.Value / ResourceCount,
                         String.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
             if (Summarise)
                 Console.WriteLine("\t...");

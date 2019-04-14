@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Fetcho.Commands
 {
@@ -8,7 +9,7 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "Exit the program hard"; 
 
-        public override void Execute(string[] args)
+        public override async Task Execute(string[] args)
         {
             Controlo.ReportInfo("Quitting");
             Environment.Exit(1);

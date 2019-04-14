@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using Fetcho.Common.Net;
 using Fetcho.ContentReaders;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -36,13 +37,13 @@ namespace Fetcho
             ClearAll();
         }
 
-        public override void ProcessRequest(string request)
+        public override async Task ProcessRequest(string request)
             => this.requestString = request;
 
-        public override void ProcessResponseHeaders(string responseHeaders)
+        public override async Task ProcessResponseHeaders(string responseHeaders)
             => this.responseHeaders = responseHeaders;
 
-        public override void ProcessResponseStream(Stream dataStream)
+        public override async Task ProcessResponseStream(Stream dataStream)
         {
             try
             {

@@ -63,7 +63,19 @@ namespace Fetcho.Common
         /// <summary>
         /// Where does the link point to
         /// </summary>
-        public Uri TargetUri { get; set; }
+        public Uri TargetUri {
+            get => targetUri;
+            set {
+                targetUri = value;
+                TargetUriHash = MD5Hash.Compute(value);
+            }
+        }
+        private Uri targetUri = null;
+
+        /// <summary>
+        /// Hash of the target URI
+        /// </summary>
+        public MD5Hash TargetUriHash { get; private set; }
 
         /// <summary>
         /// IPAddress of the target
@@ -86,6 +98,7 @@ namespace Fetcho.Common
                 PriorityTooLow ||
                 UnsupportedUri ||
                 IsProbablyBlocked ||
+                BadNetwork ||
                 ChunkSequenceTooHigh ||
                 IPSeenRecently ||
                 IsBlockedByDomain;
@@ -135,6 +148,11 @@ namespace Fetcho.Common
         public bool IPSeenRecently { get; set; }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public bool BadNetwork { get; set; }
+
+        /// <summary>
         /// Chunk sequence
         /// </summary>
         public int ChunkSequence { get; set; }
@@ -161,6 +179,7 @@ namespace Fetcho.Common
                 if (UnsupportedUri) code += 'U';
                 if (IsProbablyBlocked) code += 'P';
                 if (IsBlockedByDomain) code += 'L';
+                if (BadNetwork) code += 'N';
                 if (VisitedRecently) code += 'V';
                 if (IPSeenRecently) code += 'I';
                 if (ChunkSequenceTooHigh) code += 'C';
@@ -176,6 +195,7 @@ namespace Fetcho.Common
                 UnsupportedUri = value.Contains("U");
                 IsProbablyBlocked = value.Contains("P");
                 IsBlockedByDomain = value.Contains("L");
+                BadNetwork = value.Contains("N");
                 VisitedRecently = value.Contains("V");
                 IPSeenRecently = value.Contains("I");
                 ChunkSequenceTooHigh = value.Contains("C");

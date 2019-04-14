@@ -4,30 +4,29 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("title:", "title:[text|*][:text|*]")]
-    public class TitleFilter : Filter
+    [Filter("filetype:", "filetype:[filetype|*][:filetype|*]")]
+    public class FileTypeFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "Title filter";
+        public override string Name => "File Type filter";
 
-        public TitleFilter(string title)
-            => SearchText = title;
-
-        public override decimal Cost => 1m;
+        public override bool RequiresResultInput { get => true; }
 
         public override bool CallOncePerPage => true;
 
         public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
 
-        public override bool RequiresResultInput { get => true; }
+        public FileTypeFilter(string filetype) 
+            => SearchText = filetype;
 
         public override string GetQueryText()
-            => string.Format("title:{0}", SearchText);
+            => string.Format("filetype:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            return result.Title.Contains(SearchText) ? new string[1] : EmptySet;
+            string contentType = result.ResponseProperties.SafeGet("content-type") ?? String.Empty;
+            return String.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
         }
 
         /// <summary>
@@ -35,7 +34,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 
@@ -46,7 +45,7 @@ namespace Fetcho.Common
                 if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new TitleFilter(searchText);
+            return new FileTypeFilter(searchText);
         }
     }
 }

@@ -51,6 +51,7 @@
     <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <RegisterForComInterop>false</RegisterForComInterop>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -237,6 +238,7 @@
     <Compile Include="FastLookupCache.cs" />
     <Compile Include="FetchoConfiguration.cs" />
     <Compile Include="FetchoResourceBlockedException.cs" />
+    <Compile Include="HostCacheManagerRecord.cs" />
     <Compile Include="ImmediateWorkspaceQueueItem.cs" />
     <Compile Include="IQueueCalculationModel.cs" />
     <Compile Include="IWebResourceWriter.cs" />
@@ -250,38 +252,40 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
-    <Compile Include="Query\ComplexTextFilter.cs" />
-    <Compile Include="Query\DataHashFilter.cs" />
-    <Compile Include="Query\DistinctWindowFilter.cs" />
+    <Compile Include="Query\Filters\ComplexTextFilter.cs" />
+    <Compile Include="Query\Filters\DataHashFilter.cs" />
+    <Compile Include="Query\Filters\DistinctWindowFilter.cs" />
     <Compile Include="Query\EvaluationResult.cs" />
     <Compile Include="Query\EvaluationResultAction.cs" />
-    <Compile Include="Query\FileTypeFilter.cs" />
+    <Compile Include="Query\Filters\FileTypeFilter.cs" />
     <Compile Include="Query\Filter.cs" />
     <Compile Include="Query\FilterAttribute.cs" />
     <Compile Include="Query\FilterCollection.cs" />
     <Compile Include="Query\FilterMode.cs" />
     <Compile Include="Query\FilterReflectionFetchoException.cs" />
-    <Compile Include="Query\GeoIPCityFilter.cs" />
-    <Compile Include="Query\GeoIPCoordinateFilter.cs" />
-    <Compile Include="Query\GeoIPCountryFilter.cs" />
-    <Compile Include="Query\GeoIPFilter.cs" />
-    <Compile Include="Query\GeoIPSubDivisionFilter.cs" />
-    <Compile Include="Query\HasFilter.cs" />
-    <Compile Include="Query\LanguageFilter.cs" />
-    <Compile Include="Query\MachineLearningModelFilter.cs" />
-    <Compile Include="Query\PropertyFilter.cs" />
+    <Compile Include="Query\Filters\GeoIPCityFilter.cs" />
+    <Compile Include="Query\Filters\GeoIPCoordinateFilter.cs" />
+    <Compile Include="Query\Filters\GeoIPCountryFilter.cs" />
+    <Compile Include="Query\Filters\GeoIPFilter.cs" />
+    <Compile Include="Query\Filters\GeoIPSubDivisionFilter.cs" />
+    <Compile Include="Query\Filters\HasFilter.cs" />
+    <Compile Include="Query\Filters\ISubQuery.cs" />
+    <Compile Include="Query\Filters\LanguageFilter.cs" />
+    <Compile Include="Query\Filters\MachineLearningModelFilter.cs" />
+    <Compile Include="Query\Operators\OrOperator.cs" />
+    <Compile Include="Query\Filters\PropertyFilter.cs" />
     <Compile Include="Query\Query.cs" />
-    <Compile Include="Query\RandomMatchFilter.cs" />
-    <Compile Include="Query\RegexFilter.cs" />
-    <Compile Include="Query\RequestHeaderFilter.cs" />
-    <Compile Include="Query\ResponseHeaderFilter.cs" />
-    <Compile Include="Query\SiteFilter.cs" />
-    <Compile Include="Query\TagFilter.cs" />
-    <Compile Include="Query\TextMatchFilter.cs" />
-    <Compile Include="Query\TitleFilter.cs" />
-    <Compile Include="Query\UriFilter.cs" />
-    <Compile Include="Query\WorkspaceSubQueryFilter.cs" />
-    <Compile Include="Query\XPathFilter.cs" />
+    <Compile Include="Query\Filters\RandomMatchFilter.cs" />
+    <Compile Include="Query\Filters\RegexFilter.cs" />
+    <Compile Include="Query\Filters\RequestHeaderFilter.cs" />
+    <Compile Include="Query\Filters\ResponseHeaderFilter.cs" />
+    <Compile Include="Query\Filters\SiteFilter.cs" />
+    <Compile Include="Query\Filters\TagFilter.cs" />
+    <Compile Include="Query\Filters\TextMatchFilter.cs" />
+    <Compile Include="Query\Filters\TitleFilter.cs" />
+    <Compile Include="Query\Filters\UriFilter.cs" />
+    <Compile Include="Query\Filters\WorkspaceSubQueryFilter.cs" />
+    <Compile Include="Query\Filters\XPathFilter.cs" />
     <Compile Include="QueueItemStatusUpdate.cs" />
     <Compile Include="QueueItemStatusUpdateEventArgs.cs" />
     <Compile Include="ResourceFetchers\DefaultBlockProvider.cs" />

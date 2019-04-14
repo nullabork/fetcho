@@ -1,5 +1,6 @@
 ﻿using log4net;
 using System;
+using System.Threading.Tasks;
 
 namespace Fetcho.Common
 {
@@ -18,7 +19,7 @@ namespace Fetcho.Common
         {
         }
 
-        public void Process(WebDataPacketReader packet)
+        public async Task Process(WebDataPacketReader packet)
         {
 
             try
@@ -34,24 +35,24 @@ namespace Fetcho.Common
                         if (Consumer.ProcessesRequest)
                         {
                             string requestString = packet.GetRequestString();
-                            Consumer.ProcessRequest(requestString);
+                            await Consumer.ProcessRequest(requestString).ConfigureAwait(false);
                         }
 
                         if (Consumer.ProcessesResponse)
                         {
                             string responseHeaders = packet.GetResponseHeaders();
-                            Consumer.ProcessResponseHeaders(responseHeaders);
+                            await Consumer.ProcessResponseHeaders(responseHeaders).ConfigureAwait(false);
 
                             using (var response = packet.GetResponseStream())
                             {
-                                Consumer.ProcessResponseStream(response);
+                                await Consumer.ProcessResponseStream(response).ConfigureAwait(false);
                             }
                         }
 
                         if (Consumer.ProcessesException)
                         {
                             string exception = packet.GetException();
-                            Consumer.ProcessException(exception);
+                            await Consumer.ProcessException(exception).ConfigureAwait(false);
                         }
 
                     }

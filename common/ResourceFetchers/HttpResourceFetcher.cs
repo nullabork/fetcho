@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Cache;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using log4net;
@@ -49,11 +50,6 @@ namespace Fetcho.Common
             {
                 base.BeginRequest();
 
-                // get database from the pool
-                var db = await DatabasePool.GetDatabaseAsync();
-                await db.SaveWebResource(uri, DateTime.UtcNow.AddDays(FetchoConfiguration.Current.PageCacheExpiryInDays));
-                await DatabasePool.GiveBackToPool(db);
-
                 request = CreateRequest(queueItem, refererUri, uri, lastFetchedDate);
 
                 var netTask = request.GetResponseAsync();
@@ -82,21 +78,23 @@ namespace Fetcho.Common
                     while (rspw.Status != TaskStatus.RanToCompletion && rspw.Status != TaskStatus.Faulted)
                     {
                         if (!firstTime)
-                            throw new FetchoException("WriteOutResponse timed out");
-                        var wait = Task.Delay( queueItem == null ? FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds : queueItem.ReadTimeoutInMilliseconds);
+                            throw new TimeoutException("WriteOutResponse timed out");
+                        var wait = Task.Delay(queueItem == null ? FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds : queueItem.ReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
                         if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
                     }
 
                     wroteOk = await rspw;
+
+                    //await DoBookkeeping(queueItem, request);
                 }
             }
-            catch (TimeoutException ex) { ErrorHandler(ex, request, false); exception = ex; }
-            catch (AggregateException ex) { ErrorHandler(ex.InnerException, request, false); exception = ex; }
-            catch (FetchoResourceBlockedException ex) { ErrorHandler(ex, request, false); exception = ex; }
-            catch (WebException ex) { ErrorHandler(ex, request, false); exception = ex; }
-            catch (Exception ex) { ErrorHandler(ex, request, true); exception = ex; }
+            catch (Exception ex)
+            {
+                await ErrorHandler(ex, request, queueItem);
+                exception = ex;
+            }
             finally
             {
                 try
@@ -131,9 +129,9 @@ namespace Fetcho.Common
         /// <returns></returns>
         private async Task<bool> WriteOutResponse(
             QueueItem queueItem,
-            BufferBlock<IWebResourceWriter> writers, 
-            HttpWebRequest request, 
-            HttpWebResponse response, 
+            BufferBlock<IWebResourceWriter> writers,
+            HttpWebRequest request,
+            HttpWebResponse response,
             DateTime startTime
             )
         {
@@ -142,7 +140,7 @@ namespace Fetcho.Common
             bool wroteOk = false;
 
             // this has a potential to cause memory issues if theres lots of waiting
-            byte[] buffer = new byte[FetchoConfiguration.Current.MaxFileDownloadLengthInBytes]; 
+            byte[] buffer = new byte[FetchoConfiguration.Current.MaxFileDownloadLengthInBytes];
             int bytesread = 0;
 
             // Read as much into memory as possible up to the max limit
@@ -159,7 +157,7 @@ namespace Fetcho.Common
                     while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit and ditch the rest
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 log.Error(ex);
                 exception = ex;
@@ -178,7 +176,11 @@ namespace Fetcho.Common
                 if (bytesread > 0)
                     packet.OutputResponse(response, buffer, bytesread);
             }
-            catch (Exception ex) { ErrorHandler(ex, request, false); exception = ex; }
+            catch (Exception ex)
+            {
+                await ErrorHandler(ex, request, queueItem);
+                exception = ex;
+            }
             finally
             {
                 packet.OutputException(exception);
@@ -204,8 +206,10 @@ namespace Fetcho.Common
             request.UserAgent = FetchoConfiguration.Current.UserAgent;
             request.Method = "GET";
 
-            // we need to check the redirect URL is OK from a robots standpoint
+            // we'll accept anything
+            //request.Headers.Set(HttpRequestHeader.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 
+            // we need to check the redirect URL is OK from a robots standpoint
             if (queueItem != null)
                 request.AllowAutoRedirect = !queueItem.CanBeDiscarded;
             else
@@ -258,14 +262,74 @@ namespace Fetcho.Common
             }
         }
 
-        private void ErrorHandler(Exception ex, HttpWebRequest request, bool verbose)
+        private async Task RecordNetworkIssues(IPAddress ipAddress)
         {
-            const string format = "'{0}': {1}";
+            if (!IPAddress.None.Equals(ipAddress))
+                await FetchoConfiguration.Current.HostCache.RecordNetworkIssue(ipAddress);
+        }
 
-            if (verbose)
-                log.ErrorFormat(format, request?.RequestUri, ex);
+        private async Task RecordNetworkIssues(QueueItem item)
+        {
+            if (item != null && item.TargetIP != null)
+                await RecordNetworkIssues(item.TargetIP);
+        }
+
+        private async Task IncreaseFetchTimeoutForHost(IPAddress ipAddress)
+        {
+            var host = await FetchoConfiguration.Current.HostCache.GetHostInfo(ipAddress);
+            host.MaxFetchSpeedInMilliseconds += 5000;
+            await FetchoConfiguration.Current.HostCache.UpdateHostSettings(host);
+        }
+
+        private async Task ErrorHandler(Exception ex, HttpWebRequest request, QueueItem queueItem)
+        {
+            IncFetchExceptions();
+
+            if (ex is AggregateException aggex)
+                ex = aggex.InnerException;
+
+            if ( ex is FetchoResourceBlockedException)
+            {
+                // do nothing ignore it
+            }
+            else if (ex is WebException webex)
+            {
+                if (webex.InnerException is SocketException)
+                {
+                    if (queueItem == null) await RecordNetworkIssues(await Utility.GetHostIPAddress(request?.RequestUri));
+                    else await RecordNetworkIssues(queueItem);
+                    TerseExceptionOutput(request?.RequestUri, ex);
+                }
+                else if (webex.Response is HttpWebResponse resp)
+                {
+                    if (resp.StatusCode == (HttpStatusCode)429) // too fast - increase our wait time
+                    {
+                        if (queueItem == null) await IncreaseFetchTimeoutForHost(await Utility.GetHostIPAddress(request?.RequestUri));
+                        else await IncreaseFetchTimeoutForHost(queueItem.TargetIP);
+                        TerseExceptionOutput(request?.RequestUri, ex);
+                    }
+                    else if ( resp.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        IncNotFound();
+                    }
+                    else if ( resp.StatusCode == HttpStatusCode.Forbidden || resp.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        IncForbidden();
+                    }
+                    else
+                        TerseExceptionOutput(request?.RequestUri, ex);
+                }
+            }
+            else if (ex is TimeoutException timeout)
+            {
+                if (queueItem == null) await RecordNetworkIssues(await Utility.GetHostIPAddress(request?.RequestUri));
+                else await RecordNetworkIssues(queueItem);
+                //TerseExceptionOutput(request?.RequestUri, ex);
+            }
             else
-                log.ErrorFormat(format, request?.RequestUri, ex.Message);
+            {
+                VerboseExceptionOutput(request?.RequestUri, ex);
+            }
 
             // In memorandum:
             // The line here was originally if ( !OutputInUse) await OutputSync.WaitAsync();
@@ -274,5 +338,13 @@ namespace Fetcho.Common
             // downloading before it finally reared its ugly head and corrupted the 
             // Xml file.
         }
+
+        const string ExceptionMessageFormat = "'{0}': {1}";
+
+        private void TerseExceptionOutput(Uri uri, Exception ex)
+            => log.ErrorFormat(ExceptionMessageFormat, uri, ex.Message);
+
+        private void VerboseExceptionOutput(Uri uri, Exception ex)
+            => log.ErrorFormat(ExceptionMessageFormat, uri, ex.ToString());
     }
 }

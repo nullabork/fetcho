@@ -46,6 +46,12 @@ namespace Fetcho.FetchoAPI.Controllers
         /// </summary>
         public decimal? EstimatedMaxCost { get; set; }
 
+        public bool RequiresResultInput { get; set; }
+
+        public bool RequiresTextInput { get; set; }
+
+        public bool RequiresStreamInput { get; set; }
+
         public QueryParserResponse()
         {
             Filters = null;
@@ -62,7 +68,11 @@ namespace Fetcho.FetchoAPI.Controllers
             {
                 Type = f.GetType().Name,
                 Cost = f.Cost,
-                FilterText = f.GetQueryText()
+                FilterText = f.GetQueryText(),
+                RequiresResultInput = f.RequiresResultInput,
+                RequiresTextInput = f.RequiresTextInput,
+                RequiresStreamInput = f.RequiresStreamInput,
+                SubQueryDetails = f.IsSubQuery ? QueryParserResponse.Create((f as ISubQuery).Query.OriginalQueryText) : null
             });
 
         /// <summary>
@@ -94,6 +104,10 @@ namespace Fetcho.FetchoAPI.Controllers
                 r.EstimatedMaxCost = query.IncludeFilters.Aggregate(0m, (x, y) => x + y.Cost);
                 r.EstimatedMaxCost += query.ExcludeFilters.Aggregate(0m, (x, y) => x + y.Cost);
                 r.EstimatedMaxCost += query.TagFilters.Aggregate(0m, (x, y) => x + y.Cost);
+
+                r.RequiresResultInput = query.RequiresResultInput;
+                r.RequiresTextInput = query.RequiresTextInput;
+                r.RequiresStreamInput = query.RequiresStreamInput;
                 r.Success = true;
             }
             catch (Exception ex)
@@ -114,6 +128,14 @@ namespace Fetcho.FetchoAPI.Controllers
         public decimal Cost { get; set; }
 
         public string FilterText { get; set; }
+
+        public bool RequiresResultInput { get; set; }
+
+        public bool RequiresTextInput { get; set; }
+
+        public bool RequiresStreamInput { get; set; }
+
+        public QueryParserResponse SubQueryDetails { get; set; }
     }
 
 }

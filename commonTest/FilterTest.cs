@@ -11,7 +11,7 @@ namespace Fetcho.Common.Tests
         {
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
-            cfg.SetConfigurationSetting(() => cfg.DataSourcePath, @"G:\fetcho\data\");
+            cfg.SetConfigurationSetting(() => cfg.MLModelPath, @"G:\fetcho\data\");
         }
 
         [TestMethod]
@@ -19,7 +19,7 @@ namespace Fetcho.Common.Tests
         {
             const string InputQuery = "ml-model(science,0.98):*";
 
-            var f = MachineLearningModelFilter.Parse(InputQuery);
+            var f = MachineLearningModelFilter.Parse(InputQuery, 0);
             Assert.IsNotNull(f);
             Assert.IsTrue(f.GetQueryText() == InputQuery, f.GetQueryText());
 

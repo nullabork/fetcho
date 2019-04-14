@@ -56,7 +56,7 @@ namespace Fetcho
                         Utility.LogInfo("Command: {0} {1}", commandName, args.Aggregate(String.Empty, (x, y) => x + " " + y));
                         try
                         {
-                            Commands[commandName].Execute(args);
+                            await Commands[commandName].Execute(args);
                         }
                         catch( Exception ex)
                         {

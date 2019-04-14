@@ -18,6 +18,7 @@ namespace Fetcho.Common
     {
         const string DefaultMLModelFileNameExtension = ".mlmodel";
         const float DefaultConfidenceThreshold = 0.98f;
+        const float DefaultConfidenceThresholdWhenAny = 0.01f;
         const string MachineLearningModelFilterKey = "ml-model(";
 
         private string lastDataHash = String.Empty;
@@ -88,7 +89,7 @@ namespace Fetcho.Common
         }
 
         private string GetModelFilePath()
-            => Path.Combine(FetchoConfiguration.Current.DataSourcePath, ModelName + DefaultMLModelFileNameExtension);
+            => Path.Combine(FetchoConfiguration.Current.MLModelPath, ModelName + DefaultMLModelFileNameExtension);
 
         private void LoadPredictionEngineFromDiskIntoCache(string modelName)
         {
@@ -111,7 +112,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             //try
             //{
@@ -124,9 +125,11 @@ namespace Fetcho.Common
                 MachineLearningModelFilterKey.Length,
                 tokens[0].Length - MachineLearningModelFilterKey.Length - 1);
             var argsTokens = argsString.Split(',');
-            var modelName = argsTokens[0];
+            var modelName = argsTokens[0].Trim();
             float confidence = DefaultConfidenceThreshold;
-            if (argsTokens.Length < 2 || !float.TryParse(argsTokens[1], out confidence))
+            if (argsTokens.Length < 2 || argsTokens[1].Trim().ToLower() == "any")
+                confidence = DefaultConfidenceThresholdWhenAny;
+            else if (argsTokens.Length < 2 || !float.TryParse(argsTokens[1], out confidence))
                 confidence = DefaultConfidenceThreshold;
             searchText = tokens[1].Trim();
 
@@ -145,7 +148,7 @@ namespace Fetcho.Common
 
             sb.AppendLine("Available Models:\n");
 
-            foreach (string modelFile in Directory.GetFiles(FetchoConfiguration.Current.DataSourcePath, "*" + DefaultMLModelFileNameExtension))
+            foreach (string modelFile in Directory.GetFiles(FetchoConfiguration.Current.MLModelPath, "*" + DefaultMLModelFileNameExtension))
             {
                 sb.AppendFormat("\t{0}\n", Path.GetFileNameWithoutExtension(modelFile));
             }

@@ -261,6 +261,12 @@ namespace Fetcho.Common
 
         public static TValue SafeGet<TKey, TValue>(this Dictionary<TKey, TValue> dict, TKey key)
             => dict.ContainsKey(key) ? dict[key] : default(TValue);
+
+        public static void AddIfNotNull<T>(this List<T> list, T item)
+        {
+            if (!EqualityComparer<T>.Default.Equals(item, default(T)))
+                list.Add(item);
+        }
     }
 
     

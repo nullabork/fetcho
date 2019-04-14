@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common.Configuration;
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace Fetcho.Common
@@ -19,10 +20,10 @@ namespace Fetcho.Common
         const int DefaultMaxFetchSpeedInMilliseconds = 10000;
         const int DefaultMaxConcurrentFetches = 2000;
 
-        [ConfigurationSetting("ResearchBot 0.2")]
+        [ConfigurationSetting("ResearchBot 0.3")]
         public string UserAgent { get; private set; }
 
-        [ConfigurationSetting(10000)]
+        [ConfigurationSetting(100000)]
         public int HostCacheManagerMaxInMemoryDomainRecords { get; private set; }
 
         [ConfigurationSetting(10000)]
@@ -34,17 +35,17 @@ namespace Fetcho.Common
         [ConfigurationSetting(1 * 1024 * 1024)]
         public int MaxFileDownloadLengthInBytes { get; private set; }
 
-        [ConfigurationSetting(120000)]
+        [ConfigurationSetting(10000)]
         public int ResponseReadTimeoutInMilliseconds { get; private set; }
 
         [ConfigurationSetting(28)]
         public int PageCacheExpiryInDays { get; private set; }
 
-        [ConfigurationSetting(30000)]
+        [ConfigurationSetting(15000)]
         public int RequestTimeoutInMilliseconds { get; private set; }
 
 
-        [ConfigurationSetting(30000)]
+        [ConfigurationSetting(60000)]
         public int HowOftenToReportStatusInMilliseconds { get; private set; }
 
         [ConfigurationSetting(360000)]
@@ -59,7 +60,7 @@ namespace Fetcho.Common
         [ConfigurationSetting(100000)]
         public int MaxResourcesPerDataPacket { get; private set; }
 
-        [ConfigurationSetting(500)]
+        [ConfigurationSetting(250)]
         public int MaxConcurrentTasks { get; private set; }
 
         [ConfigurationSetting(1000000)]
@@ -71,20 +72,20 @@ namespace Fetcho.Common
         [ConfigurationSetting((uint)740 * 1000 * 1000)]
         public uint MaxPriorityValueForLinks { get; private set; }
 
-        [ConfigurationSetting(1000)]
+        [ConfigurationSetting(2000)]
         public int MaxQueueBufferQueueLength { get; private set; }
 
-        [ConfigurationSetting(50)]
+        [ConfigurationSetting(250)]
         public int MaxQueueBufferQueues { get; private set; }
 
 
         [ConfigurationSetting(DefaultMaxConcurrentFetches)]
         public int MaxConcurrentFetches { get; private set; }
 
-        [ConfigurationSetting(DefaultMaxConcurrentFetches * 5 / 10)] // 50% of max
+        [ConfigurationSetting(DefaultMaxConcurrentFetches * 95 / 100)] // 50% of max
         public int PressureReliefThreshold { get; private set; }
 
-        [ConfigurationSetting(10000)]
+        [ConfigurationSetting(500)]
         public int MaxLinksToExtractFromOneResource { get; set; }
 
         /// <summary>
@@ -107,13 +108,19 @@ namespace Fetcho.Common
         public bool QuotaEnabled { get; private set; }
 
         [ConfigurationSetting]
-        public string DataSourcePath { get; private set; }
+        public IEnumerable<string> DataSourcePaths { get; private set; }
+
+        [ConfigurationSetting]
+        public string MLModelPath { get; private set; }
 
         [ConfigurationSetting(@"G:\fetcho\data\GeoLite2-City.mmdb")]
         public string GeoIP2CityDatabasePath { get; private set; }
 
         [ConfigurationSetting]
         public string FetchoWorkspaceServerBaseUri { get; private set; }
+
+        [ConfigurationSetting(3)]
+        public int MaxNetworkIssuesThreshold { get; private set; }
 
         public IBlockProvider BlockProvider { get; set; }
 
@@ -151,8 +158,8 @@ namespace Fetcho.Common
             var prop = this.GetType().GetProperty(propertyName);
             if (prop == null)
                 throw new FetchoException("Property does't exist");
-            if (value.GetType() != prop.PropertyType)
-                throw new FetchoException("Value type doesn't match property type");
+            if (!prop.PropertyType.IsAssignableFrom(prop.PropertyType))
+                throw new FetchoException("Value type {0} isnt assignable to property type {1}", value.GetType().Name, prop.PropertyType.Name);
 
             var oldValue = prop.GetValue(this);
             prop.SetValue(this, value);

@@ -4,37 +4,34 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("filetype:", "filetype:[filetype|*][:filetype|*]")]
-    public class FileTypeFilter : Filter
+    [Filter("uri:", "uri:[uri_fragment|*][:uri_fragment|*]")]
+    public class UriFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "File Type filter";
+        public override string Name => "URI filter";
 
         public override bool RequiresResultInput { get => true; }
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
+        public override bool IsReducingFilter => true;
 
-        public FileTypeFilter(string filetype) 
-            => SearchText = filetype;
+        public UriFilter(string searchText)
+            => SearchText = searchText;
 
         public override string GetQueryText()
-            => string.Format("filetype:{0}", SearchText);
+            => string.Format("uri:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
-        {
-            string contentType = result.ResponseProperties.SafeGet("content-type") ?? String.Empty;
-            return String.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
-        }
+            => result.Uri.Contains(SearchText) ? new string[1] { Utility.MakeTag(result.Uri) } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 
@@ -45,7 +42,8 @@ namespace Fetcho.Common
                 if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new FileTypeFilter(searchText);
+            return new UriFilter(searchText);
         }
     }
+
 }

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System;
 using Fetcho.Common;
 
 namespace learno
@@ -70,6 +71,9 @@ namespace learno
                         .Any())
                         throw new FetchoException("One or more categories has results outside the required range");
                 }
+
+                foreach (var cat in results.Select(x => x.Category).Distinct())
+                    Console.WriteLine("{0}:{1}", cat, results.Where(x => x.Category == cat).Count());
 
                 l.AddRange(results.Where(x => !CategoriesToExclude.Contains(x.Category)));
             }

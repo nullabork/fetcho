@@ -11,12 +11,12 @@ namespace Fetcho.Common
         /// <summary>
         /// HashTable for fast lookups
         /// </summary>
-        private HashSet<T> HashTable { get; set; }
+        protected HashSet<T> HashTable { get; set; }
 
         /// <summary>
         /// Internal FIFO queue for figuring out what to drop from the cache when it's full
         /// </summary>
-        private Queue<T> FifoQueue { get; set; }
+        protected Queue<T> FifoQueue { get; set; }
 
         /// <summary>
         /// Maximum capacity of the cache

@@ -16,14 +16,23 @@ namespace Fetcho.Common
         /// <summary>
         /// Number of active downloads
         /// </summary>
-        public static int ActiveFetches { get => _activeFetches; set => _activeFetches = value; }
+        public static int ActiveFetches { get => _activeFetches; protected set => _activeFetches = value; }
         static int _activeFetches;
 
         /// <summary>
         /// Number of 'threads' waiting to write to the file
         /// </summary>
-        public static int WaitingToWrite { get => _waitingToWrite; set => _waitingToWrite = value; }
+        public static int WaitingToWrite { get => _waitingToWrite; protected set => _waitingToWrite = value; }
         static int _waitingToWrite;
+
+        public static int FetchExceptions { get => _fetchExceptions; protected set => _fetchExceptions = value; }
+        static int _fetchExceptions;
+
+        public static int ForbiddenExceptions { get => _forbiddenExceptions; protected set => _forbiddenExceptions = value; }
+        static int _forbiddenExceptions;
+
+        public static int NotFoundExceptions { get => _notFoundExceptions; protected set => _notFoundExceptions = value; }
+        static int _notFoundExceptions;
 
         public abstract Task Fetch(
             QueueItem queueItem,
@@ -75,9 +84,9 @@ namespace Fetcho.Common
         protected void EndRequest() => Interlocked.Decrement(ref _activeFetches);
 
 
-
-
-
+        protected void IncFetchExceptions() => Interlocked.Increment(ref _fetchExceptions);
+        protected void IncForbidden() => Interlocked.Increment(ref _forbiddenExceptions);
+        protected void IncNotFound() => Interlocked.Increment(ref _notFoundExceptions);
         protected void IncWaitingToWrite() => Interlocked.Increment(ref _waitingToWrite);
         protected void DecWaitingToWrite() => Interlocked.Decrement(ref _waitingToWrite);
 

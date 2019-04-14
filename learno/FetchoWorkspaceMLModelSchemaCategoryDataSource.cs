@@ -28,7 +28,7 @@ namespace learno
             var l = new List<TextPageData>();
             using (var db = new Database())
             {
-                var results = db.GetRandomWorkspaceResultsByWorkspaceId(WorkspaceId, maxRecords).GetAwaiter().GetResult();
+                var results = db.GetWorkspaceResults(WorkspaceId, -1, -1).GetAwaiter().GetResult();
                 l.AddRange(GetPages(db, results));
             }
             return l;
@@ -57,7 +57,7 @@ namespace learno
 
                 var t = new List<BracketPipeTextFragment>();
                 using (var ms = new MemoryStream(data))
-                    parser.Parse(ms, (x) => { var y = FilterRawTextFragments(x); if ( y != null ) t.Add(y); });
+                    parser.Parse(ms, (x) => { var y = FilterRawTextFragments(x); t.AddIfNotNull(y); });
 
                 l.Add(new TextPageData
                 {

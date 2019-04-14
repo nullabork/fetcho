@@ -1,4 +1,6 @@
-﻿namespace Fetcho.Commands
+﻿using System.Threading.Tasks;
+
+namespace Fetcho.Commands
 {
     public abstract class ControloCommand
     {
@@ -8,6 +10,6 @@
 
         public virtual string ShortHelp { get => "Shorthelp not set"; }
 
-        public abstract void Execute(string[] args);
+        public abstract Task Execute(string[] args);
     }
 }

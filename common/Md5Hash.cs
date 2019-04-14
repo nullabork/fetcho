@@ -53,14 +53,27 @@ namespace Fetcho.Common
             Array.Copy(copyValues, Values, ExpectedByteLength);
         }
 
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        /// <param name="copy"></param>
         public MD5Hash(MD5Hash copy) : this(copy?.Values) { }
+
+        /// <summary>
+        /// Cache of the hash string
+        /// </summary>
+        private string toStringCache = String.Empty;
 
         public override string ToString()
         {
-            var sb = new StringBuilder();
-            foreach (byte b in Values)
-                sb.AppendFormat("{0:x2}", b);
-            return sb.ToString();
+            if (toStringCache.Length == 0)
+            {
+                var sb = new StringBuilder();
+                foreach (byte b in Values)
+                    sb.AppendFormat("{0:x2}", b);
+                toStringCache = sb.ToString();
+            }
+            return toStringCache;
         }
 
         #region Equals and GetHashCode implementation

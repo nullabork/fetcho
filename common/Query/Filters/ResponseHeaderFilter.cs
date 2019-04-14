@@ -4,17 +4,16 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("request-header(", "request-header(key name):[value match|*][:value match|*]",
-        Description = "Filter or tag by a specific request header key")]
-    public class RequestHeaderFilter : Filter
+    [Filter("response-header(", "request-header(key name):[value match|*][:value match|*]")]
+    public class ResponseHeaderFilter : Filter
     {
-        const string RequestHeaderFilterKey = "request-header(";
+        const string ResponseHeaderFilterKey = "response-header(";
 
         public string SearchText { get; set; }
 
         public string HeaderKey { get; set; }
 
-        public override string Name => "Request Header Filter";
+        public override string Name => "Response Header Filter";
 
         public override bool CallOncePerPage => true;
 
@@ -23,36 +22,36 @@ namespace Fetcho.Common
 
         public override bool IsReducingFilter => true;
 
-        public RequestHeaderFilter(string headerKey, string searchText) 
+        public ResponseHeaderFilter(string headerKey, string searchText) 
         {
             SearchText = searchText.ToLower();
             HeaderKey = headerKey.ToLower();
         }
 
         public override string GetQueryText()
-            => string.Format("{0}{1}):{2}", RequestHeaderFilterKey, HeaderKey, SearchText);
+            => string.Format("{0}{1}):{2}", ResponseHeaderFilterKey, HeaderKey, SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
-            => result.RequestProperties.ContainsKey(HeaderKey) 
-               && (String.IsNullOrWhiteSpace(SearchText) || result.RequestProperties[HeaderKey].Contains(SearchText)) ? 
-                    new string[1] { Utility.MakeTag(result.RequestProperties[HeaderKey]) } : EmptySet;
+            => result.ResponseProperties.ContainsKey(HeaderKey)
+               && (String.IsNullOrWhiteSpace(SearchText) || result.ResponseProperties[HeaderKey].Contains(SearchText)) ?
+                      new string[1] { Utility.MakeTag(result.ResponseProperties[HeaderKey]) } : EmptySet;
 
         /// <summary>
         /// Parse some text to create this object
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;
 
-            var key = tokens[0].Substring(RequestHeaderFilterKey.Length, tokens[0].Length - RequestHeaderFilterKey.Length - 1);
+            var key = tokens[0].Substring(ResponseHeaderFilterKey.Length, tokens[0].Length - ResponseHeaderFilterKey.Length - 1);
             searchText = tokens[1].Trim();
 
-            return new RequestHeaderFilter(key, searchText);
+            return new ResponseHeaderFilter(key, searchText);
         }
     }
 

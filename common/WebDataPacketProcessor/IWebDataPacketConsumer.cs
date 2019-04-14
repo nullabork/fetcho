@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Fetcho.Common
 {
@@ -20,10 +21,10 @@ namespace Fetcho.Common
         /// When the file starts being processed
         /// </summary>
         public virtual void PacketOpened() { }
-        public virtual void ProcessRequest(string request) { }
-        public virtual void ProcessResponseHeaders(string responseHeaders) { }
-        public virtual void ProcessResponseStream(Stream dataStream) { }
-        public virtual void ProcessException(string exception) { }
+        public virtual async Task ProcessRequest(string request) {  }
+        public virtual async Task ProcessResponseHeaders(string responseHeaders) {  }
+        public virtual async Task ProcessResponseStream(Stream dataStream) {  }
+        public virtual async Task ProcessException(string exception) {  }
 
         /// <summary>
         /// If something goes wrong reading the file

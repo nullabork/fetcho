@@ -1,5 +1,6 @@
 ﻿using Fetcho.Common;
 using System;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -22,7 +23,7 @@ namespace Fetcho
 
         }
 
-        public override void ProcessException(string exception)
+        public override async Task ProcessException(string exception)
         {
             if (!WebDataPacketReader.IsException(exception)) return;
 
@@ -33,7 +34,7 @@ namespace Fetcho
             Console.WriteLine();
         }
 
-        public override void ProcessRequest(string request) 
+        public override async Task ProcessRequest(string request) 
             => CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
         public override void NewResource()

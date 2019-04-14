@@ -27,7 +27,8 @@ namespace Fetcho
         static void Main(string[] args)
         {
             ThrowIfAppSettingIsNotSet("FetchoWorkspaceServerBaseUri");
-            ThrowIfAppSettingIsNotSet("DataSourcePath");
+            ThrowIfAppSettingIsNotSet("DataSourcePaths");
+            ThrowIfAppSettingIsNotSet("MLModelPath");
 
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
@@ -38,9 +39,14 @@ namespace Fetcho
                 ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
                 );
 
+            cfg.SetConfigurationSetting<IEnumerable<string>>(
+                () => cfg.DataSourcePaths,
+                ConfigurationManager.AppSettings["DataSourcePaths"].Split(',')
+                );
+
             cfg.SetConfigurationSetting(
-                () => cfg.DataSourcePath,
-                ConfigurationManager.AppSettings["DataSourcePath"]
+                () => cfg.MLModelPath,
+                ConfigurationManager.AppSettings["MLModelPath"]
                 );
 
             if (args.Length < 2 || args[0] == "--help")

@@ -2,6 +2,7 @@
 using Fetcho.Common;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -14,17 +15,17 @@ namespace Fetcho
         public override bool ProcessesRequest { get => true; }
         public override bool ProcessesResponse { get => true; }
 
-        public override void ProcessRequest(string request)
+        public override async Task ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
         }
 
-        public override void ProcessResponseHeaders(string responseHeaders)
+        public override async Task ProcessResponseHeaders(string responseHeaders)
         {
             ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
         }
 
-        public override void ProcessResponseStream(Stream dataStream)
+        public override async Task ProcessResponseStream(Stream dataStream)
         {
             if (dataStream == null) return;
             var ms = new MemoryStream();

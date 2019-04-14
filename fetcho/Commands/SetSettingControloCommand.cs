@@ -3,6 +3,7 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Fetcho.Commands
 {
@@ -12,7 +13,7 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "set [settingName] [settingValue]";
 
-        public override void Execute(string[] args)
+        public override async Task Execute(string[] args)
         {
             if ( args.Length < 2 )
             {

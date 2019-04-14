@@ -1,6 +1,7 @@
 ﻿using Fetcho.Common;
 using log4net;
 using System;
+using System.Threading.Tasks;
 
 namespace reado
 {
@@ -14,7 +15,7 @@ namespace reado
         public override string Name { get => "List URIs"; }
         public override bool ProcessesRequest { get => true; }
 
-        public override void ProcessRequest(string request)
+        public override async Task ProcessRequest(string request)
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
             Console.WriteLine(CurrentUri);

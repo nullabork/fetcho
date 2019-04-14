@@ -3,6 +3,7 @@ using Fetcho.ContentReaders;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Fetcho
@@ -23,21 +24,29 @@ namespace Fetcho
         public override bool ProcessesRequest { get => true; }
         public override bool ProcessesResponse { get => true; }
 
-        public override void ProcessRequest(string request)
+        public override async Task ProcessRequest(string request)
             => CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
-        public override void ProcessResponseHeaders(string responseHeaders)
+        public override async Task ProcessResponseHeaders(string responseHeaders)
             => ContentType = WebDataPacketReader.GetContentTypeFromResponseHeaders(responseHeaders);
 
-        public override void ProcessResponseStream(Stream dataStream)
+        public override async Task ProcessResponseStream(Stream dataStream)
         {
-            if (dataStream == null) return;
-            var extractor = GuessLinkExtractor(dataStream);
-            if (extractor != null)
+            try
             {
-                SendUris(extractor);
-                extractor.Dispose();
-                extractor = null;
+                if (dataStream == null) return;
+                var extractor = GuessLinkExtractor(dataStream);
+                if (extractor != null)
+                {
+                    await SendUris(extractor);
+                    extractor.Dispose();
+                    extractor = null;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
             }
         }
 
@@ -61,13 +70,13 @@ namespace Fetcho
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            if ( ContentType.IsHtmlContentType(ContentType))
+            if (ContentType.IsHtmlContentType(ContentType))
                 return new HtmlFileLinkExtractor(CurrentUri, ms);
             else if (ContentType.IsXmlContentType(ContentType))
                 return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
             else if (ContentType.IsTextContentType(ContentType))
                 return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
-            else if(ContentType.IsUnknownOrNull(ContentType))
+            else if (ContentType.IsUnknownOrNull(ContentType))
                 return new TextFileLinkExtractor(CurrentUri, new StreamReader(ms));
             else
             {
@@ -78,7 +87,7 @@ namespace Fetcho
             }
         }
 
-        private void SendUris(ILinkExtractor reader)
+        private async Task SendUris(ILinkExtractor reader)
         {
             var l = new List<QueueItem>();
             if (reader == null) return;
@@ -98,8 +107,8 @@ namespace Fetcho
             }
 
             LinksExtracted += l.Count;
-            // effectively block until the URL is accepted
-            PrioritisationBuffer.SendOrWaitAsync(l).GetAwaiter().GetResult();
+            // effectively block until the URLs are accepted
+            await PrioritisationBuffer.SendOrWaitAsync(l).ConfigureAwait(false);
 
         }
     }

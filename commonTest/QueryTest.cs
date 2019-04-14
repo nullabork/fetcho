@@ -13,7 +13,7 @@ namespace Fetcho.Common.Tests
         {
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
-            cfg.SetConfigurationSetting(() => cfg.DataSourcePath, @"G:\fetcho\data\");
+            cfg.SetConfigurationSetting(() => cfg.MLModelPath, @"G:\fetcho\data\");
         }
 
         [TestMethod]

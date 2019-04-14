@@ -1,6 +1,8 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Fetcho.Common.Entities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -8,7 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Fetcho.Common.Tests
 {
     [TestClass]
-    public class DatabaseTest 
+    public class DatabaseTest
     {
         [TestMethod]
         public void TestMethod()
@@ -62,31 +64,38 @@ namespace Fetcho.Common.Tests
 
             using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
             {
-                bool rtn = false;
+                IEnumerable<MD5Hash> rtn = null;
 
                 // the first run is opening the DB connection lazily
                 TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(nonexist).GetAwaiter().GetResult(), 1000);
-                Assert.IsTrue(rtn, nonexist.ToString());
+                Assert.IsTrue(rtn.Any(), nonexist.ToString());
                 TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(pandora).GetAwaiter().GetResult(), 20);
-                Assert.IsFalse(rtn, pandora.ToString());
+                Assert.IsFalse(rtn.Any(), pandora.ToString());
                 TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(drupal).GetAwaiter().GetResult(), 20);
-                Assert.IsFalse(rtn, drupal.ToString());
+                Assert.IsFalse(rtn.Any(), drupal.ToString());
                 TestUtility.AssertExecutionTimeIsLessThan(() => rtn = db.NeedsVisiting(archaeo).GetAwaiter().GetResult(), 20);
-                Assert.IsFalse(rtn, archaeo.ToString());
+                Assert.IsFalse(rtn.Any(), archaeo.ToString());
             }
         }
 
         [TestMethod]
         public async Task VisitedSpeedTest()
         {
-            Uri uri = new Uri("http://some.example.com");
+            var l = new List<Uri>();
+            l.Add(new Uri("http://some.example.com"));
+            l.Add(new Uri("http://www.pandora.tv/theme/main/8/74"));
+            l.Add(new Uri("http://drupal.org/"));
+            l.Add(new Uri("https://www.archaeological.org/about/eupdate"));
+            l.Add(new Uri("https://blahblabhlahblahb"));
 
             using (var db = new Database("Server=127.0.0.1;Port=5433;User Id=postgres;Password=postgres;Database=fetcho;Enlist=false"))
             {
+                var hashes = l.Select(x => MD5Hash.Compute(x)).ToList();
+
                 DateTime start = DateTime.UtcNow;
-                for ( int i=0;i<100000;i++)
-                    Assert.IsTrue(await db.NeedsVisiting(uri));
-                Assert.IsTrue(false, (DateTime.UtcNow - start).ToString()); // 21.73 22.59
+                for (int i = 0; i < 100000; i++)
+                    Assert.IsTrue((await db.NeedsVisiting(hashes)).Any());
+                Assert.IsTrue(false, (DateTime.UtcNow - start).ToString()); // set n5 (any) set n5 (in): 23.88 33.32 set n1: 17.13 single: 21.73 22.59
             }
         }
     }

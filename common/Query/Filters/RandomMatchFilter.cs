@@ -44,7 +44,7 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("random:{0}", MatchProbability);
 
-        public static RandomMatchFilter Parse(string token)
+        public static RandomMatchFilter Parse(string token, int depth)
         {
             double prob = DefaultMatchProbability;
 

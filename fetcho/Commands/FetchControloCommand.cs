@@ -15,7 +15,7 @@ namespace Fetcho.Commands
 
         public override string ShortHelp => "fetch reddit [subreddit] [dest workspace id]";
 
-        public override void Execute(string[] args)
+        public override async Task Execute(string[] args)
         {
             if (args.Length < 1)
             {
@@ -58,16 +58,16 @@ namespace Fetcho.Commands
                 string subreddit = args[1];
 
                 Controlo.ReportInfo("Getting the URLs from r/{0}", subreddit);
-                var submissions = RedditSubmissionFetcher.GetSubmissions(subreddit).GetAwaiter().GetResult();
+                var submissions = await RedditSubmissionFetcher.GetSubmissions(subreddit);
                 Controlo.ReportInfo("{0} submissions extracted from r/{1}", submissions.Count(), subreddit);
                 Current = new FetchingTask();
-                SetupWorkspaceDataWriter().GetAwaiter().GetResult();
+                await SetupWorkspaceDataWriter();
 
                 foreach (var submission in submissions)
                 {
                     var queueItem = MakeQueueItem(submission, destinationWorkspaceId);
                     Current.Items.Add(queueItem);
-                    SendItemForQueuing(queueItem).GetAwaiter().GetResult();
+                    await SendItemForQueuing(queueItem);
                 }
 
                 Controlo.ReportInfo("Task created");

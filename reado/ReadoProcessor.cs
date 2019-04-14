@@ -6,7 +6,7 @@ namespace Fetcho
 {
     public class ReadoProcessor
     {
-        public WebDataPacketProcessor Processor { get;  }
+        public WebDataPacketProcessor Processor { get; }
 
         public ReadoProcessor()
         {
@@ -15,19 +15,16 @@ namespace Fetcho
 
         public async Task Process(string filepath)
         {
-            await Task.Run(() =>
+            ThrowIfFileDoesntExist(filepath);
+            using (var fs = GetFileStream(filepath))
             {
-                ThrowIfFileDoesntExist(filepath);
-                using (var fs = GetFileStream(filepath))
-                {
-                    Utility.LogInfo(filepath);
-                    var packet = new WebDataPacketReader(fs);
-                    Processor.Process(packet);
-                }
-            });
+                Utility.LogInfo(filepath);
+                var packet = new WebDataPacketReader(fs);
+                await Processor.Process(packet);
+            }
         }
 
-        private Stream GetFileStream(string filepath) 
+        private Stream GetFileStream(string filepath)
             => Utility.GetDecompressedStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
         private void ThrowIfFileDoesntExist(string packetPath)

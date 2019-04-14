@@ -21,7 +21,7 @@ namespace learno
             var data = schema.GetAllData();
 
             foreach (var category in data.Select(x => x.Category).Distinct())
-                Console.WriteLine(category);
+                Console.WriteLine("{0}:{1}", category, data.Count(x => x.Category == category));
 
             MLContext mlContext = new MLContext(null, 1); // 1 concurrency, leave me some CPUs plz
 

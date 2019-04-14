@@ -252,37 +252,53 @@ namespace Fetcho.Common
             cmd.Prepare();
         }
 
+        public async Task<IEnumerable<MD5Hash>> NeedsVisiting(Uri uri)
+            => await NeedsVisiting(new[] { MD5Hash.Compute(uri) });
+
         /// <summary>
         /// Returns true if the URI needs visiting
         /// </summary>
         /// <param name="uri"></param>
-        /// <returns></returns>
-        public async Task<bool> NeedsVisiting(Uri uri)
+        /// <returns>The list of hashses that need visiting</returns>
+        public async Task<IEnumerable<MD5Hash>> NeedsVisiting(IEnumerable<MD5Hash> hashes)
         {
             try
             {
+                if (!hashes.Any()) return hashes;
+                string str = hashes.Aggregate("", (s, hash) => string.Format("{0}decode('{1}', 'hex'),", s, hash));
+                str = str.Substring(0, str.Length - 1);
+                string sql = string.Format("select urihash " +
+                                           "from   \"WebResource\" " +
+                                           "where  urihash in({0}) " +
+                                           "       and next_fetch > :next_fetch " +
+                                           "limit  :maxcount;", str);
+
                 // the logic here looks backward, but it deals with the case where there's no records!
+                var cmd = await SetupCommand(sql);
 
-                var cmd = await SetupCommand("select urihash " +
-                                             "from   \"WebResource\" " +
-                                             "where  urihash = :urihash " +
-                                             "       and next_fetch > :next_fetch " +
-                                             "limit  1;");
-                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("urihash", MD5Hash.Compute(uri).Values));
+                var l = new HashSet<MD5Hash>(hashes);
+
                 cmd.Parameters.Add(new NpgsqlParameter<DateTime>("next_fetch", DateTime.UtcNow));
-                cmd.Prepare();
+                cmd.Parameters.Add(new NpgsqlParameter<int>("maxcount", hashes.Count()));
+                //cmd.Prepare();
 
-                object o = await cmd.ExecuteScalarAsync();
+                var n = new List<MD5Hash>();
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    var buffer = new Byte[MD5Hash.ExpectedByteLength];
+                    while (reader.Read())
+                    {
+                        reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
+                        l.Remove(new MD5Hash(buffer));
+                    }
+                }
 
-                if (o == null || o == DBNull.Value)
-                    return true;
-                else
-                    return false;
+                return l;
             }
             catch (Exception ex)
             {
                 log.ErrorFormat("NeedsVisiting(): {0}", ex);
-                return true;
+                return hashes;
             }
         }
 
@@ -746,7 +762,7 @@ namespace Fetcho.Common
 
             int total = 0;
 
-            foreach( var hash in hashes)
+            foreach (var hash in hashes)
             {
                 NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
 
@@ -777,7 +793,7 @@ namespace Fetcho.Common
             string sql =
                 "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, debug_info) " +
                 "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, 'CopyAll Transform' " +
-                "from   \"WorkspaceResult\" " + 
+                "from   \"WorkspaceResult\" " +
                 "where  workspace_id = :source_workspace_id;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -834,7 +850,7 @@ namespace Fetcho.Common
         {
             string sql =
                 "update \"WorkspaceResult\" " +
-                "set    tags = array_to_string((select distinct array_append(string_to_array(tags, ' '), :new_tag)), ' ') " + 
+                "set    tags = array_to_string(array(SELECT DISTINCT e FROM unnest(array_append(string_to_array(tags, ' '), :new_tag)) AS a(e)), ' ' ) " +
                 "where  workspace_id = :workspace_id;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -855,7 +871,7 @@ namespace Fetcho.Common
         {
             string sql =
                 "update \"WorkspaceResult\" " +
-                "set    tags = array_to_string((select distinct array_append(string_to_array(tags, ' '), :new_tag)), ' ') " +
+                "set    tags = array_to_string(array(SELECT DISTINCT e FROM unnest(array_append(string_to_array(tags, ' '), :new_tag)) AS a(e)), ' ' ) " +
                 "where  workspace_id = :workspace_id and urihash = :urihash;";
 
             int total = 0;
@@ -890,7 +906,7 @@ namespace Fetcho.Common
         {
             string sql =
                 "update \"WorkspaceResult\" " +
-                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag)), ' ') " +
+                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag), ' ') " +
                 "where  workspace_id = :workspace_id;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
@@ -911,7 +927,7 @@ namespace Fetcho.Common
         {
             string sql =
                 "update \"WorkspaceResult\" " +
-                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag)), ' ') " +
+                "set    tags = array_to_string(array_remove(string_to_array(tags, ' '), :tag), ' ') " +
                 "where  workspace_id = :workspace_id and urihash = :urihash;";
 
             int total = 0;
@@ -937,10 +953,10 @@ namespace Fetcho.Common
         }
 
         public async Task<int> UntagWorkspaceResultsByWorkspaceId(Guid workspaceId, IEnumerable<WorkspaceResult> results, string tag)
-            => await TagWorkspaceResultsByWorkspaceId(workspaceId, results.Select(x => new MD5Hash(x.UriHash)), tag);
+            => await UntagWorkspaceResultsByWorkspaceId(workspaceId, results.Select(x => new MD5Hash(x.UriHash)), tag);
 
         public async Task<int> UntagWorkspaceResultByWorkspaceId(Guid workspaceId, MD5Hash urihash, string tag)
-            => await TagWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash }, tag);
+            => await UntagWorkspaceResultsByWorkspaceId(workspaceId, new[] { urihash }, tag);
 
 
         public async Task<IEnumerable<AccessKey>> GetWorkspaceAccessKeys(Guid workspaceId)
@@ -1369,7 +1385,7 @@ namespace Fetcho.Common
             }
             catch (Exception ex)
             {
-                Utility.LogException(ex); 
+                Utility.LogException(ex);
             }
         }
 

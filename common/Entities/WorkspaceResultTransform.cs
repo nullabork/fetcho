@@ -46,6 +46,9 @@ namespace Fetcho.Common.Entities
         /// </summary>
         public long ResultsAffected { get; set; }
 
+        /// <summary>
+        /// This transform requires query text
+        /// </summary>
         public bool IsByQueryTransform
         {
             get => Action == WorkspaceResultTransformAction.MoveByQueryText ||
@@ -55,6 +58,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.CopyByQueryText;
         }
 
+        /// <summary>
+        /// This transform requires specific results
+        /// </summary>
         public bool IsSpecificResultTransform
         {
             get => Action == WorkspaceResultTransformAction.TagSpecificResults ||
@@ -64,6 +70,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.CopyByQueryText;
         }
 
+        /// <summary>
+        /// This transform operates on all results in a workspace
+        /// </summary>
         public bool IsAllTransform
         {
             get => Action == WorkspaceResultTransformAction.DeleteAll ||
@@ -73,6 +82,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.TagAll;
         }
 
+        /// <summary>
+        /// This transform will tag results
+        /// </summary>
         public bool IsTag
         {
             get => Action == WorkspaceResultTransformAction.TagAll ||
@@ -80,13 +92,19 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.TagSpecificResults;
         }
 
-        public bool IsDeleteTag
+        /// <summary>
+        /// This transform will untag results
+        /// </summary>
+        public bool IsUntag
         {
             get => Action == WorkspaceResultTransformAction.UntagAll ||
                 Action == WorkspaceResultTransformAction.UntagByQueryText ||
                 Action == WorkspaceResultTransformAction.UntagSpecificResults;
         }
 
+        /// <summary>
+        /// This transform will delete results
+        /// </summary>
         public bool IsDelete
         {
             get => Action == WorkspaceResultTransformAction.DeleteAll ||
@@ -94,6 +112,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.DeleteByQueryText;
         }
 
+        /// <summary>
+        /// This transform will copy results
+        /// </summary>
         public bool IsCopy
         {
             get => Action == WorkspaceResultTransformAction.CopyAllTo ||
@@ -101,6 +122,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.CopySpecificTo;
         }
 
+        /// <summary>
+        /// This transform will move results
+        /// </summary>
         public bool IsMove
         {
             get => Action == WorkspaceResultTransformAction.MoveAllTo ||
@@ -108,6 +132,9 @@ namespace Fetcho.Common.Entities
                 Action == WorkspaceResultTransformAction.MoveSpecificTo;
         }
 
+        /// <summary>
+        /// This transform requires a target workspace
+        /// </summary>
         public bool HasTarget
         {
             get => IsMove || IsCopy;
@@ -145,7 +172,7 @@ namespace Fetcho.Common.Entities
                     throw new InvalidObjectFetchoException("QueryText is required to be passed when using a transform by query text");
             }
 
-            if (transform.IsDeleteTag || transform.IsTag)
+            if (transform.IsUntag || transform.IsTag)
             {
                 if (String.IsNullOrWhiteSpace(transform.Tag))
                     throw new InvalidObjectFetchoException("Tag is required to be passed when using a tagging transform");

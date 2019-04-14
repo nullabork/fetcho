@@ -15,13 +15,12 @@ namespace Fetcho.Common
         IndexableQueue<string> recencyQueue = null;
         readonly SortedDictionary<string, HostCacheManagerRecord> hosts = new SortedDictionary<string, HostCacheManagerRecord>();
         readonly SemaphoreSlim hosts_lock = new SemaphoreSlim(1);
-        readonly SemaphoreSlim can_i_fetch_lock = new SemaphoreSlim(1);
         readonly Random random = new Random(DateTime.UtcNow.Millisecond);
 
         public HostCacheManager()
         {
             BuildRecencyQueue();
-            FetchoConfiguration.Current.ConfigurationChange += (sender, e) 
+            FetchoConfiguration.Current.ConfigurationChange += (sender, e)
                 => e.IfPropertyIs(() => FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords, BuildRecencyQueue);
         }
 
@@ -35,7 +34,7 @@ namespace Fetcho.Common
         {
             try
             {
-                var record = await GetRecord(fromHost);
+                var record = await GetRecord(fromHost, true);
 
                 if (record.UpdateRobotsFileRequired) // this crazy looking double check is necessary to avoid race conditions
                 {
@@ -80,7 +79,7 @@ namespace Fetcho.Common
             DateTime startTime = DateTime.UtcNow;
             bool keepWaiting = true;
             bool success = false;
-            HostCacheManagerRecord host_record = await GetRecord(hostName);
+            HostCacheManagerRecord host_record = await GetRecord(hostName, true);
 
             while (keepWaiting)
             {
@@ -122,15 +121,68 @@ namespace Fetcho.Common
             return success;
         }
 
-        public async Task<bool> WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds) => 
-            await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds);
+        public async Task<HostInfo> GetHostInfo(IPAddress ipAddress)
+            => await GetHostInfo(ipAddress.ToString());
+
+        public async Task<HostInfo> GetHostInfo(string host)
+        {
+            HostCacheManagerRecord record = await GetRecord(host);
+
+            if (record == null) return HostInfo.None;
+
+            return record.GetHostInfo();
+        }
+
+        public async Task UpdateHostSettings(HostInfo info)
+        {
+            HostCacheManagerRecord record = await GetRecord(info.Host);
+            if (record == null) return;
+            record.SetFromHostInfo(info);
+        }
+
+        /// <summary>
+        /// Record a network issue has occurred trying to connect to this ip address
+        /// </summary>
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        public async Task RecordNetworkIssue(IPAddress ipAddress)
+        {
+            HostCacheManagerRecord record = await GetRecord(ipAddress.ToString());
+
+            if (record == null) return;
+
+            try
+            {
+                while (!await record.UpdateWaitHandle.WaitAsync(60000))
+                    Utility.LogInfo("RecordNetworkIssue() waiting on {0}", ipAddress);
+                record.NetworkIssues++;
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+            }
+            finally
+            {
+                record.UpdateWaitHandle?.Release();
+            }
+        }
+
+        public async Task<bool> HasHostExceedNetworkIssuesThreshold(IPAddress ipAddress)
+        {
+            HostCacheManagerRecord record = await GetRecord(ipAddress.ToString());
+            return record != null && record.NetworkIssues > FetchoConfiguration.Current.MaxNetworkIssuesThreshold;
+        }
+
+        public async Task<bool> WaitToFetch(IPAddress ipAddress, int timeoutMilliseconds)
+            => await WaitToFetch(ipAddress.ToString(), timeoutMilliseconds);
 
         /// <summary>
         /// Returns how much time we'd have to wait before fetching
         /// </summary>
         /// <param name="fromHost"></param>
         /// <returns></returns>
-        int GetTimeRemainingToWait(HostCacheManagerRecord host_record) => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.UtcNow - host_record.LastCall).TotalMilliseconds);
+        int GetTimeRemainingToWait(HostCacheManagerRecord host_record)
+            => host_record.MaxFetchSpeedInMilliseconds - (int)((DateTime.UtcNow - host_record.LastCall).TotalMilliseconds);
 
         /// <summary>
         /// Moves a host to the top of the queue preventing it from being dropped out the bottom from disuse
@@ -142,49 +194,59 @@ namespace Fetcho.Common
             recencyQueue.Enqueue(host);
         }
 
-        void BuildRecencyQueue() => recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords);
+        void BuildRecencyQueue()
+            => recencyQueue = new IndexableQueue<string>(FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords);
 
         /// <summary>
         /// Retrives a record from the cache or creates a new one
         /// </summary>
         /// <param name="fromHost"></param>
         /// <returns></returns>
-        async Task<HostCacheManagerRecord> GetRecord(string fromHost)
+        async Task<HostCacheManagerRecord> GetRecord(string fromHost, bool createIfNotExists = false)
         {
             HostCacheManagerRecord record = null;
 
-            // bump the host
             try
             {
                 while (!await hosts_lock.WaitAsync(360000))
                     Utility.LogInfo("GetRecord waiting {0}", fromHost);
 
-                BumpHost(fromHost);
+                bool exists = hosts.ContainsKey(fromHost);
 
-                if (!hosts.ContainsKey(fromHost))
+                // make it if its not there 
+                if (createIfNotExists)
                 {
-                    hosts.Add(fromHost,
-                                new HostCacheManagerRecord()
-                                {
-                                    Host = fromHost,
-                                    LastCall = DateTime.MinValue,
-                                    RobotsChecked = false,
-                                }
-                               );
+                    if (!exists)
+                        hosts.Add(fromHost,
+                                    new HostCacheManagerRecord()
+                                    {
+                                        Host = fromHost,
+                                        LastCall = DateTime.MinValue,
+                                        RobotsChecked = false,
+                                    }
+                                   );
+                    else
+                        // bump the host
+                        BumpHost(fromHost);
+
+                    exists = true;
                 }
 
-                // if there's too many domains in memory we drop one to avoid filling up memory with cached robots objects
-                if (recencyQueue.Count > FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords)
+                if (exists)
                 {
-                    string domainToDrop = recencyQueue.Dequeue();
+                    // if there's too many domains in memory we drop one to avoid filling up memory with cached robots objects
+                    if (exists && recencyQueue.Count > FetchoConfiguration.Current.HostCacheManagerMaxInMemoryDomainRecords)
+                    {
+                        string domainToDrop = recencyQueue.Dequeue();
 
-                    record = hosts[domainToDrop];
-                    record.Dispose();
+                        record = hosts[domainToDrop];
+                        record.Dispose();
 
-                    hosts.Remove(domainToDrop);
+                        hosts.Remove(domainToDrop);
+                    }
+
+                    record = hosts[fromHost];
                 }
-
-                record = hosts[fromHost];
             }
             catch (Exception ex)
             {
@@ -197,66 +259,5 @@ namespace Fetcho.Common
 
             return record;
         }
-
-        class HostCacheManagerRecord : IDisposable
-        {
-            public string Host { get; set; }
-            public DateTime LastCall { get; set; }
-            public int TouchCount { get; set; }
-            public int MaxFetchSpeedInMilliseconds { get; set; }
-            public SemaphoreSlim UpdateWaitHandle { get; set; }
-            public SemaphoreSlim FetchWaitHandle { get; set;  }
-            public RobotsFile Robots { get; set; }
-            public bool UpdateRobotsFileRequired { get { return !RobotsChecked; } }
-            public bool RobotsChecked { get; set; }
-
-            /// <summary>
-            /// Returns true if the host has not been accessed recently
-            /// </summary>
-            /// <param name="record"></param>
-            /// <returns></returns>
-            public bool IsFetchable { get { return LastCall.AddMilliseconds(MaxFetchSpeedInMilliseconds) < DateTime.UtcNow; } }
-
-            public HostCacheManagerRecord()
-            {
-                MaxFetchSpeedInMilliseconds = FetchoConfiguration.Current.MaxFetchSpeedInMilliseconds;
-                LastCall = DateTime.MinValue;
-                UpdateWaitHandle = new SemaphoreSlim(1);
-                FetchWaitHandle = new SemaphoreSlim(1);
-                RobotsChecked = false;
-            }
-
-            #region IDisposable Support
-            private bool disposedValue = false; // To detect redundant calls
-
-            protected virtual void Dispose(bool disposing)
-            {
-                if (!disposedValue)
-                {
-                    if (disposing)
-                    {
-                        Robots?.Dispose();
-                        UpdateWaitHandle?.Dispose(); // we're disposing whilst people have this accessed. Do we lock here ?
-                        FetchWaitHandle?.Dispose();// we're disposing whilst people have this accessed. Do we lock here ? 
-                        UpdateWaitHandle = null;
-                        FetchWaitHandle = null;
-                    }
-
-                    Robots = null;
-                    disposedValue = true;
-                }
-            }
-
-            // This code added to correctly implement the disposable pattern.
-            public void Dispose()
-            {
-                // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-                Dispose(true);
-            }
-            #endregion
-
-
-        }
-
     }
 }

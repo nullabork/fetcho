@@ -4,34 +4,39 @@ using Fetcho.Common.Entities;
 
 namespace Fetcho.Common
 {
-    [Filter("uri:", "uri:[uri_fragment|*][:uri_fragment|*]")]
-    public class UriFilter : Filter
+    [Filter("site:", "site:[site|*][:site|*]")]
+    public class SiteFilter : Filter
     {
         public string SearchText { get; set; }
 
-        public override string Name => "URI filter";
+        public override string Name => "Site filter";
 
-        public override bool RequiresResultInput { get => true; }
+        public SiteFilter(string site) 
+            => SearchText = site;
+
+        public override decimal Cost => 1m;
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => true;
+        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText); 
 
-        public UriFilter(string searchText)
-            => SearchText = searchText;
+        public override bool RequiresResultInput { get => true; }
 
         public override string GetQueryText()
-            => string.Format("uri:{0}", SearchText);
+            => string.Format("site:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
-            => result.Uri.Contains(SearchText) ? new string[1] { Utility.MakeTag(result.Uri) } : EmptySet;
+        {
+            var uri = new Uri(result.Uri);
+            return uri.Host.Contains(SearchText) ? new string[1] { Utility.MakeTag(uri.Host) } : EmptySet;
+        }
 
         /// <summary>
         /// Parse some text to create this object
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
             string searchText = String.Empty;
 
@@ -42,8 +47,7 @@ namespace Fetcho.Common
                 if (searchText == WildcardChar) searchText = String.Empty;
             }
 
-            return new UriFilter(searchText);
+            return new SiteFilter(searchText);
         }
     }
-
 }

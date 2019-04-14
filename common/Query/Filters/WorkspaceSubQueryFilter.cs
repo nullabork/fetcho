@@ -7,8 +7,10 @@ using Fetcho.Common.QueryEngine;
 namespace Fetcho.Common
 {
     [Filter("query(", "query(access_key_id):[search text|*][:search text|*]")]
-    public class WorkspaceSubQueryFilter : Filter
+    public class WorkspaceSubQueryFilter : Filter, ISubQuery
     {
+        const int SubQueryMaxDepth = 10;
+
         const string WorkspaceQueryFilterKey = "query(";
 
         public string SearchText { get; set; }
@@ -19,13 +21,18 @@ namespace Fetcho.Common
 
         public override string Name => "Workspace Sub Query Filter";
 
-        public override decimal Cost => Query.AvgCost;
+        public override decimal Cost
+            => Query.AvgCost < 0 ?
+            Query.IncludeFilters.Sum(x => x.Cost) + Query.ExcludeFilters.Sum(x => x.Cost) + Query.TagFilters.Sum(x => x.Cost) :
+            Query.AvgCost;
 
         public override bool RequiresResultInput { get => Query.RequiresResultInput; }
         public override bool RequiresStreamInput { get => Query.RequiresStreamInput; }
         public override bool RequiresTextInput { get => Query.RequiresTextInput; }
 
         public override bool IsReducingFilter => true;
+
+        public override bool IsSubQuery => true;
 
         public WorkspaceSubQueryFilter(Query query, string headerKey, string searchText)
         {
@@ -54,8 +61,11 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="queryText"></param>
         /// <returns></returns>
-        public static Filter Parse(string queryText)
+        public static Filter Parse(string queryText, int depth)
         {
+            if (depth > SubQueryMaxDepth)
+                throw new InvalidObjectFetchoException("Sub query max depth reached");
+
             string searchText = String.Empty;
 
             var tokens = queryText.Split(':');
@@ -71,7 +81,7 @@ namespace Fetcho.Common
                 {
                     accessKey = db.GetAccessKey(accessKeyId).GetAwaiter().GetResult();
                     if (accessKey != null)
-                        return new WorkspaceSubQueryFilter(new Query(accessKey.Workspace.QueryText), key, searchText);
+                        return new WorkspaceSubQueryFilter(new Query(accessKey.Workspace.QueryText, depth + 1), key, searchText);
                 }
             }
 
