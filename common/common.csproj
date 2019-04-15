@@ -304,6 +304,7 @@
     <Compile Include="QueueItem.cs" />
     <Compile Include="ResourceFetchers\HttpResourceFetcher.cs" />
     <Compile Include="ResourceFetchers\ResourceFetcher.cs" />
+    <Compile Include="RobotsFetcher.cs" />
     <Compile Include="RobotsFile.cs" />
     <Compile Include="SemaphoreSlimEx.cs" />
     <Compile Include="TypeExtensions.cs" />

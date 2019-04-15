@@ -45,7 +45,7 @@ namespace Fetcho.Common
 
                         if (record.UpdateRobotsFileRequired)
                         {
-                            record.Robots = await RobotsFile.GetFile(new Uri("http://" + fromHost));
+                            record.Robots = await RobotsFetcher.GetFile(new Uri("http://" + fromHost));
                             record.RobotsChecked = true;
                         }
                     }

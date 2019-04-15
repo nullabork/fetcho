@@ -1,0 +1,12 @@
+Sitemap: https://www.nbnco.com.au/sitemap.xml
+
+User-Agent: *
+Disallow: /iframe/
+Disallow: /common-content/
+Disallow: /api/
+Disallow: /search.html
+Disallow: /blog/search.html
+Disallow: /content/
+Allow: /content/dam/
+Disallow: /etc/
+Disallow: /*?

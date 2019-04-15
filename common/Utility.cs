@@ -25,7 +25,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public static async Task<IPAddress> GetHostIPAddress(Uri uri)
+        public static async Task<IPAddress> GetHostIPAddress(Uri uri, bool deterministic = true)
         {
             IPAddress addr = IPAddress.None;
             try
@@ -36,10 +36,21 @@ namespace Fetcho.Common
                     return addr;
 
                 // else lets try and find it via the DNS lookup
-                var hostEntry = await Dns.GetHostEntryAsync(uri.Host);
-                if (hostEntry.AddressList.Length > 0)
+                var addresses = await Dns.GetHostAddressesAsync(uri.Host);
+                if (addresses.Length > 0)
                 {
-                    addr = hostEntry.AddressList[0];
+                    // IPV4, Order always
+                    // this is a bit hacky because we're ordering and getting the first to support
+                    // sorting and queuing elsewhere.
+                    if (deterministic)
+                        addr = addresses
+                            .Where(x => x.AddressFamily == AddressFamily.InterNetwork)
+                            .OrderBy(x => BitConverter.ToInt32(x.GetAddressBytes().Reverse().ToArray(), 0))
+                            .FirstOrDefault() ?? IPAddress.None;
+                    else
+                        addr = addresses
+                            .FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork) ?? IPAddress.None;
+
                     return addr;
                 }
                 else
@@ -48,7 +59,7 @@ namespace Fetcho.Common
                     return addr;
                 }
             }
-            catch (SocketException )
+            catch (SocketException)
             {
                 // ignore it, host lookup probs
             }
@@ -122,12 +133,12 @@ namespace Fetcho.Common
             }
         }
 
-        private static readonly byte[] GZipHeaderBytes =        { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0 };
+        private static readonly byte[] GZipHeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 4, 0 };
         private static readonly byte[] GZipLevel10HeaderBytes = { 0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 2, 0 };
 
         // not sure what this is but GZipStream is now producing it. Reading the docs they indicate they switched to 
         // zlib library in .NET 4.5 so it could be a new compression algorithm
-        private static readonly byte[] GZipHeaderBytes2 =       { 0x1f, 0x3f, 8, 0, 0, 0, 0, 0, 4, 0 }; 
+        private static readonly byte[] GZipHeaderBytes2 = { 0x1f, 0x3f, 8, 0, 0, 0, 0, 0, 4, 0 };
 
         /// <summary>
         /// Attempts to detect if the current file is a GZip file
@@ -175,7 +186,7 @@ namespace Fetcho.Common
             bool isZipped = IsPossibleGZippedFile(filepath);
             var stm = new FileStream(filepath, fileMode, fileAccess, fileShare);
 
-            if ( isZipped )
+            if (isZipped)
                 return new GZipStream(stm, CompressionMode.Decompress, false);
             return stm;
         }
@@ -206,7 +217,7 @@ namespace Fetcho.Common
 
                 // test for http/https and chuck out all the others
                 int schemeIndex = tempUrl.IndexOf(":");
-                if ( schemeIndex > -1 )
+                if (schemeIndex > -1)
                 {
                     string scheme = tempUrl.Substring(0, schemeIndex).ToLower();
                     if (scheme.All(Char.IsLetter) && !acceptedSchemes.Any(x => scheme == x))
@@ -261,8 +272,8 @@ namespace Fetcho.Common
 
                 tempUrl = tempUrl.CleanupForXml();
 
-                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute) && 
-                    tempUrl.Contains(".") && 
+                if (Uri.IsWellFormedUriString(tempUrl, UriKind.Absolute) &&
+                    tempUrl.Contains(".") &&
                     tempUrl.Length < MaxUriLength)
                 {
                     var uri = new Uri(tempUrl);

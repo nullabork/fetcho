@@ -3,10 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
-using System.Xml;
-using Fetcho.Common.Entities;
 using log4net;
 
 namespace Fetcho.Common
@@ -43,21 +39,23 @@ namespace Fetcho.Common
         /// </summary>
         public List<string> SiteMaps { get; set; }
 
-
         public RobotsFile()
         {
             Disallow = new FiniteStateMachine<FiniteStateMachine<FiniteStateMachineBooleanState, char>, char>();
             Allow = new FiniteStateMachine<FiniteStateMachine<FiniteStateMachineBooleanState, char>, char>();
             SiteMaps = new List<string>();
             Malformed = false;
-
         }
 
-        public RobotsFile(byte[] data) : this(XmlReader.Create(new MemoryStream(data)))
+        public RobotsFile(byte[] data) : this(new StreamReader(new MemoryStream(data)))
         {
         }
 
-        public RobotsFile(XmlReader reader) : this()
+        public RobotsFile(Stream inStream) : this(new StreamReader(inStream))
+        {
+        }
+
+        public RobotsFile(StreamReader reader) : this()
         {
             using (reader)
             {
@@ -82,9 +80,9 @@ namespace Fetcho.Common
         {
             bool rtn = false;
             if (String.IsNullOrWhiteSpace(userAgent))
-                userAgent = FetchoConfiguration.Current.UserAgent;
+                userAgent = FetchoConfiguration.Current?.UserAgent;
 
-            FiniteStateMachine<FiniteStateMachineBooleanState, char>[] matcher = Disallow.GetState(userAgent);
+            FiniteStateMachine<FiniteStateMachineBooleanState, char>[] matcher = Disallow.GetState(userAgent.ToLower());
             FiniteStateMachineBooleanState[] states = null;
             if (matcher.Length == 0)
                 matcher = Disallow.RootNode.State.ToArray();
@@ -94,7 +92,7 @@ namespace Fetcho.Common
                 rtn = false;
             else
             {
-                states = matcher[0].GetState(uri.AbsolutePath.ToString());
+                states = matcher[0].GetState(uri.AbsolutePath.ToString().ToLower());
 
                 if (states == null)
                     rtn = false;
@@ -118,7 +116,7 @@ namespace Fetcho.Common
         /// Process the file into local memory
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        private void Process(XmlReader xmlreader)
+        private void Process(TextReader reader)
         {
             string userAgent = "";
 
@@ -132,71 +130,62 @@ namespace Fetcho.Common
                                new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
                               );
 
-            using (var packet = new WebDataPacketReader(xmlreader))
+            while (reader.Peek() > -1)
             {
-                var response = packet.GetResponseStream();
-                if (response == null) return; // no response
+                string line = reader.ReadLine().ToLower().Trim();
 
-                using (var reader = new StreamReader(response))
+                // skip comments
+                if (line.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))
+                    continue;
+
+                if (line.StartsWith("user-agent:", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    while (!reader.EndOfStream)
+                    userAgent = "";
+                    if (line.Length > 11)
+                        userAgent = line.Substring(11, line.Length - 11).Trim();
+
+                    if (userAgent == FetchoConfiguration.Current?.UserAgent)
+                        log.Error(this.Uri + " has a specific restriction for our user-agent");
+
+                    addStringToMatcher(Disallow,
+                                       userAgent,
+                                       new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
+                                      );
+                    addStringToMatcher(Allow,
+                                       userAgent,
+                                       new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
+                                      );
+                }
+                else
+                {
+                    if (line.EndsWith("*", StringComparison.InvariantCultureIgnoreCase)) line = line.Substring(0, line.Length - 1); // chop it
+
+                    if (line.StartsWith("disallow:", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        string line = reader.ReadLine().ToLower().Trim();
+                        var disallow_matcher = Disallow.GetState(userAgent);
+                        if (disallow_matcher.Length == 0)
+                            throw new FetchoException("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
 
-                        // skip comments
-                        if (line.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))
-                            continue;
+                        if (line.Length > 9)
+                            addStringToMatcher(disallow_matcher[0],
+                                               line.Substring(9, line.Length - 9).Trim(),
+                                               FiniteStateMachineBooleanState.Accept);
+                    }
+                    else if (line.StartsWith("allow:", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var allow_matcher = Allow.GetState(userAgent);
+                        if (allow_matcher.Length == 0)
+                            throw new FetchoException("No default allow matcher available for '" + userAgent + "' uri " + Uri);
 
-                        if (line.StartsWith("user-agent:", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            userAgent = "";
-                            if (line.Length > 11)
-                                userAgent = line.Substring(11, line.Length - 11).Trim();
-
-                            if (userAgent == FetchoConfiguration.Current.UserAgent)
-                                log.Error(this.Uri + " has a specific restriction for our user-agent");
-
-                            addStringToMatcher(Disallow,
-                                               userAgent,
-                                               new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
-                                              );
-                            addStringToMatcher(Allow,
-                                               userAgent,
-                                               new FiniteStateMachine<FiniteStateMachineBooleanState, char>()
-                                              );
-                        }
-                        else
-                        {
-                            if (line.EndsWith("*", StringComparison.InvariantCultureIgnoreCase)) line = line.Substring(0, line.Length - 1); // chop it
-
-                            if (line.StartsWith("disallow:", StringComparison.InvariantCultureIgnoreCase))
-                            {
-                                var disallow_matcher = Disallow.GetState(userAgent);
-                                if (disallow_matcher.Length == 0)
-                                    throw new FetchoException("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
-
-                                if (line.Length > 9)
-                                    addStringToMatcher(disallow_matcher[0],
-                                                       line.Substring(9, line.Length - 9).Trim(),
-                                                       FiniteStateMachineBooleanState.Accept);
-                            }
-                            else if (line.StartsWith("allow:", StringComparison.InvariantCultureIgnoreCase))
-                            {
-                                var allow_matcher = Allow.GetState(userAgent);
-                                if (allow_matcher.Length == 0)
-                                    throw new FetchoException("No default allow matcher available for '" + userAgent + "' uri " + Uri);
-
-                                if (line.Length > 6)
-                                    addStringToMatcher(allow_matcher[0],
-                                                       line.Substring(6, line.Length - 6).Trim(),
-                                                       FiniteStateMachineBooleanState.Accept);
-                            }
-                            else if (line.StartsWith("sitemap:", StringComparison.InvariantCultureIgnoreCase))
-                            {
-                                if (line.Length > 8)
-                                    SiteMaps.Add(line.Substring(8, line.Length - 8).Trim());
-                            }
-                        }
+                        if (line.Length > 6)
+                            addStringToMatcher(allow_matcher[0],
+                                               line.Substring(6, line.Length - 6).Trim(),
+                                               FiniteStateMachineBooleanState.Accept);
+                    }
+                    else if (line.StartsWith("sitemap:", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        if (line.Length > 8)
+                            SiteMaps.Add(line.Substring(8, line.Length - 8).Trim());
                     }
                 }
             }
@@ -262,124 +251,6 @@ namespace Fetcho.Common
         }
 
         /// <summary>
-        /// Fetch a robot file for a uri
-        /// </summary>
-        /// <param name="anyUri">Any URI for which you want the robots file for</param>
-        /// <returns></returns>
-        public static async Task<RobotsFile> GetFile(Uri anyUri)
-        {
-            //log.Debug("Downloading robots: " + uri);
-
-            Site site = null;
-            RobotsFile robotsFile = null;
-            var robotsUri = MakeRobotsUri(anyUri);
-            bool needsVisiting = true;
-
-            try
-            {
-                var db = await DatabasePool.GetDatabaseAsync();
-                site = await db.GetSite(robotsUri);
-                await DatabasePool.GiveBackToPool(db);
-                if (site != null)
-                {
-                    needsVisiting = site.RobotsNeedsVisiting;
-                }
-                else
-                {
-                    site = MakeNewSite(anyUri);
-                }
-
-                if (needsVisiting)
-                {
-                    if (site != null && site.IsBlocked)
-                    {
-                        log.Error("Can't get robots file as site is blocked by policy: " + robotsUri);
-                        return null;
-                    }
-
-                    robotsFile = await DownloadRobots(robotsUri, site.LastRobotsFetched);
-                    site.LastRobotsFetched = DateTime.UtcNow;
-                    site.RobotsFile = robotsFile;
-                    db = await DatabasePool.GetDatabaseAsync();
-                    await db.SaveSite(site);
-                    await DatabasePool.GiveBackToPool(db);
-                }
-                else
-                    robotsFile = site.RobotsFile;
-
-            }
-            catch (Exception ex)
-            {
-                Utility.LogException(ex);
-            }
-            return robotsFile;
-        }
-
-        /// <summary>
-        /// Make a new site object from any uri
-        /// </summary>
-        /// <param name="anyUri"></param>
-        /// <returns></returns>
-        static Site MakeNewSite(Uri anyUri) => new Site(anyUri);
-
-        /// <summary>
-        /// Get the robots URI for any URI
-        /// </summary>
-        /// <param name="anyUri"></param>
-        /// <returns></returns>
-        static Uri MakeRobotsUri(Uri anyUri)
-        {
-            if (!anyUri.IsAbsoluteUri)
-                throw new FetchoException("Needs to be an absolute URI");
-
-            string newUri = string.Format("{0}://{1}{2}/robots.txt", anyUri.Scheme, anyUri.Host, (anyUri.IsDefaultPort ? "" : ":" + anyUri.Port));
-
-            return new Uri(newUri);
-        }
-
-        /// <summary>
-        /// Download a robots file
-        /// </summary>
-        /// <param name="robotsUri"></param>
-        /// <param name="lastFetched"></param>
-        /// <returns></returns>
-        public static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
-        {
-            RobotsFile robots = null;
-
-            try
-            {
-                var bb = new BufferBlock<IWebResourceWriter>();
-
-                using (var ms = new MemoryStream())
-                {
-                    using (var packet = new WebDataPacketWriter(ms))
-                    {
-                        // this is annoying, I shouldn't have to create a buffer block to get a robots file
-                        // or we should put robots into the standard flow of things
-                        await bb.SendAsync(packet);
-                        await (new HttpResourceFetcher()).Fetch(null, robotsUri, null, lastFetched, bb);
-                    }
-                    ms.Seek(0, SeekOrigin.Begin);
-                    robots = new RobotsFile(CreateXmlReader(ms));
-                }
-            }
-            catch (Exception ex)
-            {
-                log.ErrorFormat("Fetching {0}:", robotsUri);
-                Utility.LogException(ex);
-            }
-
-            return robots;
-        }
-
-        private static XmlWriter CreateXmlWriter(Stream stream) => 
-            XmlWriter.Create(stream, new XmlWriterSettings() { ConformanceLevel = ConformanceLevel.Fragment });
-
-        private static XmlReader CreateXmlReader(Stream stream) => 
-            XmlReader.Create(stream, new XmlReaderSettings() { ConformanceLevel = ConformanceLevel.Fragment });
-        
-        /// <summary>
         /// Dispose the robots file
         /// </summary>
         protected virtual void Dispose(bool disposable)
@@ -404,4 +275,5 @@ namespace Fetcho.Common
             GC.SuppressFinalize(this);
         }
     }
+
 }

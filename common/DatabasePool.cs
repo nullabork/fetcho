@@ -14,12 +14,15 @@ namespace Fetcho.Common
         public static int WaitingForDatabase { get => _waitingForDatabase; }
         private static int _waitingForDatabase;
 
-        public static void Initialise()
+        public static void Initialise(int numberOfConnections = 0)
         {
+            if (numberOfConnections < 1)
+                numberOfConnections = Database.MaxConcurrentConnections - 5;
+
             lock (databasePoolLock)
             {
                 databasePool = new BufferBlock<Database>();
-                for (int i = 0; i < Database.MaxConcurrentConnections - 5; i++)
+                for (int i = 0; i < numberOfConnections; i++)
                     databasePool.SendAsync(CreateDatabase().GetAwaiter().GetResult());
             }
         }
