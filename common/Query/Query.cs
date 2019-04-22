@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Fetcho.Common.Entities;
+using Fetcho.Common.QueryEngine.Operators;
 
 namespace Fetcho.Common.QueryEngine
 {
@@ -12,9 +13,8 @@ namespace Fetcho.Common.QueryEngine
     /// </summary>
     public class Query
     {
-        public FilterCollection IncludeFilters { get; }
-        public FilterCollection ExcludeFilters { get; }
-        public FilterCollection TagFilters { get; }
+        public FilterCollection Filters { get; }
+        public FilterCollection Taggers { get; }
 
         public long MinCost { get; set; }
         public long MaxCost { get; set; }
@@ -29,16 +29,17 @@ namespace Fetcho.Common.QueryEngine
         public bool RequiresTextInput { get; protected set; }
         public bool RequiresStreamInput { get; protected set; }
         public bool RequiresResultInput { get; protected set; }
+        public bool OnlyReducingFilters { get; set; }
 
         public Query(string queryText, int depth = 0)
         {
+            OnlyReducingFilters = false;
             OriginalQueryText = queryText;
             MinCost = long.MaxValue;
             MaxCost = -1;
             TotalCost = -1;
-            IncludeFilters = new FilterCollection();
-            ExcludeFilters = new FilterCollection();
-            TagFilters = new FilterCollection();
+            Filters = new FilterCollection();
+            Taggers = new FilterCollection();
             RequiresResultInput = false;
             RequiresStreamInput = false;
             RequiresTextInput = false;
@@ -59,19 +60,33 @@ namespace Fetcho.Common.QueryEngine
             var ticks = DateTime.UtcNow.Ticks;
             var action = EvaluationResultAction.NotEvaluated;
 
-            var inc = IncludeFilters.AllMatch(result, words, stream);
-
-            if (inc)
+            foreach (var filter in Filters.OrderBy(x => x.Cost * x.FilterModeCostAdjustmentFactor))
             {
-                var exc = ExcludeFilters.AnyMatch(result, words, stream);
-
-                if (exc)
-                    action = EvaluationResultAction.Exclude;
-                else
+                if ((filter.FilterMode & FilterMode.Exclude) == FilterMode.Exclude)
                 {
-                    action = EvaluationResultAction.Include;
-                    tags = TagFilters.GetTags(result, words, stream);
+                    var rtn = filter.IsMatch(result, words, stream);
+                    if (rtn.Any())
+                    {
+                        action = EvaluationResultAction.Exclude;
+                        break;
+                    }
                 }
+                else if ((filter.FilterMode & FilterMode.Include) == FilterMode.Include)
+                {
+                    var rtn = filter.IsMatch(result, words, stream);
+                    if (!rtn.Any())
+                    {
+                        action = EvaluationResultAction.Exclude;
+                        break;
+                    }
+                }
+
+                action = EvaluationResultAction.Include;
+            }
+
+            if (action == EvaluationResultAction.Include)
+            {
+                tags = Taggers.GetTags(result, words, stream);
             }
 
             var r = new EvaluationResult(action, tags, DateTime.UtcNow.Ticks - ticks);
@@ -96,62 +111,83 @@ namespace Fetcho.Common.QueryEngine
         {
             if (String.IsNullOrWhiteSpace(text)) return;
 
-            var tokens = TokeniseQueryText(text);
+            var tokens = TokeniseQueryText(text).ToArray();
 
-            foreach (var token in tokens)
+            for (int i = 0; i < tokens.Length; i++)
             {
-                string filterToken = token;
-                string tagToken = String.Empty;
-                FilterMode filterMode = DetermineFilterMode(token);
-                if (filterMode == FilterMode.None) continue;
-                if ((filterMode & FilterMode.Exclude) == FilterMode.Exclude) filterToken = filterToken.Substring(1); // chop off the '-'
-                if ((filterMode & FilterMode.Tag) == FilterMode.Tag)
-                {
-                    var ts = filterToken.Split(':');
-                    tagToken = ts[0] + ":" + ts[2];
-                    filterToken = filterToken.Substring(0, filterToken.LastIndexOf(':')); // remove the tag part
-                }
+                var token = tokens[i];
 
-                Filter filter = null;
-                Filter tagger = null;
-                if (!IsComplexFilter(filterToken))
-                    filter = new SimpleTextMatchFilter(filterToken);
+                if (token.ToLower() == "and") continue; // ignore it
+                else if (token.ToLower() == "or")
+                {
+                    if (tokens.Length > i + 1)
+                        MakeOrOperator(tokens[++i], depth);
+                }
                 else
                 {
-                    filter = Filter.CreateFilter(filterToken, depth);
-                    tagger = Filter.CreateFilter(tagToken, depth);
+                    var filters = GetFiltersFromToken(token, depth);
+                    AddFilters(filters);
                 }
 
-                CalculateFilteringDataRequirements(filter);
-                CalculateFilteringDataRequirements(tagger);
+            }
+        }
 
-                switch (filterMode)
-                {
-                    case FilterMode.Include:
-                        if (filter == null || !filter.IsReducingFilter) break;
-                        IncludeFilters.Add(filter);
-                        break;
+        private IEnumerable<Filter> GetFiltersFromToken(string token, int depth)
+        {
+            string filterToken = token;
+            string tagToken = String.Empty;
 
-                    case FilterMode.Exclude:
-                        if (filter == null || !filter.IsReducingFilter) break;
-                        ExcludeFilters.Add(filter);
-                        break;
+            FilterMode filterMode = DetermineFilterMode(token);
+            if (filterMode == FilterMode.None) return new Filter[0];
+            if ((filterMode & FilterMode.Exclude) == FilterMode.Exclude) filterToken = filterToken.Substring(1); // chop off the '-'
+            if ((filterMode & FilterMode.Tag) == FilterMode.Tag)
+            {
+                var ts = filterToken.Split(':');
+                tagToken = ts[0] + ":" + ts[2];
+                filterToken = filterToken.Substring(0, filterToken.LastIndexOf(':')); // remove the tag part
+            }
 
-                    case FilterMode.Tag:
-                        if (filter == null) break;
-                        TagFilters.Add(filter);
-                        break;
+            Filter filter = null;
+            Filter tagger = null;
+            if (!IsComplexFilter(filterToken))
+                filter = new SimpleTextMatchFilter(filterToken);
+            else
+            {
+                filter = Filter.CreateFilter(filterToken, depth);
+                tagger = Filter.CreateFilter(tagToken, depth);
+            }
 
-                    case (FilterMode.Tag | FilterMode.Include):
-                        if (filter != null && filter.IsReducingFilter) IncludeFilters.Add(filter);
-                        if (tagger != null) TagFilters.Add(tagger);
-                        break;
+            if ( filter != null ) filter.FilterMode = (filterMode & (FilterMode.Include | FilterMode.Exclude));
+            if ( tagger != null ) tagger.FilterMode = FilterMode.Tag;
 
-                    default:
-                        Utility.LogInfo("Unknown filterMode {0}", filterMode);
-                        break;
-                }
+            return new[] { filter, tagger }.Where(x => x != null);
+        }
 
+        private void MakeOrOperator(string token, int depth)
+        {
+            Filter left = Filters.Last();
+            Filters.Remove(left);
+            Filter right = null;
+
+            var filters = GetFiltersFromToken(token, depth);
+            right = filters.First(x => x.HasFilterMode(FilterMode.Exclude | FilterMode.Include));
+            Filter tagger = filters.FirstOrDefault(x => x.HasFilterMode(FilterMode.Tag));
+
+            var orop = new OrOperator(left, right);
+            orop.FilterMode = left.FilterMode == right.FilterMode && left.FilterMode == FilterMode.Exclude ? FilterMode.Exclude : FilterMode.Include;
+            AddFilters(new[] { orop, tagger });
+        }
+
+        private void AddFilters(IEnumerable<Filter> filters)
+        {
+            foreach (var f in filters)
+            {
+                if (f == null) continue;
+                if (f.HasFilterMode(FilterMode.Exclude | FilterMode.Include) && OnlyReducingFilters && !f.IsReducingFilter) continue;
+                CalculateFilteringDataRequirements(f);
+
+                if (f.HasFilterMode(FilterMode.Exclude | FilterMode.Include)) Filters.Add(f);
+                else if (f.HasFilterMode(FilterMode.Tag)) Taggers.Add(f);
             }
         }
 
@@ -304,7 +340,7 @@ namespace Fetcho.Common.QueryEngine
 
             l.Add(sb.ToString());
 
-            return l.Where(x => !String.IsNullOrWhiteSpace(x)).Distinct();
+            return l.Where(x => !String.IsNullOrWhiteSpace(x));
         }
 
         /// <summary>
@@ -327,20 +363,14 @@ namespace Fetcho.Common.QueryEngine
         {
             StringBuilder sb = new StringBuilder();
 
-            foreach (var filter in IncludeFilters)
+            foreach (var filter in Filters)
             {
+                if (filter.HasFilterMode(FilterMode.Exclude)) sb.Append("-");
                 sb.Append(filter.GetQueryText());
                 sb.Append(" ");
             }
 
-            foreach (var filter in ExcludeFilters)
-            {
-                sb.Append("-");
-                sb.Append(filter.GetQueryText());
-                sb.Append(" ");
-            }
-
-            foreach (var filter in TagFilters)
+            foreach (var filter in Taggers)
             {
                 sb.Append(filter.GetQueryText());
                 sb.AppendFormat(":{0} ", Filter.WildcardChar);

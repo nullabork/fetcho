@@ -167,7 +167,12 @@ namespace Fetcho
                 }
 
                 // batch check them against the DB
-                var visitThese = await NeedsVisiting(items.Where(item => !item.IsBlockedByDomain && !item.UnsupportedUri && !item.IsProbablyBlocked && !item.MalformedUrl && !IPAddress.None.Equals(item.TargetIP)));
+                var visitThese = await NeedsVisiting(items.Where(item => !item.IsBlockedByDomain &&
+                                                                         !item.UnsupportedUri &&
+                                                                         !item.IsProbablyBlocked &&
+                                                                         !item.MalformedUrl &&
+                                                                         !IsBadIP(item.TargetIP) &&
+                                                                         !HasIPBeenSeenRecently(item)));
                 foreach (var item in visitThese)
                     item.VisitedRecently = false;
 

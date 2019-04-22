@@ -244,6 +244,8 @@
     <Compile Include="IWebResourceWriter.cs" />
     <Compile Include="NaiveQueueOrderingModel.cs" />
     <Compile Include="Net\FetchoAPIV1Client.cs" />
+    <Compile Include="Net\HackerNewsFrontPageFetcher.cs" />
+    <Compile Include="Net\HackerNewsItem.cs" />
     <Compile Include="Net\RedditSubmission.cs" />
     <Compile Include="Net\RedditSubmissionFetcher.cs" />
     <Compile Include="PressureReliefValve.cs" />
@@ -272,6 +274,7 @@
     <Compile Include="Query\Filters\ISubQuery.cs" />
     <Compile Include="Query\Filters\LanguageFilter.cs" />
     <Compile Include="Query\Filters\MachineLearningModelFilter.cs" />
+    <Compile Include="Query\Operators\AndOperator.cs" />
     <Compile Include="Query\Operators\OrOperator.cs" />
     <Compile Include="Query\Filters\PropertyFilter.cs" />
     <Compile Include="Query\Query.cs" />

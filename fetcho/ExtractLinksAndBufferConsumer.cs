@@ -3,6 +3,7 @@ using Fetcho.ContentReaders;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -94,7 +95,7 @@ namespace Fetcho
 
             Uri uri = reader.NextUri();
 
-            while (uri != null && l.Count < FetchoConfiguration.Current.MaxLinksToExtractFromOneResource)
+            while (uri != null && l.Count < FetchoConfiguration.Current.MaxLinksToExtractFromOneResource*10)
             {
                 var item = new QueueItem()
                 {
@@ -108,7 +109,7 @@ namespace Fetcho
 
             LinksExtracted += l.Count;
             // effectively block until the URLs are accepted
-            await PrioritisationBuffer.SendOrWaitAsync(l).ConfigureAwait(false);
+            await PrioritisationBuffer.SendOrWaitAsync(l.Randomise().Take(FetchoConfiguration.Current.MaxLinksToExtractFromOneResource)).ConfigureAwait(false);
 
         }
     }

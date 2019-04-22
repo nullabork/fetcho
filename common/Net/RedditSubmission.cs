@@ -1,4 +1,4 @@
-﻿namespace Fetcho.Common
+﻿namespace Fetcho.Common.Net
 {
     public class RedditSubmission
     {

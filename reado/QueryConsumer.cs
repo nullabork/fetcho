@@ -48,7 +48,7 @@ namespace Fetcho
             try
             {
                 if (dataStream == null) return;
-                var postTo = new List<PostToWorkspace>();
+                var postTo = new List<PostToWorkspaceInstruction>();
 
                 using (Stream stream = new MemoryStream())
                 {
@@ -67,7 +67,7 @@ namespace Fetcho
                             if (r.Action == EvaluationResultAction.Include)
                             {
                                 result.DebugInfo += String.Format("Cost: {0}\nQuery stats:{1}\n", r.Cost, qry.Value.CostDetails());
-                                postTo.Add(new PostToWorkspace() {
+                                postTo.Add(new PostToWorkspaceInstruction() {
                                     WorkspaceId = qry.Key,
                                     Tags = r.Tags.Distinct().Where(x => !result.Tags.Contains(x)).ToArray()
                                 });
@@ -168,7 +168,7 @@ namespace Fetcho
             responseHeaders = String.Empty;
         }
 
-        internal class PostToWorkspace
+        internal class PostToWorkspaceInstruction
         {
             public Guid WorkspaceId;
 

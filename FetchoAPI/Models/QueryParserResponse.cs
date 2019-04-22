@@ -92,18 +92,15 @@ namespace Fetcho.FetchoAPI.Controllers
 
                 r.Tokens.AddRange(Query.TokeniseQueryText(queryText));
                 r.Filters = new List<QueryParserResponseFilterInfo>();
-                foreach (var f in query.IncludeFilters.OrderBy(x => x.Cost))
+                foreach (var f in query.Filters.OrderBy(x => x.Cost * x.FilterModeCostAdjustmentFactor))
                     r.AddFilter(f);
-                foreach (var f in query.ExcludeFilters.OrderBy(x => x.Cost))
-                    r.AddFilter(f);
-                foreach (var f in query.TagFilters.OrderBy(x => x.Cost))
+                foreach (var f in query.Taggers.OrderBy(x => x.Cost))
                     r.AddFilter(f);
 
                 r.ParsedQueryText = query.ToString();
 
-                r.EstimatedMaxCost = query.IncludeFilters.Aggregate(0m, (x, y) => x + y.Cost);
-                r.EstimatedMaxCost += query.ExcludeFilters.Aggregate(0m, (x, y) => x + y.Cost);
-                r.EstimatedMaxCost += query.TagFilters.Aggregate(0m, (x, y) => x + y.Cost);
+                r.EstimatedMaxCost = query.Filters.Aggregate(0m, (x, y) => x + y.Cost * y.FilterModeCostAdjustmentFactor);
+                r.EstimatedMaxCost += query.Taggers.Aggregate(0m, (x, y) => x + y.Cost);
 
                 r.RequiresResultInput = query.RequiresResultInput;
                 r.RequiresTextInput = query.RequiresTextInput;

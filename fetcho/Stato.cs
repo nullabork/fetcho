@@ -25,7 +25,7 @@ namespace Fetcho
             this.fetcho = fetcho;
             this.queueo = queueo;
             this.reado = reado;
-            writer = new StreamWriter(new FileStream(filepath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read));
+            writer = new StreamWriter(new FileStream(filepath, FileMode.Append, FileAccess.Write, FileShare.Read));
 
             // fetcho stats
             Stats.Add(new StatInfo() { Header = "Chk #", Format = "{0,5}", Calculate = () => fetcho.ActiveChunkCount });

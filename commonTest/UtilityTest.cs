@@ -40,5 +40,11 @@ namespace Fetcho.Common.Tests
 
             var ip = await Utility.GetHostIPAddress(uri, true);
         }
+
+        [TestMethod]
+        public void DecompressTest()
+        {
+            Utility.GZipDecompressToFilePath(@"F:\Source\fetcho\reado\bin\x64\Debug\packet-20.xml", @"F:\Source\fetcho\reado\bin\x64\Debug\packet-un.xml");
+        }
     }
 }

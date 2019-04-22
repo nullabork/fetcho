@@ -98,19 +98,30 @@ namespace Fetcho.Common
             Writer.WriteStartElement("response");
             Writer.WriteStartElement("header");
 
-            if (response is HttpWebResponse httpWebResponse)
+            try
             {
-                Writer.WriteString(string.Format("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription));
-            }
+                if (response is HttpWebResponse httpWebResponse)
+                {
+                    Writer.WriteString(string.Format("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription));
+                }
 
-            foreach (string key in response.Headers)
-            {
-                Writer.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
+                foreach (string key in response.Headers)
+                {
+                    Writer.WriteString(string.Format("{0}: {1}\n", key, response.Headers[key]));
+                }
             }
-            Writer.WriteEndElement(); // header
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                Writer.WriteEndElement(); // header
+            }
 
             try
             {
+
                 Writer.WriteStartElement("data");
                 Writer.WriteBase64(buffer, 0, bytesRead);
 
@@ -123,7 +134,6 @@ namespace Fetcho.Common
             {
                 Writer.WriteEndElement(); // data
                 Writer.WriteEndElement(); // response
-                response.Close();
             }
         }
 
@@ -137,7 +147,7 @@ namespace Fetcho.Common
         {
             Writer.WriteEndElement(); // resource
 
-            if (ResourcesWritten++ % 1000 == 0)
+            if (++ResourcesWritten % 10000 == 0)
                 Writer.Flush();
             ReplaceDataPacketWriterIfQuotaReached();
         }

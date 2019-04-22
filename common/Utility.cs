@@ -359,5 +359,8 @@ namespace Fetcho.Common
         public static IEnumerable<string> MakeTags(params string[] tokens)
             => tokens.Select(MakeTag);
 
+        public static IEnumerable<string> MakeTags(IEnumerable<string> tokens)
+            => tokens.Select(MakeTag);
+
     }
 }

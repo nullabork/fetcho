@@ -64,13 +64,15 @@ namespace Fetcho
         {
             CurrentUri = WebDataPacketReader.GetUriFromRequestString(request);
 
-            var domain = domainParser.Get(CurrentUri.Host);
+            ResourceCount++;
+            CountOfRequestBytes += (ulong)request.Length;
+
+            if (CurrentUri == null) return;
+
+            var domain = domainParser.Get(CurrentUri?.Host);
 
             Increment(TLDCounts, domain == null ? "(blank)" : domain.TLD);
             Increment(HostCounts, CurrentUri?.Host);
-
-            ResourceCount++;
-            CountOfRequestBytes += (ulong)request.Length;
 
             var headers = WebDataPacketReader.GetHeaders(request);
             if (headers.ContainsKey("responsetime"))

@@ -56,59 +56,67 @@ namespace Fetcho.Common
 
         public async void OutputResponse(WebResponse response, byte[] buffer, int bytesRead)
         {
-            Writer.OutputResponse(response, buffer, bytesRead);
-
-            // bail if we dont get anything
-            if (bytesRead == 0) return;
-
-            // if we need to push it to this workspace
-            if (queueItem is ImmediateWorkspaceQueueItem wqi)
+            try
             {
-                try
+
+                Writer.OutputResponse(response, buffer, bytesRead);
+
+                // bail if we dont get anything
+                if (bytesRead == 0) return;
+
+                // if we need to push it to this workspace
+                if (queueItem is ImmediateWorkspaceQueueItem wqi)
                 {
-                    var sb = new StringBuilder();
-
-                    if (response is HttpWebResponse httpWebResponse)
+                    try
                     {
-                        sb.AppendFormat("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription);
+                        var sb = new StringBuilder();
+
+                        if (response is HttpWebResponse httpWebResponse)
+                        {
+                            sb.AppendFormat("status: {0} {1}\n", httpWebResponse.StatusCode, httpWebResponse.StatusDescription);
+                        }
+
+                        foreach (string key in response.Headers)
+                        {
+                            sb.AppendFormat("{0}: {1}\n", key, response.Headers[key]);
+                        }
+
+                        responseHeaders = sb.ToString();
+
+                        using (var ms = new MemoryStream(buffer))
+                        {
+                            var builder = new WorkspaceResultBuilder();
+                            var result = builder.Build(ms, requestString, responseHeaders, out string evalText);
+                            result.Tags.AddRange(wqi.Tags);
+                            result.DebugInfo = "Source: WorkspaceResourcePacketWriter, fetch command";
+
+                            var hash = MD5Hash.Compute(buffer);
+                            var db = await DatabasePool.GetDatabaseAsync();
+                            try
+                            {
+                                await db.AddWorkspaceResults(wqi.DestinationWorkspaceId, new[] { result });
+                                // OPTIMISE: Remove ToArray and just pass IEnumerable<> 
+                                await db.AddWebResourceDataCache(hash, buffer.Take(bytesRead).ToArray());
+                            }
+                            catch (Exception ex)
+                            {
+                                Utility.LogException(ex);
+                            }
+                            finally
+                            {
+                                await DatabasePool.GiveBackToPool(db);
+                            }
+                        }
                     }
-
-                    foreach (string key in response.Headers)
+                    catch (Exception ex)
                     {
-                        sb.AppendFormat("{0}: {1}\n", key, response.Headers[key]);
-                    }
-
-                    responseHeaders = sb.ToString();
-
-                    using (var ms = new MemoryStream(buffer))
-                    {
-                        var builder = new WorkspaceResultBuilder();
-                        var result = builder.Build(ms, requestString, responseHeaders, out string evalText);
-                        result.Tags.AddRange(wqi.Tags);
-                        result.DebugInfo = "Source: WorkspaceResourcePacketWriter, fetch command";
-
-                        var hash = MD5Hash.Compute(buffer);
-                        var db = await DatabasePool.GetDatabaseAsync();
-                        try
-                        {
-                            await db.AddWorkspaceResults(wqi.DestinationWorkspaceId, new[] { result });
-                            // OPTIMISE: Remove ToArray and just pass IEnumerable<> 
-                            await db.AddWebResourceDataCache(hash, buffer.Take(bytesRead).ToArray());
-                        }
-                        catch( Exception ex)
-                        {
-                            Utility.LogException(ex);
-                        }
-                        finally
-                        {
-                            await DatabasePool.GiveBackToPool(db);
-                        }
+                        Utility.LogException(ex);
                     }
                 }
-                catch (Exception ex)
-                {
-                    Utility.LogException(ex);
-                }
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
             }
         }
 

@@ -28,6 +28,7 @@ namespace Fetcho.ContentReaders
             stream.Seek(0, SeekOrigin.Begin);
 
             ContentType contentType = GetContentType(result);
+            int titleness = 4;
 
             if (contentType != null)
             {
@@ -46,17 +47,27 @@ namespace Fetcho.ContentReaders
 
                             if (node.Value == "script")
                                 ReadToEndTag(reader, "script");
-
-                            if (node.Value == "style")
+                            else if (node.Value == "style")
                                 ReadToEndTag(reader, "style");
-
-                            if (node.Value == "title" && !result.PropertyCache.ContainsKey("title"))
+                            else if (node.Value == "title" && titleness > 1 && !result.PropertyCache.ContainsKey("title"))
                             {
-                                string title = ReadTitle(reader);
+                                string title = ReadTitle(reader, "title");
                                 result.PropertyCache.Add("title", title);
+                                titleness = 1;
                             }
-
-                            if (node.Value == "meta")
+                            else if (node.Value == "h1" && titleness > 2 && !result.PropertyCache.ContainsKey("title"))
+                            {
+                                string title = ReadTitle(reader, "h1");
+                                result.PropertyCache.Add("title", title);
+                                titleness = 2;
+                            }
+                            else if (node.Value == "h2" && titleness > 3 && !result.PropertyCache.ContainsKey("title"))
+                            {
+                                string title = ReadTitle(reader, "h2");
+                                result.PropertyCache.Add("title", title);
+                                titleness = 3;
+                            }
+                            else if (node.Value == "meta")
                             {
                                 ProcessMetaTag(reader, result);
                             }
@@ -93,7 +104,7 @@ namespace Fetcho.ContentReaders
             return new ContentType(result.ResponseProperties["content-type"]);
         }
 
-        string ReadTitle(HtmlReader reader)
+        string ReadTitle(HtmlReader reader, string endTag)
         {
             string title = "";
 

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using log4net;
 
@@ -79,34 +80,38 @@ namespace Fetcho.Common
         public bool IsDisallowed(Uri uri, string userAgent = "")
         {
             bool rtn = false;
-            if (String.IsNullOrWhiteSpace(userAgent))
+            if (userAgent.Length == 0)
                 userAgent = FetchoConfiguration.Current?.UserAgent;
 
-            FiniteStateMachine<FiniteStateMachineBooleanState, char>[] matcher = Disallow.GetState(userAgent.ToLower());
-            FiniteStateMachineBooleanState[] states = null;
-            if (matcher.Length == 0)
+            // get the FSM that matches this useragent
+            var matcher = Disallow.GetState(userAgent); 
+            IEnumerable<FiniteStateMachineBooleanState> states = null;
+            if (!matcher.Any()) // if none, get the first
                 matcher = Disallow.RootNode.State.ToArray();
+            // TODO: This line above looks a bit wierd - need to check
 
-            // occurs when there's no robots file!
-            if (matcher.Length == 0)
-                rtn = false;
+            // when there's no matchers in the file - like a blank robots file!
+            if (!matcher.Any())
+                rtn = false; // everything allowed by default
             else
             {
-                states = matcher[0].GetState(uri.AbsolutePath.ToString().ToLower());
+                // get the states - Accept means its disallowed
+                states = matcher.First().GetState(uri.AbsolutePath.ToString());
 
+                // we dont get any, its not disallowed
                 if (states == null)
                     rtn = false;
-                else if (states.Length == 0)
-                    rtn = false;
-                else if (states.Length > 1)
+                else //if (!states.Any())
+                    rtn = states.Any(x => x == FiniteStateMachineBooleanState.Accept);
+                /*else if (states.Count() > 1)
                 {
                     log.Error("More than one state for Robots URI" + uri);
                     rtn = false;
                 }
-                else if (states[0] == FiniteStateMachineBooleanState.Accept)
+                else if (states.First() == FiniteStateMachineBooleanState.Accept)
                     rtn = true;
                 else
-                    rtn = false;
+                    rtn = false;*/
             }
 
             return rtn;
@@ -132,7 +137,7 @@ namespace Fetcho.Common
 
             while (reader.Peek() > -1)
             {
-                string line = reader.ReadLine().ToLower().Trim();
+                string line = reader.ReadLine().Trim();
 
                 // skip comments
                 if (line.StartsWith("#", StringComparison.InvariantCultureIgnoreCase))
@@ -163,22 +168,22 @@ namespace Fetcho.Common
                     if (line.StartsWith("disallow:", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var disallow_matcher = Disallow.GetState(userAgent);
-                        if (disallow_matcher.Length == 0)
+                        if (disallow_matcher.Count() == 0)
                             throw new FetchoException("No default disallow matcher available for '" + userAgent + "' uri " + Uri);
 
                         if (line.Length > 9)
-                            addStringToMatcher(disallow_matcher[0],
+                            addStringToMatcher(disallow_matcher.First(),
                                                line.Substring(9, line.Length - 9).Trim(),
                                                FiniteStateMachineBooleanState.Accept);
                     }
                     else if (line.StartsWith("allow:", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var allow_matcher = Allow.GetState(userAgent);
-                        if (allow_matcher.Length == 0)
+                        if (allow_matcher.Count() == 0)
                             throw new FetchoException("No default allow matcher available for '" + userAgent + "' uri " + Uri);
 
                         if (line.Length > 6)
-                            addStringToMatcher(allow_matcher[0],
+                            addStringToMatcher(allow_matcher.First(),
                                                line.Substring(6, line.Length - 6).Trim(),
                                                FiniteStateMachineBooleanState.Accept);
                     }

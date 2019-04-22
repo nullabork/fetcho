@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Fetcho.Common.Net;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fetcho.Common.Tests

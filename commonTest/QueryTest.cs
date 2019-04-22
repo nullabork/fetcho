@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
+using System.Reflection;
 using Fetcho.Common.Entities;
 using Fetcho.Common.QueryEngine;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -52,10 +54,27 @@ namespace Fetcho.Common.Tests
             {
                 Uri = InputQuery
             };
- 
+
             var f = new UriFilter(InputQuery);
             Assert.IsTrue(f.IsMatch(r, "", null).Any());
         }
 
+
+        [TestMethod]
+        public void Parse4Test()
+        {
+            const string InputQuery = "site:reddit.com OR site:wikipedia.org OR site:news.com.au";
+
+            var r1 = new WorkspaceResult() { Uri = "https://www.reddit.com" };
+            var r2 = new WorkspaceResult() { Uri = "https://en.wikipedia.org" };
+            var r3 = new WorkspaceResult() { Uri = "https://www.news.com.au" };
+            var r4 = new WorkspaceResult() { Uri = "https://www.example.com.au" };
+
+            var q = new Query(InputQuery);
+            Assert.IsTrue(q.Evaluate(r1, null, null).Action == EvaluationResultAction.Include);
+            Assert.IsTrue(q.Evaluate(r2, null, null).Action == EvaluationResultAction.Include);
+            Assert.IsTrue(q.Evaluate(r3, null, null).Action == EvaluationResultAction.Include);
+            Assert.IsFalse(q.Evaluate(r4, null, null).Action == EvaluationResultAction.Include);
+        }
     }
 }

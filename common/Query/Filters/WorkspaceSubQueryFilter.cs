@@ -23,7 +23,7 @@ namespace Fetcho.Common
 
         public override decimal Cost
             => Query.AvgCost < 0 ?
-            Query.IncludeFilters.Sum(x => x.Cost) + Query.ExcludeFilters.Sum(x => x.Cost) + Query.TagFilters.Sum(x => x.Cost) :
+            Query.Filters.Sum(x => x.Cost) + Query.Taggers.Sum(x => x.Cost) :
             Query.AvgCost;
 
         public override bool RequiresResultInput { get => Query.RequiresResultInput; }

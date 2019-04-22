@@ -86,7 +86,8 @@ namespace Fetcho
                     CurrentPacketIndex++;
                 }
             }
-            else
+            // start all over again if we've run out of files
+            else if (FetchoConfiguration.Current.DataSourcePaths.Max(x => Directory.GetFiles(x).Length) <= CurrentPacketIndex)
             {
                 CurrentPacketIndex = 0;
             }

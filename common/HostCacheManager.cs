@@ -150,21 +150,7 @@ namespace Fetcho.Common
             HostCacheManagerRecord record = await GetRecord(ipAddress.ToString());
 
             if (record == null) return;
-
-            try
-            {
-                while (!await record.UpdateWaitHandle.WaitAsync(60000))
-                    Utility.LogInfo("RecordNetworkIssue() waiting on {0}", ipAddress);
-                record.NetworkIssues++;
-            }
-            catch (Exception ex)
-            {
-                Utility.LogException(ex);
-            }
-            finally
-            {
-                record.UpdateWaitHandle?.Release();
-            }
+            record.NetworkIssues++;
         }
 
         public async Task<bool> HasHostExceedNetworkIssuesThreshold(IPAddress ipAddress)

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Fetcho.Common.Entities;
 
@@ -13,7 +15,8 @@ namespace Fetcho.Common
 
         public string RegexPattern { get; set; }
 
-        public override string Name => "Site filter";
+        public override string Name 
+            => "Site filter";
 
         public RegexFilter(string regexPattern)
         {
@@ -21,11 +24,13 @@ namespace Fetcho.Common
             matcher = new Regex(RegexPattern);
         }
 
-        public override decimal Cost => 50m;
+        public override decimal Cost 
+            => 50m;
 
         public override bool RequiresTextInput { get => true; }
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(RegexPattern);
+        public override bool IsReducingFilter 
+            => !String.IsNullOrWhiteSpace(RegexPattern);
 
         public override string GetQueryText()
             => string.Format("regex:{0}", RegexPattern);
@@ -49,10 +54,7 @@ namespace Fetcho.Common
                     // we haven't seen this yet
                     seenFragments.Enqueue(frag);
 
-                    if (!String.IsNullOrWhiteSpace(match.Name))
-                        return new string[1] { Utility.MakeTag(match.Name) };
-                    else
-                        return new string[1] { Utility.MakeTag(match.Value) };
+                    return Utility.MakeTags(match.Groups.OfType<object>().Select( x => x.ToString())).Distinct().ToArray();
                 }
             }
             else

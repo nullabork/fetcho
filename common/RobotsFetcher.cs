@@ -37,7 +37,11 @@ namespace Fetcho.Common
 
                     using (var packet = new WebDataPacketReader(CreateXmlReader(ms)))
                     {
-                        robots = new RobotsFile(packet.GetResponseStream());
+                        using (var stream = packet.GetResponseStream())
+                        {
+                            if (stream == null) robots = new RobotsFile();
+                            else robots = new RobotsFile(stream);
+                        }
                     }
                 }
             }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Fetcho.Common;
+using Fetcho.Common.Net;
 
 namespace Fetcho.Commands
 {
@@ -43,13 +44,13 @@ namespace Fetcho.Commands
                     return;
                 }
 
-                if ( args.Length < 3 )
+                if (args.Length < 3)
                 {
                     Controlo.ReportError("Usage: {0}", ShortHelp);
                     return;
                 }
 
-                if ( !Guid.TryParse(args[2], out Guid destinationWorkspaceId))
+                if (!Guid.TryParse(args[2], out Guid destinationWorkspaceId))
                 {
                     Controlo.ReportError("No destination workspace id specified or invalid GUID: {0}", args[2]);
                     return;
@@ -62,12 +63,41 @@ namespace Fetcho.Commands
                 Controlo.ReportInfo("{0} submissions extracted from r/{1}", submissions.Count(), subreddit);
                 Current = new FetchingTask();
                 await SetupWorkspaceDataWriter();
-
-                foreach (var submission in submissions)
+                await SendItemsForQueuing(submissions.Select(x => MakeQueueItem(x, destinationWorkspaceId)));
+                Controlo.ReportInfo("Task created");
+            }
+            else if (subcommand == "hackernews")
+            {
+                if (Current != null)
                 {
-                    var queueItem = MakeQueueItem(submission, destinationWorkspaceId);
-                    Current.Items.Add(queueItem);
-                    await SendItemForQueuing(queueItem);
+                    Controlo.ReportError("Fetching in progress");
+                    return;
+                }
+
+                if (args.Length < 2)
+                {
+                    Controlo.ReportError("Usage: {0}", ShortHelp);
+                    return;
+                }
+
+                if (!Guid.TryParse(args[1], out Guid destinationWorkspaceId))
+                {
+                    Controlo.ReportError("No destination workspace id specified or invalid GUID: {0}", args[2]);
+                    return;
+                }
+
+                Controlo.ReportInfo("Getting the URLs from hackernews");
+                Current = new FetchingTask();
+                await SetupWorkspaceDataWriter();
+
+                int numberOfDaysToFetch = 100;
+                DateTime start = DateTime.Now.AddDays(-numberOfDaysToFetch - 1);
+                for (int i = 0; i < numberOfDaysToFetch; i++)
+                {
+                    var hnis = await HackerNewsFrontPageFetcher.GetLinks(start);
+                    start = start.AddDays(1);
+                    Controlo.ReportInfo("{0} submissions extracted from hackernews", hnis.Count());
+                    await SendItemsForQueuing(hnis.Select(x => MakeQueueItem(x, destinationWorkspaceId)));
                 }
 
                 Controlo.ReportInfo("Task created");
@@ -90,9 +120,33 @@ namespace Fetcho.Commands
         {
             if (Current == null) return;
 
-            if ( e.Status == QueueItemStatus.Discarded || e.Status == QueueItemStatus.Fetched )
+            if (e.Status == QueueItemStatus.Discarded || e.Status == QueueItemStatus.Fetched)
             {
                 Current.Process(e.Item, e.Status);
+            }
+        }
+
+        private QueueItem MakeQueueItem(Uri hni, Guid destinationWorkspaceId)
+        {
+            try
+            {
+                var item = new ImmediateWorkspaceQueueItem()
+                {
+                    SourceUri = null,
+                    TargetUri = hni,
+                    StatusUpdate = QueueItemStatusUpdate,
+                    DestinationWorkspaceId = destinationWorkspaceId,
+                    ReadTimeoutInMilliseconds = 120000, // big
+                    Tags = new string[] { "hackernews" },
+                    CanBeDiscarded = false
+                };
+
+                return item;
+            }
+            catch (Exception ex)
+            {
+                Utility.LogException(ex);
+                return null;
             }
         }
 
@@ -120,8 +174,12 @@ namespace Fetcho.Commands
             }
         }
 
-        private async Task SendItemForQueuing(QueueItem item)
-            => await Controlo.PrioritisationBufferIn.SendOrWaitAsync(new[] { item });
+        private async Task SendItemsForQueuing(IEnumerable<QueueItem> items)
+        {
+            foreach (var item in items)
+                Current.Items.Add(item);
+            await Controlo.PrioritisationBufferIn.SendOrWaitAsync(items);
+        }
     }
 
     public class FetchingTask

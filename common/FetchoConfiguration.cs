@@ -35,7 +35,7 @@ namespace Fetcho.Common
         [ConfigurationSetting(1 * 1024 * 1024)]
         public int MaxFileDownloadLengthInBytes { get; private set; }
 
-        [ConfigurationSetting(10000)]
+        [ConfigurationSetting(60000)]
         public int ResponseReadTimeoutInMilliseconds { get; private set; }
 
         [ConfigurationSetting(28)]

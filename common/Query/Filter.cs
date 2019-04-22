@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Fetcho.Common.Entities;
+using Fetcho.Common.QueryEngine;
 
 namespace Fetcho.Common
 {
@@ -55,9 +56,20 @@ namespace Fetcho.Common
         public virtual bool IsReducingFilter { get => false; }
 
         /// <summary>
+        /// Amount to adjust the cost by depending on different types of filter modes
+        /// </summary>
+        public virtual decimal FilterModeCostAdjustmentFactor { get => FilterMode == FilterMode.Include ? 1 : 1000; }
+
+        /// <summary>
+        /// Whether this filter is deciding to include, exclude or tag items
+        /// </summary>
+        public virtual FilterMode FilterMode { get; set; }
+
+        /// <summary>
         /// If the resource is matched by this filter
         /// </summary>
         public abstract string[] IsMatch(WorkspaceResult result, string fragment, Stream stream);
+
 
         /// <summary>
         /// Get the textual representation of this filter
@@ -132,8 +144,17 @@ namespace Fetcho.Common
             if (method == null)
                 throw new FilterReflectionFetchoException("Static Parse method is not declared on type {0}", t.Name);
 
-            return method.Invoke(null, new object[] { token, depth }) as Filter;
+            var filter = method.Invoke(null, new object[] { token, depth }) as Filter;
+            return filter;
         }
+
+        /// <summary>
+        /// Determines whether this filter is running in specific FilterMode(s)
+        /// </summary>
+        /// <param name="filterMode"></param>
+        /// <returns></returns>
+        public bool HasFilterMode(FilterMode filterMode)
+            => (FilterMode & filterMode) != FilterMode.None;
 
         /// <summary>
         /// No matches

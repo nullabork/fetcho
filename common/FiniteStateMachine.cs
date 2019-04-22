@@ -164,11 +164,11 @@ namespace Fetcho.Common
 
         }
 
-        public TStateType[] GetState(IEnumerable<TInputType> inputs)
+        public IEnumerable<TStateType> GetState(IEnumerable<TInputType> inputs)
         {
             var currentNode = rootNode;
             currentNode = Input(currentNode, inputs);
-            return currentNode.State.ToArray();
+            return currentNode.State;
         }
 
         public void Clear()

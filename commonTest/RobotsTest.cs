@@ -40,6 +40,28 @@ namespace Fetcho.Common.Tests
                 Assert.IsTrue(!robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Talk:Event_Horizon_Telescope"), userAgent));
                 Assert.IsTrue(robots.IsDisallowed(new Uri("https://en.wikipedia.org/w/index.php?title=Talk:Event_Horizon_Telescope&action=edit"), userAgent));
                 Assert.IsTrue(robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Special:Random"), userAgent));
+                Assert.IsTrue(robots.IsDisallowed(new Uri("https://en.wikipedia.org/w/index.php?title=Ahmet_Davutoglu&action=edit&section=34"), userAgent));
+            }
+        }
+
+        [TestMethod]
+        public void SpeedTest()
+        {
+            // testing that a million URIs can be tested in < 12 seconds (ignoring setup)
+            var path = Path.Combine(testdataPath, "en.wikipedia.org-robots.txt");
+            using (var robots = new RobotsFile(File.Open(path, FileMode.Open)))
+            {
+                DateTime startTime = DateTime.Now;
+                for (int i = 0; i < 1000000; i++)
+                {
+                    Assert.IsTrue(!robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Main_Page"), userAgent));
+                    Assert.IsTrue(!robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Event_Horizon_Telescope"), userAgent));
+                    Assert.IsTrue(!robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Talk:Event_Horizon_Telescope"), userAgent));
+                    Assert.IsTrue(robots.IsDisallowed(new Uri("https://en.wikipedia.org/w/index.php?title=Talk:Event_Horizon_Telescope&action=edit"), userAgent));
+                    Assert.IsTrue(robots.IsDisallowed(new Uri("https://en.wikipedia.org/wiki/Special:Random"), userAgent));
+                }
+                var time = DateTime.Now - startTime;
+                Assert.IsTrue(time.TotalSeconds < 14, time.ToString());
             }
         }
 
@@ -59,7 +81,10 @@ namespace Fetcho.Common.Tests
         {
             DatabasePool.Initialise(1);
 
-            Uri uri = new Uri("http://omim.org/contact");
+            var uri = new Uri("https://en.wikipedia.org/w/index.php?title=Talk:Event_Horizon_Telescope&action=edit");
+            Assert.IsTrue(await VerifyUrlIsBlocked(uri), uri.ToString());
+
+            uri = new Uri("http://omim.org/contact");
             Assert.IsTrue(await VerifyUrlIsBlocked(uri), uri.ToString());
 
             uri = new Uri("https://www.wikipedia.org/wiki/Burger");
@@ -70,6 +95,7 @@ namespace Fetcho.Common.Tests
 
             uri = new Uri("https://wiki.dolphin-emu.org/index.php?title=Category:Japan_(Release_region)");
             Assert.IsTrue(!await VerifyUrlIsBlocked(uri), uri.ToString());
+
         }
 
         public async Task<bool> VerifyUrlIsBlocked(Uri uri)

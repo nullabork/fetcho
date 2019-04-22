@@ -251,7 +251,10 @@ namespace Fetcho.Common
                     {
                         var key = line.Substring(0, index).ToLower();
                         var value = line.Substring(index + 1);
-                        d.Add(key.Trim(), value);
+                        if (!d.ContainsKey(key.Trim()))
+                            Utility.LogInfo("Duplicate key: {0}", key);
+                        else
+                            d.Add(key.Trim(), value);
                     }
                 }
             }

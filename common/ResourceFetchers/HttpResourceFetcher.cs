@@ -151,7 +151,7 @@ namespace Fetcho.Common
                     int l = 0;
                     do
                     {
-                        l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread).ConfigureAwait(false);
+                        l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread); // dont configureawait - disposed?
                         bytesread += l;
                     }
                     while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit and ditch the rest
@@ -185,7 +185,7 @@ namespace Fetcho.Common
             {
                 packet.OutputException(exception);
                 packet.OutputEndResource();
-                await writers.SendAsync(packet);
+                await writers.SendAsync(packet).ConfigureAwait(false);
                 wroteOk = true;
             }
             return wroteOk;
