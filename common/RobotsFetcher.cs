@@ -16,9 +16,10 @@ namespace Fetcho.Common
         /// <param name="robotsUri"></param>
         /// <param name="lastFetched"></param>
         /// <returns></returns>
-        public static async Task<RobotsFile> DownloadRobots(Uri robotsUri, DateTime? lastFetched)
+        public static async Task<RobotsFile> DownloadRobots(Uri anyUri, DateTime? lastFetched)
         {
             RobotsFile robots = null;
+            var robotsUri = MakeRobotsUri(anyUri);
 
             try
             {
@@ -40,7 +41,7 @@ namespace Fetcho.Common
                         using (var stream = packet.GetResponseStream())
                         {
                             if (stream == null) robots = new RobotsFile();
-                            else robots = new RobotsFile(stream);
+                            else robots = new RobotsFile(robotsUri, stream);
                         }
                     }
                 }
@@ -120,7 +121,7 @@ namespace Fetcho.Common
         /// </summary>
         /// <param name="anyUri"></param>
         /// <returns></returns>
-        static Uri MakeRobotsUri(Uri anyUri)
+        public static Uri MakeRobotsUri(Uri anyUri)
         {
             if (!anyUri.IsAbsoluteUri)
                 throw new FetchoException("Needs to be an absolute URI");

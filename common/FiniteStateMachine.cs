@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Fetcho.Common
 {
@@ -191,6 +192,29 @@ namespace Fetcho.Common
 
             foreach (var child in node.Transitions.Values)
                 RecurseClear(child);
+        }
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("FSM:");
+            sb.Append(ToString(rootNode, 0));
+            return sb.ToString();
+        }
+
+        private string ToString(FiniteStateMachineNode<TStateType, TInputType> node, int depth)
+        {
+            var sb = new StringBuilder();
+            var csv = node.State.Aggregate("", (x, y) => x + ", " + y);
+            if (csv.Length > 2) csv = csv.Substring(2);
+            csv += " " + (node.DefaultTransition == rootNode ? "DEFAULT:RootNode" : "DEFAULT: Something else");
+            sb.AppendLine(csv);
+            foreach (var child in node.Transitions)
+                sb.Append(node.Transitions.Count.ToString().PadRight(depth) +
+                    child.Key +
+                    " -> " +
+                    ToString(child.Value, depth + 1));
+            return sb.ToString();
         }
 
         protected virtual void Dispose(bool disposable)

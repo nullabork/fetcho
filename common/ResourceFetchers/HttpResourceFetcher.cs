@@ -15,6 +15,12 @@ namespace Fetcho.Common
     {
         static readonly ILog log = LogManager.GetLogger(typeof(HttpResourceFetcher));
 
+        public HttpResourceFetcher()
+        {
+            if (FetchoConfiguration.Current.BlockProvider == null)
+                FetchoConfiguration.Current.BlockProvider = new NullBlockProvider();
+        }
+
         /// <summary>
         /// Fetches a copy of a HTTP resource
         /// </summary>

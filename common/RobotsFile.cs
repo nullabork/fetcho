@@ -48,16 +48,17 @@ namespace Fetcho.Common
             Malformed = false;
         }
 
-        public RobotsFile(byte[] data) : this(new StreamReader(new MemoryStream(data)))
+        public RobotsFile(Uri robotsUri, byte[] data) : this(robotsUri, new StreamReader(new MemoryStream(data)))
         {
         }
 
-        public RobotsFile(Stream inStream) : this(new StreamReader(inStream))
+        public RobotsFile(Uri robotsUri, Stream inStream) : this(robotsUri, new StreamReader(inStream))
         {
         }
 
-        public RobotsFile(StreamReader reader) : this()
+        public RobotsFile(Uri robotsUri, StreamReader reader) : this()
         {
+            Uri = robotsUri;
             using (reader)
             {
                 Process(reader);
@@ -84,7 +85,7 @@ namespace Fetcho.Common
                 userAgent = FetchoConfiguration.Current?.UserAgent;
 
             // get the FSM that matches this useragent
-            var matcher = Disallow.GetState(userAgent); 
+            var matcher = Disallow.GetState(userAgent);
             IEnumerable<FiniteStateMachineBooleanState> states = null;
             if (!matcher.Any()) // if none, get the first
                 matcher = Disallow.RootNode.State.ToArray();
@@ -215,20 +216,24 @@ namespace Fetcho.Common
             {
                 bool skip_next = true;
                 bool skip_current = false;
-                current_state = default(StateType);
+                current_state = default;
 
                 if (matchString[i] == '*')
                     skip_current = true;
 
-                if (i < matchString.Length - 1)
+                if (i < matchString.Length - 1) // any char before the last char
                 {
-                    if (matchString[i + 1] == '$')
-                        default_transition = DefaultTransitionPath.RootNode;
-                    else if (matchString[i + 1] != '*')
+                    default_transition = DefaultTransitionPath.RootNode; // go back to the start by default
+                    if (matchString[i + 1] != '*' && matchString[i + 1] != '$')
                         skip_next = false;
+                    else if (matchString[i + 1] == '*')
+                        default_transition = DefaultTransitionPath.Self;
                 }
-                else if (i == matchString.Length - 1)
+                else if (i == matchString.Length - 1) // the end
+                {
+                    default_transition = DefaultTransitionPath.Self;
                     current_state = state;
+                }
 
                 if (skip_next && matchString.Length - 2 == i)
                     current_state = state;

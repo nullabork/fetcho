@@ -45,6 +45,8 @@ namespace Fetcho.Common
 
         public Database(string connectionString)
         {
+            if (String.IsNullOrWhiteSpace(connectionString))
+                throw new FetchoException("db connection string is not configured");
             connstr = new NpgsqlConnectionStringBuilder(connectionString);
             if (!String.IsNullOrWhiteSpace(connstr.Host))
                 Server = connstr.Host;
@@ -135,7 +137,7 @@ namespace Fetcho.Common
                                                  "where hostname_hash = :hostname_hash"
                                                  );
 
-                cmd.Parameters.AddWithValue("hostname_hash", hash.Values);
+                cmd.Parameters.Add(new NpgsqlParameter<byte[]>("hostname_hash", hash.Values));
                 cmd.Prepare();
 
                 using (var reader = await cmd.ExecuteReaderAsync())
