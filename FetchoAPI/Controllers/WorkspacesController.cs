@@ -831,6 +831,45 @@ namespace Fetcho.FetchoAPI.Controllers
             }
         }
 
+        [Route("api/v1/workspaces/")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetWorkspaces()
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    var results = await db.GetWorkspaces();
+
+                    return CreateOKResponse(results);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/workspaces/stats")]
+        [HttpPost()]
+        public async Task<HttpResponseMessage> PostWorkspaceQueryStats([FromBody]WorkspaceQueryStats stats)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    await db.AddWorkspaceQueryStats(stats);
+                    if (DateTime.Now.Millisecond % 1000 == 0)
+                        await db.UpdateWorkspaceStatistics();
+                    return CreateNoContentResponse();
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
         [Route("api/v1/resources/")]
         [HttpPost()]
         [HttpPut()]

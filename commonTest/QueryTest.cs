@@ -76,5 +76,19 @@ namespace Fetcho.Common.Tests
             Assert.IsTrue(q.Evaluate(r3, null, null).Action == EvaluationResultAction.Include);
             Assert.IsFalse(q.Evaluate(r4, null, null).Action == EvaluationResultAction.Include);
         }
+
+        /// <summary>
+        /// Tests that a bogus query throws an argument exception
+        /// </summary>
+        [TestMethod]
+        public void Parse5Test()
+        {
+            const string ExampleQuery = "has:title has:description lang:en response-header(content-type):text/html distinct-window(domain):1000 property(og_type):article regex:(((?:[a-zA-Z,._\\-\"']+\\s){3,3}(?:coffee)(?:\\s[a-zA-Z,._\\-\"']+){3,3}):((?:[a-zA-Z,._\\-\"']+\\s){3,3}(?:coffee)(?:\\s[a-zA-Z,._\\-\"']+){3,3})";
+            Assert.ThrowsException<ArgumentException>(() =>
+            {
+                var q = new Query(ExampleQuery);
+            });
+
+        }
     }
 }

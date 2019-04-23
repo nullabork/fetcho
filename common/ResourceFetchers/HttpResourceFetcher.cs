@@ -256,9 +256,9 @@ namespace Fetcho.Common
                 if (uri != null)
                     request.Referer = uri.ToString();
             }
-            catch (Exception ex)
+            catch (ArgumentException)
             {
-                log.ErrorFormat("Failed to set Referer: {0}, {1}", uri, ex);
+                //log.ErrorFormat("Failed to set Referer: {0}, {1}", uri, ex);
             }
         }
 

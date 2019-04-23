@@ -83,7 +83,7 @@ namespace Fetcho
             {
                 ms.Dispose();
                 ms = null;
-                Utility.LogInfo("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
+                //Utility.LogInfo("No link extractor for content type: {0}, from {1}", ContentType, CurrentUri);
                 return null;
             }
         }

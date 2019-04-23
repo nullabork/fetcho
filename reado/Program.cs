@@ -21,6 +21,7 @@ namespace Fetcho
         /// EXAMPLE:
         ///   reado ExtractLinksConsumer packet-53.xml
         ///   reado ExtractLinksThatMatchConsumer packet-2.xml australia news
+        ///   reado QueryConsumer packet*.xml
         ///
         /// </remarks>
         /// <param name="args"></param>
@@ -29,25 +30,7 @@ namespace Fetcho
             ThrowIfAppSettingIsNotSet("FetchoWorkspaceServerBaseUri");
             ThrowIfAppSettingIsNotSet("DataSourcePaths");
             ThrowIfAppSettingIsNotSet("MLModelPath");
-
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-            log4net.Config.XmlConfigurator.Configure();
-            var cfg = new FetchoConfiguration();
-            FetchoConfiguration.Current = cfg;
-            cfg.SetConfigurationSetting(
-                () => cfg.FetchoWorkspaceServerBaseUri,
-                ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
-                );
-
-            cfg.SetConfigurationSetting<IEnumerable<string>>(
-                () => cfg.DataSourcePaths,
-                ConfigurationManager.AppSettings["DataSourcePaths"].Split(',')
-                );
-
-            cfg.SetConfigurationSetting(
-                () => cfg.MLModelPath,
-                ConfigurationManager.AppSettings["MLModelPath"]
-                );
+            SetupConfiguration();
 
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();
@@ -71,13 +54,13 @@ namespace Fetcho
                     string searchPattern = "*";
                     if (path.Length < packetPath.Length) searchPattern = packetPath.Substring(path.Length + 1);
 
-                    foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly).Randomise())
+                    foreach (var file in Directory.GetFiles(path, searchPattern, SearchOption.AllDirectories).Randomise())
                     {
                         try
                         {
                             reado.Process(file).GetAwaiter().GetResult();
                         }
-                        catch( Exception ex)
+                        catch (Exception ex)
                         {
                             Utility.LogException(ex);
                         }
@@ -133,6 +116,30 @@ namespace Fetcho
 
             foreach (var type in types)
                 Console.WriteLine("{0}", type.Name);
+        }
+
+        static FetchoConfiguration SetupConfiguration()
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            log4net.Config.XmlConfigurator.Configure();
+            var cfg = new FetchoConfiguration();
+            FetchoConfiguration.Current = cfg;
+            cfg.SetConfigurationSetting(
+                () => cfg.FetchoWorkspaceServerBaseUri,
+                ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
+                );
+
+            cfg.SetConfigurationSetting<IEnumerable<string>>(
+                () => cfg.DataSourcePaths,
+                ConfigurationManager.AppSettings["DataSourcePaths"].Split(',')
+                );
+
+            cfg.SetConfigurationSetting(
+                () => cfg.MLModelPath,
+                ConfigurationManager.AppSettings["MLModelPath"]
+                );
+
+            return cfg;
         }
     }
 }

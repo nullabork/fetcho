@@ -122,6 +122,9 @@ namespace Fetcho.Common
         [ConfigurationSetting(3)]
         public int MaxNetworkIssuesThreshold { get; private set; }
 
+        [ConfigurationSetting(1000000)]
+        public int QueryBudgetForAverageQueryCost { get; private set; }
+
         public IBlockProvider BlockProvider { get; set; }
 
         public IQueuePriorityCalculationModel QueueOrderingModel { get; set; }

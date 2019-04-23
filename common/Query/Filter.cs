@@ -82,7 +82,23 @@ namespace Fetcho.Common
         /// </summary>
         /// <returns></returns>
         public static IEnumerable<Type> GetAllFilterTypes()
-            => typeof(Filter).Assembly.GetTypes().Where(x => x.IsSubclassOf(typeof(Filter)));
+        {
+            try
+            {
+                var types = typeof(Filter).Assembly.GetTypes().Where(x => x.IsSubclassOf(typeof(Filter)));
+                return types;
+            }
+            catch (ReflectionTypeLoadException rtlex)
+            {
+                Utility.LogException(rtlex.LoaderExceptions[0]);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Cache of all the filter types
@@ -132,20 +148,29 @@ namespace Fetcho.Common
         /// <returns>A filter or null if it cantc match the token to a type</returns>
         public static Filter CreateFilter(string token, int depth)
         {
-            if (String.IsNullOrWhiteSpace(token)) return null;
+            try
+            {
 
-            var t = GetFilterType(token);
+                if (String.IsNullOrWhiteSpace(token)) return null;
 
-            if (t == null)
-                throw new FilterReflectionFetchoException("Can't find filter for token type {0}", token);
+                var t = GetFilterType(token);
 
-            var method = t.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+                if (t == null)
+                    throw new FilterReflectionFetchoException("Can't find filter for token type {0}", token);
 
-            if (method == null)
-                throw new FilterReflectionFetchoException("Static Parse method is not declared on type {0}", t.Name);
+                var method = t.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
 
-            var filter = method.Invoke(null, new object[] { token, depth }) as Filter;
-            return filter;
+                if (method == null)
+                    throw new FilterReflectionFetchoException("Static Parse method is not declared on type {0}", t.Name);
+
+                var filter = method.Invoke(null, new object[] { token, depth }) as Filter;
+                return filter;
+            }
+            catch (TargetInvocationException ex)
+            {
+                Utility.LogException(ex);
+                throw ex.InnerException;
+            }
         }
 
         /// <summary>

@@ -44,5 +44,18 @@ namespace Fetcho.Common.Tests
             //            Assert.IsTrue(match.Groups.Count == 1, match.Groups.Aggregate("", (x, y) => x + " " + y));
         }
 
+        [TestMethod]
+        public void RegexTest2()
+        {
+            const string Example = "The farmer grew seventeen thousand varities of coffee beens for his children. He grew them in an attempt to cure the childrens sleep addiction.";
+            var regex = new Regex(@"(\s*[\w,.]+\s*){2,6}coffee(\s*[\w,.]+\s*){2,6}");
+
+            Assert.IsTrue(regex.IsMatch(Example));
+            var match = regex.Match(Example);
+            Assert.IsTrue(match.Success);
+            foreach (var g in match.Groups) Console.WriteLine(g);
+            foreach (var c in match.Captures) Console.WriteLine(c.ToString());
+            //            Assert.IsTrue(match.Groups.Count == 1, match.Groups.Aggregate("", (x, y) => x + " " + y));
+        }
     }
 }

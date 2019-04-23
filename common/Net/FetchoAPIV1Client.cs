@@ -39,6 +39,13 @@ namespace Fetcho.Common.Net
             response.EnsureSuccessStatusCode();
         }
 
+        public async Task PostWorkspaceQueryStatsAsync(WorkspaceQueryStats stats)
+        {
+            string path = String.Format("{0}/stats", WorkspaceEndPoint);
+            var response = await client.PostAsJsonAsync(path, stats);
+            response.EnsureSuccessStatusCode();
+        }
+
         public async Task<WorkspaceResult[]> GetRandomWorkspaceResultsAsync(Guid workspaceId, int count = DefaultRandomResultsCount)
         {
             string path = String.Format("{0}/{1}/results/random?count={2}", WorkspaceEndPoint, workspaceId, count);
@@ -55,6 +62,13 @@ namespace Fetcho.Common.Net
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
         }
 
+        public async Task<Workspace[]> GetWorkspacesAsync()
+        {
+            string path = String.Format("{0}/", WorkspaceEndPoint);
+            var response = await client.GetAsync(path);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsAsync<Workspace[]>();
+        }
         #endregion
 
         #region resources

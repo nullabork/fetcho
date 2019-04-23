@@ -9,6 +9,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading.Tasks;
 using log4net;
 
@@ -324,8 +325,15 @@ namespace Fetcho.Common
 
         public static void LogException(Exception ex)
         {
-            System.Diagnostics.Debug.Write(ex);
-            log.Error(ex);
+            if ( ex is ReflectionTypeLoadException rtlex )
+            {
+                log.Error(rtlex.LoaderExceptions[0]);
+            }
+            else
+            {
+                System.Diagnostics.Debug.Write(ex);
+                log.Error(ex);
+            }
         }
 
         public static void LogInfo(string format, params object[] args) => log.InfoFormat(format, args);
