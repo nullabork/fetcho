@@ -24,7 +24,7 @@ namespace Fetcho.Common.Tests
             Assert.IsTrue(site.LastRobotsFetched == null);
 
             var stopwatch = new Stopwatch();
-            using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
+            using (var db = new Database())
             {
                 stopwatch.Start();
                 db.SaveSite(site).GetAwaiter().GetResult();
@@ -41,7 +41,7 @@ namespace Fetcho.Common.Tests
         {
             var uri = new Uri("https://omim.org/contact");
 
-            using (var db = new Database("Server=127.0.0.1;Port=5432;User Id=getlinks;Password=getlinks;Database=fetcho;Enlist=false"))
+            using (var db = new Database())
             {
                 var site = await db.GetSite(uri);
                 Assert.IsNotNull(site);

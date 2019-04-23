@@ -18,14 +18,18 @@ namespace Fetcho
         public ITargetBlock<IEnumerable<QueueItem>> FetchQueueBufferOut;
         public BufferBlock<IWebResourceWriter> DataWriterPool;
 
+        private Action ShutdownAction;
+
         public Controlo(
             ITargetBlock<IEnumerable<QueueItem>> prioritisationBufferIn,
             ITargetBlock<IEnumerable<QueueItem>> fetchQueueBufferOut,
-            BufferBlock<IWebResourceWriter> dataWriterPool)
+            BufferBlock<IWebResourceWriter> dataWriterPool,
+            Action shutdownAction)
         {
             PrioritisationBufferIn = prioritisationBufferIn;
             FetchQueueBufferOut = fetchQueueBufferOut;
             DataWriterPool = dataWriterPool;
+            ShutdownAction = shutdownAction;
             Running = true;
             Commands = new Dictionary<string, ControloCommand>();
             RegisterAllCommands();
@@ -33,6 +37,8 @@ namespace Fetcho
                 => ReportInfo("Configuration setting {0} changed from {1} to {2}",
                                      e.PropertyName, e.OldValue, e.NewValue);
         }
+
+        public void Shutdown() => Running = false;
 
         public async Task Process()
         {

@@ -88,7 +88,6 @@ namespace Fetcho.Common
                             var builder = new WorkspaceResultBuilder();
                             var result = builder.Build(ms, requestString, responseHeaders, out string evalText);
                             result.Tags.AddRange(wqi.Tags);
-                            result.DebugInfo = "Source: WorkspaceResourcePacketWriter, fetch command";
 
                             var hash = MD5Hash.Compute(buffer);
                             var db = await DatabasePool.GetDatabaseAsync();

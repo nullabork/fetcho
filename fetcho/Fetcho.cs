@@ -56,6 +56,8 @@ namespace Fetcho
             FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
         }
 
+        public void Shutdown() => Running = false;
+
         public async Task Process()
         {
             try
@@ -142,6 +144,7 @@ namespace Fetcho
 
                 foreach (var item in items)
                 {
+                    if (!Running) break; // we're shutting down
                     await FetchQueueItem(item, startTime);
                     startTime = DateTime.Now; // update to start timing for the next one
 

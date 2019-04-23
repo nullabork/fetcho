@@ -51,7 +51,6 @@ namespace Fetcho.Common.Tests
             // Assert.IsTrue(node.Created == nodeReturned.Created); // will always be different
             Assert.IsTrue(node.UriHashRange == nodeReturned.UriHashRange);
             Assert.IsTrue(node.IsApproved == nodeReturned.IsApproved);
-
         }
     }
 }

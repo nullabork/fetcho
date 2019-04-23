@@ -129,8 +129,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseTestClass.cs" />
     <Compile Include="ContentTypeTest.cs" />
     <Compile Include="DatabaseTest.cs" />
+    <Compile Include="DatabaseUpgraderTest.cs" />
     <Compile Include="FastLookupCacheTest.cs" />
     <Compile Include="FetchoAPIV1ClientTest.cs" />
     <Compile Include="FilterTest.cs" />

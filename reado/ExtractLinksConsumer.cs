@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Fetcho
 {
-    internal class ExtractLinksConsumer : WebDataPacketConsumer
+    public class ExtractLinksConsumer : WebDataPacketConsumer
     {
         static readonly ILog log = LogManager.GetLogger(typeof(ExtractLinksConsumer));
 

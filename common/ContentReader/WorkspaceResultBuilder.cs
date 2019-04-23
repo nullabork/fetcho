@@ -18,6 +18,7 @@ namespace Fetcho.ContentReaders
         public WorkspaceResult Build(Stream stream, string requestString, string responseHeaders, out string evalText)
         {
             WorkspaceResult result = new WorkspaceResult();
+            result.SourceServerId = FetchoConfiguration.Current.CurrentServerNode.ServerId;
 
             if (!stream.CanSeek)
                 throw new FetchoException("WorkspaceResultBuilder needs a seekable stream");
@@ -91,7 +92,6 @@ namespace Fetcho.ContentReaders
             result.Description = result.PropertyCache.SafeGet("description")?.ToString();
             result.Created = DateTime.UtcNow;
             result.Updated = DateTime.UtcNow;
-            result.DebugInfo = "Source: QueryConsumer\n";
 
             evalText = evaluationText.ToString();
 

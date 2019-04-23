@@ -1,4 +1,5 @@
 ﻿using Fetcho.Common;
+using Fetcho.Common.Dbup;
 using Fetcho.Common.Entities;
 using Fetcho.Common.Net;
 using System;
@@ -14,7 +15,7 @@ namespace Fetcho
 {
     class Program
     {
-        const int DefaultBufferBlockLimit = 20;
+        const int DefaultBufferBlockLimit = 200;
 
         public static async Task Main(string[] args)
         {
@@ -45,20 +46,29 @@ namespace Fetcho
             // configure fetcho
             await SetupConfiguration(paths);
 
+            // upgrade the database
+            DatabaseUpgrader.Upgrade();
+
             // buffers to connect the seperate tasks together
             BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
             // really beef this buffers max size up since it takes for ever accumulate so we dont want to lose any
-            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit * 100);
+            BufferBlock<IEnumerable<QueueItem>> fetchQueueBuffer = CreateBufferBlock(DefaultBufferBlockLimit * 1000);
             //BufferBlock<IEnumerable<QueueItem>> requeueBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
-            //BufferBlock<IEnumerable<QueueItem>> rejectsBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
+            ITargetBlock<IEnumerable<QueueItem>> outboxWriter = CreateOutboxWriter();
             BufferBlock<IWebResourceWriter> dataWriterPool = CreateDataWriterPool();
 
             // fetcho!
             var readLinko = new ReadLinko(prioritisationBuffer, startPacketIndex);
-            var queueo = new Queueo(prioritisationBuffer, fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>());
+            var queueo = new Queueo(prioritisationBuffer, fetchQueueBuffer, outboxWriter); // DataflowBlock.NullTarget<IEnumerable<QueueItem>>()
             var fetcho = new Fetcho(fetchQueueBuffer, DataflowBlock.NullTarget<IEnumerable<QueueItem>>(), dataWriterPool);
-            var controlo = new Controlo(prioritisationBuffer, fetchQueueBuffer, dataWriterPool);
             var stato = new Stato("stats.csv", fetcho, queueo, readLinko);
+            var controlo = new Controlo(prioritisationBuffer, fetchQueueBuffer, dataWriterPool, () =>
+            {
+                readLinko.Shutdown();
+                queueo.Shutdown();
+                fetcho.Shutdown();
+                stato.Shutdown();
+            });
             //var requeueWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "requeue", requeueBuffer);
             //var rejectsWriter = new BufferBlockObjectFileWriter<IEnumerable<QueueItem>>(cfg.DataSourcePath, "rejects", new NullTarget);
 
@@ -67,10 +77,6 @@ namespace Fetcho
 
             tasks.Add(stato.Process());
             tasks.Add(fetcho.Process());
-
-            //Task.Delay(1000).GetAwaiter().GetResult();
-            //tasks.Add(requeueWriter.Process());
-            //tasks.Add(rejectsWriter.Process());
             await Task.Delay(1000);
             tasks.Add(queueo.Process());
             await Task.Delay(1000);
@@ -78,6 +84,9 @@ namespace Fetcho
             tasks.Add(controlo.Process());
 
             await Task.WhenAll(tasks.ToArray()).ConfigureAwait(false);
+
+            CloseAllWriters(dataWriterPool);
+            DatabasePool.DestroyAll();
         }
 
         private static void Usage()
@@ -90,6 +99,24 @@ namespace Fetcho
             {
                 BoundedCapacity = boundedCapacity
             });
+
+        private static ActionBlock<IEnumerable<QueueItem>> CreateOutboxWriter()
+        {
+            var block = new ActionBlock<IEnumerable<QueueItem>>(items =>
+            {
+                string path = Path.Combine(FetchoConfiguration.Current.DataSourcePaths.First(), "outbox.txt");
+                path = Utility.CreateNewFileOrIndexNameIfExists(path);
+
+                using (var writer = new StreamWriter(path))
+                {
+                    foreach (var item in items)
+                        if ( item.NotInServerScope )
+                            writer.WriteLine(item);
+                }
+            });
+
+            return block;
+        }
 
         private static BufferBlock<IWebResourceWriter> CreateDataWriterPool()
         {
@@ -126,13 +153,17 @@ namespace Fetcho
         {
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
-            cfg.SetConfigurationSetting<IEnumerable<string>>(() => cfg.DataSourcePaths, paths.Split(','));
+            cfg.SetConfigurationSetting(() => cfg.DataSourcePaths, paths.Split(','));
+
             // setup the block provider we want to use
             cfg.BlockProvider = new DefaultBlockProvider();
-            // configure queueo
+
+            // configure queueo with the queuing model
             cfg.QueueOrderingModel = new NaiveQueueOrderingModel();
+
             // setup host cache manager
             cfg.HostCache = new HostCacheManager();
+
             // log configuration changes
             cfg.ConfigurationChange += (sender, e) =>
                                         Utility.LogInfo("Configuration setting {0} changed from {1} to {2}",

@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fetcho.Common.Tests
 {
@@ -32,5 +33,6 @@ namespace Fetcho.Common.Tests
             Assert.IsNotNull(referer);
             Assert.IsTrue(referer.ToString() == "https://en.wikipedia.org/wiki/Flood_(Halo)", referer.ToString());
         }
+
     }
 }

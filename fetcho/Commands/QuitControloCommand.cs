@@ -12,7 +12,8 @@ namespace Fetcho.Commands
         public override async Task Execute(string[] args)
         {
             Controlo.ReportInfo("Quitting");
-            Environment.Exit(1);
+            Controlo.Shutdown();
+            //Environment.Exit(1);
         }
     }
 }

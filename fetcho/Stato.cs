@@ -25,6 +25,8 @@ namespace Fetcho
             this.fetcho = fetcho;
             this.queueo = queueo;
             this.reado = reado;
+
+            filepath = Utility.CreateNewFileOrIndexNameIfExists(filepath);
             writer = new StreamWriter(new FileStream(filepath, FileMode.Append, FileAccess.Write, FileShare.Read));
 
             // fetcho stats
@@ -144,6 +146,8 @@ namespace Fetcho
 
             }
         }
+
+        public void Shutdown() => Running = false;
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls

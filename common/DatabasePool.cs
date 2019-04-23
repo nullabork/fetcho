@@ -11,6 +11,8 @@ namespace Fetcho.Common
 
         public static int Count { get => databasePool.Count; }
 
+        public static int TotalNumberOfConnections { get; private set; }
+
         public static int WaitingForDatabase { get => _waitingForDatabase; }
         private static int _waitingForDatabase;
 
@@ -18,12 +20,22 @@ namespace Fetcho.Common
         {
             if (numberOfConnections < 1)
                 numberOfConnections = Database.MaxConcurrentConnections - 5;
+            TotalNumberOfConnections = numberOfConnections;
 
             lock (databasePoolLock)
             {
                 databasePool = new BufferBlock<Database>();
                 for (int i = 0; i < numberOfConnections; i++)
                     databasePool.SendAsync(CreateDatabase().GetAwaiter().GetResult());
+            }
+        }
+
+        public static void DestroyAll()
+        {
+            while ( TotalNumberOfConnections > 0)
+            {
+                var db = databasePool.Receive();
+                db.Dispose();
             }
         }
 

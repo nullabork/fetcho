@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Fetcho.Common.Entities;
 using Fetcho.Common.QueryEngine.Operators;
 
@@ -31,6 +32,11 @@ namespace Fetcho.Common.QueryEngine
         public bool RequiresResultInput { get; protected set; }
         public bool OnlyReducingFilters { get; set; }
 
+        /// <summary>
+        /// Create a query object from query text
+        /// </summary>
+        /// <param name="queryText">The query text</param>
+        /// <param name="depth">The depth of this query to prevent stack overflow</param>
         public Query(string queryText, int depth = 0)
         {
             OnlyReducingFilters = false;
@@ -50,10 +56,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Evalute some resource against this query to figure out whether to ignore, include or exclude it from the workspace
         /// </summary>
-        /// <param name="result"></param>
-        /// <param name="words"></param>
-        /// <param name="stream"></param>
-        /// <returns></returns>
         public EvaluationResult Evaluate(WorkspaceResult result, string words, Stream stream)
         {
             IEnumerable<string> tags = null;
@@ -97,16 +99,12 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Distill the results by this query
         /// </summary>
-        /// <param name="results"></param>
-        /// <returns></returns>
         public IEnumerable<WorkspaceResult> Distill(IEnumerable<WorkspaceResult> results)
             => results.Where((result) => Evaluate(result, String.Empty, null).Action == EvaluationResultAction.Include);
 
         /// <summary>
         /// Parse query text to build the filter collections
         /// </summary>
-        /// <param name="text">The query text</param>
-        /// <param name="depth">Depth of this query to throw exceptions if we have too much sub query depth</param>
         private void ParseQueryText(string text, int depth)
         {
             if (String.IsNullOrWhiteSpace(text)) return;
@@ -128,10 +126,12 @@ namespace Fetcho.Common.QueryEngine
                     var filters = GetFiltersFromToken(token, depth);
                     AddFilters(filters);
                 }
-
             }
         }
 
+        /// <summary>
+        /// Create filter objects from a token
+        /// </summary>
         private IEnumerable<Filter> GetFiltersFromToken(string token, int depth)
         {
             string filterToken = token;
@@ -163,6 +163,9 @@ namespace Fetcho.Common.QueryEngine
             return new[] { filter, tagger }.Where(x => x != null);
         }
 
+        /// <summary>
+        /// Build an or operator when you get an or token
+        /// </summary>
         private void MakeOrOperator(string token, int depth)
         {
             Filter left = Filters.Last();
@@ -178,6 +181,9 @@ namespace Fetcho.Common.QueryEngine
             AddFilters(new[] { orop, tagger });
         }
 
+        /// <summary>
+        /// Add the filters to the query
+        /// </summary>
         private void AddFilters(IEnumerable<Filter> filters)
         {
             foreach (var f in filters)
@@ -195,32 +201,24 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Is it more than just a word filter
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private bool IsComplexFilter(string token)
             => token.Contains(":");
 
         /// <summary>
         /// Determines if this token is a wildcard search
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private bool IsWildcardSearch(string token)
             => token.EndsWith(Filter.WildcardChar);
 
         /// <summary>
         /// Is this one for tagging?
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private bool IsTagFilter(string token)
             => token.Split(':').Length == 3;
 
         /// <summary>
         /// Returns true if this filter will only return a subset of the results passed to it - ie. its not just a wildcard
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private bool IsDiscriminatingFilter(string token)
         {
             var ts = token.Split(':');
@@ -233,16 +231,12 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Returns true if this filter is a functional filter like ml-model
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private bool IsFunctionFilter(string token)
             => token.Contains("(") && token.Contains(")");
 
         /// <summary>
         /// Determine the type of filter being applied
         /// </summary>
-        /// <param name="token"></param>
-        /// <returns></returns>
         private FilterMode DetermineFilterMode(string token)
         {
             FilterMode rtn = FilterMode.None;
@@ -261,7 +255,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Calculate the cost of this query for optimisation and debugging purposes
         /// </summary>
-        /// <param name="r"></param>
         private void DoBookKeeping(EvaluationResult r)
         {
             if (r.Cost < MinCost) MinCost = r.Cost;
@@ -276,7 +269,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Builds a string of the cost details of this query
         /// </summary>
-        /// <returns></returns>
         public string CostDetails()
             => String.Format("Min: {0,-10}, Max: {1, -10}, Avg: {2,-10}, Total: {3,-10}, #: {4,-10}",
                 MinCost, MaxCost, AvgCost, TotalCost, NumberOfEvaluations);
@@ -284,8 +276,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Removes comment and new line chars etc.
         /// </summary>
-        /// <param name="queryText"></param>
-        /// <returns></returns>
         public static string StripCommentsAndLines(string queryText)
         {
             var sb = new StringBuilder();
@@ -313,8 +303,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Extracts each query command from the query text
         /// </summary>
-        /// <param name="queryText"></param>
-        /// <returns></returns>
         public static IEnumerable<string> TokeniseQueryText(string queryText)
         {
             var l = new List<string>();
@@ -346,8 +334,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// Updates the requirements of this query by the passed filter and tagger
         /// </summary>
-        /// <param name="filter"></param>
-        /// <param name="tagger"></param>
         private void CalculateFilteringDataRequirements(Filter filter)
         {
             RequiresResultInput = RequiresResultInput || (filter != null && filter.RequiresResultInput);
@@ -358,7 +344,6 @@ namespace Fetcho.Common.QueryEngine
         /// <summary>
         /// In theory this should output the same as OriginalQueryText
         /// </summary>
-        /// <returns></returns>
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();

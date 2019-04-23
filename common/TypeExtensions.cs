@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Xml;
+using Npgsql;
 
 namespace Fetcho.Common
 {
@@ -277,6 +280,43 @@ namespace Fetcho.Common
 
             return new MD5Hash(buffer);
         }
+
+        /// <summary>
+        /// Where an object is stored in the DB - deserialize
+        /// </summary>
+        /// <typeparam name="T">The class type to deserialize</typeparam>
+        /// <param name="dataReader"></param>
+        /// <param name="ordinal"></param>
+        /// <returns></returns>
+        public static T DeserializeField<T>(this DbDataReader dataReader, int ordinal) where T : class
+        {
+            if (dataReader.IsDBNull(ordinal)) return null;
+
+            byte[] buffer = (byte[])dataReader.GetValue(ordinal);
+
+            using (var ms = new MemoryStream(buffer))
+            {
+                var o = formatter.Deserialize(ms) as T;
+                if (o == null) throw new FetchoException(string.Format("Deserialization to {0} failed", typeof(T)));
+                return o;
+            }
+        }
+        static readonly BinaryFormatter formatter = new BinaryFormatter();
+
+        public static void SetBinaryParameter(this NpgsqlCommand cmd, string parameterName, object value)
+        {
+            if (value != null)
+                using (var ms = new MemoryStream(1000))
+                {
+                    formatter.Serialize(ms, value);
+                    cmd.Parameters.AddWithValue(parameterName, ms.GetBuffer());
+                }
+            else
+                cmd.Parameters.AddWithValue(parameterName, DBNull.Value);
+
+        }
+
+
 
 
     }

@@ -55,7 +55,7 @@ namespace Fetcho.Common.Tests
         [TestMethod]
         public void SpeedTest()
         {
-            // testing that a million URIs can be tested in < 12 seconds (ignoring setup)
+            // testing that a million URIs can be tested in < 14 seconds (ignoring setup)
             var path = Path.Combine(testdataPath, "en.wikipedia.org-robots.txt");
             using (var robots = new RobotsFile(new Uri("https://en.wikipedia.org/robots.txt"), File.Open(path, FileMode.Open)))
             {

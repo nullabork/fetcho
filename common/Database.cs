@@ -25,7 +25,6 @@ namespace Fetcho.Common
         public const int MaxConcurrentConnections = 50;
         public const int WaitTimeVarianceInMilliseconds = 250;
 
-        static readonly BinaryFormatter formatter = new BinaryFormatter();
         static readonly ILog log = LogManager.GetLogger(typeof(Database));
         static readonly Random random = new Random(DateTime.UtcNow.Millisecond);
         static readonly SemaphoreSlim connPool = new SemaphoreSlim(MaxConcurrentConnections);
@@ -132,7 +131,8 @@ namespace Fetcho.Common
                 var hash = MD5Hash.Compute(anyUri.Host);
 
                 NpgsqlCommand cmd = await SetupCommand("select hostname_hash, hostname, " +
-                                                 "is_blocked, last_robots_fetched, robots_file " +
+                                                 "is_blocked, last_robots_fetched, robots_file, " +
+                                                 "uses_compression, uses_encryption " +
                                                  "from \"Site\" " +
                                                  "where hostname_hash = :hostname_hash"
                                                  );
@@ -149,7 +149,9 @@ namespace Fetcho.Common
                             HostName = reader.GetString(1),
                             IsBlocked = reader.GetBoolean(2),
                             LastRobotsFetched = reader.GetFieldValue<DateTime?>(3),
-                            RobotsFile = DeserializeField<RobotsFile>(reader, 4)
+                            RobotsFile = reader.DeserializeField<RobotsFile>(4),
+                            UsesCompression = reader.GetBoolean(5),
+                            UsesEncryption = reader.GetBoolean(6)
                         };
                     }
                 }
@@ -177,14 +179,16 @@ namespace Fetcho.Common
         {
             try
             {
-                const string insert = "insert into \"Site\" (hostname_hash, hostname, is_blocked, last_robots_fetched, robots_file) " +
-                  "values (:hostname_hash, :hostname, :is_blocked, :last_robots_fetched, :robots_file)";
+                const string insert = "insert into \"Site\" (hostname_hash, hostname, is_blocked, last_robots_fetched, robots_file, uses_compression, uses_encryption) " +
+                  "values (:hostname_hash, :hostname, :is_blocked, :last_robots_fetched, :robots_file, :uses_compression, :uses_encryption)";
 
                 const string update = "update \"Site\" " +
                   "set    hostname = :hostname, " +
                   "       is_blocked = :is_blocked, " +
                   "       last_robots_fetched = :last_robots_fetched, " +
-                  "       robots_file = :robots_file " +
+                  "       robots_file = :robots_file, " +
+                  "       uses_compression = :uses_compression, " +
+                  "       uses_encryption = :uses_encryption " +
                   "where  hostname_hash = :hostname_hash";
 
                 NpgsqlCommand cmd = await SetupCommand(update);
@@ -192,8 +196,9 @@ namespace Fetcho.Common
                 cmd.Parameters.AddWithValue("hostname_hash", site.Hash.Values);
                 cmd.Parameters.AddWithValue("hostname", site.HostName);
                 cmd.Parameters.AddWithValue("is_blocked", site.IsBlocked);
-
-                SetBinaryParameter(cmd, "robots_file", site.RobotsFile);
+                cmd.Parameters.AddWithValue("uses_compression", site.UsesCompression);
+                cmd.Parameters.AddWithValue("uses_encryption", site.UsesEncryption);
+                cmd.SetBinaryParameter("robots_file", site.RobotsFile);
 
                 if (site.LastRobotsFetched.HasValue)
                     cmd.Parameters.Add(new NpgsqlParameter<DateTime>("last_robots_fetched", site.LastRobotsFetched.Value));
@@ -793,8 +798,8 @@ namespace Fetcho.Common
         public async Task<int> CopyAllWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId)
         {
             string sql =
-                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, debug_info) " +
-                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, 'CopyAll Transform' " +
+                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, features, source_server_id) " +
+                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, features, source_server_id " +
                 "from   \"WorkspaceResult\" " +
                 "where  workspace_id = :source_workspace_id;";
 
@@ -815,8 +820,8 @@ namespace Fetcho.Common
         public async Task<int> CopyWorkspaceResultsByWorkspaceId(Guid sourceWorkspaceId, Guid destinationWorkspaceId, IEnumerable<MD5Hash> hashes)
         {
             string sql =
-                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, debug_info) " +
-                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, 'Copy Transform' " +
+                "insert int \"WorkspaceResult\"( urihash, uri, referer, title, description, created, workspace_id, page_size, tags, datahash, updated, features, source_server_id) " +
+                "select urihash, uri, referer, title, description, created, :destination_workspace_id, page_size, tags, datahash, updated, features, source_server_id " +
                 "from   \"WorkspaceResult\" " +
                 "where  workspace_id = :source_workspace_id and urihash = :urihash;";
 
@@ -1271,7 +1276,7 @@ namespace Fetcho.Common
         }
 
         public const string WorkspaceResultSelectLine =
-            "select urihash, uri, referer, title, description, created, page_size, sequence, tags, datahash, updated, debug_info " +
+            "select urihash, uri, referer, title, description, created, page_size, sequence, tags, datahash, updated, features, source_server_id " +
             "from   \"WorkspaceResult\" ";
 
         private WorkspaceResult GetWorkspaceResultFromReader(DbDataReader reader)
@@ -1288,7 +1293,8 @@ namespace Fetcho.Common
                 PageSize = reader.GetInt64(6),
                 GlobalSequence = reader.GetInt64(7),
                 DataHash = reader.IsDBNull(9) ? "" : reader.GetMD5Hash(9).ToString(),
-                DebugInfo = IsNull(reader, 11, "")
+                Features = reader.IsDBNull(11) ? new string[0] : (string[])reader.GetValue(11),
+                SourceServerId = reader.GetGuid(12)
             };
 
             if (!reader.IsDBNull(8))
@@ -1312,13 +1318,14 @@ namespace Fetcho.Common
               "       updated = :updated, " +
               "       tags = :tags, " +
               "       datahash = :datahash, " +
-              "       debug_info = :debug_info " +
+              "       features = :features, " +
+              "       source_server_id = :source_server_id "+
               "where  urihash = :urihash and " +
               "       workspace_id = :workspace_id;";
 
             string insertSql = "set client_encoding='UTF8'; " +
-                "insert into \"WorkspaceResult\" ( urihash, uri, referer, title, description, created, updated, workspace_id, page_size, tags, datahash, debug_info) " +
-                "values ( :urihash, :uri, :referer, :title, :description, :created, :updated, :workspace_id, :page_size, :tags, :datahash, :debug_info );";
+                "insert into \"WorkspaceResult\" ( urihash, uri, referer, title, description, created, updated, workspace_id, page_size, tags, datahash, features, source_server_id) " +
+                "values ( :urihash, :uri, :referer, :title, :description, :created, :updated, :workspace_id, :page_size, :tags, :datahash, :features, :source_server_id );";
 
             foreach (var result in results)
             {
@@ -1348,7 +1355,8 @@ namespace Fetcho.Common
             cmd.Parameters.Add(new NpgsqlParameter<long>("page_size", result.PageSize ?? 0));
             cmd.Parameters.Add(new NpgsqlParameter<string>("tags", result.GetTagString()));
             cmd.Parameters.Add(new NpgsqlParameter<byte[]>("datahash", new MD5Hash(result.DataHash).Values));
-            cmd.Parameters.Add(new NpgsqlParameter<string>("debug_info", result.DebugInfo));
+            cmd.Parameters.Add(new NpgsqlParameter<string[]>("features", result.Features));
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("source_server_id", result.SourceServerId));
             cmd.Prepare();
         }
 
@@ -1463,7 +1471,7 @@ namespace Fetcho.Common
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 var l = new List<ServerNode>();
-                while ( reader.Read())
+                while (reader.Read())
                 {
 
                     var r = new ServerNode
@@ -1486,40 +1494,6 @@ namespace Fetcho.Common
         {
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
             await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-
-        void SetBinaryParameter(NpgsqlCommand cmd, string parameterName, object value)
-        {
-            if (value != null)
-                using (var ms = new MemoryStream(1000))
-                {
-                    formatter.Serialize(ms, value);
-                    cmd.Parameters.AddWithValue(parameterName, ms.GetBuffer());
-                }
-            else
-                cmd.Parameters.AddWithValue(parameterName, DBNull.Value);
-
-        }
-
-        /// <summary>
-        /// Where an object is stored in the DB - deserialize
-        /// </summary>
-        /// <typeparam name="T">The class type to deserialize</typeparam>
-        /// <param name="dataReader"></param>
-        /// <param name="ordinal"></param>
-        /// <returns></returns>
-        T DeserializeField<T>(DbDataReader dataReader, int ordinal) where T : class
-        {
-            if (dataReader.IsDBNull(ordinal)) return null;
-
-            byte[] buffer = (byte[])dataReader.GetValue(ordinal);
-
-            using (var ms = new MemoryStream(buffer))
-            {
-                var o = formatter.Deserialize(ms) as T;
-                if (o == null) throw new FetchoException(string.Format("Deserialization to {0} failed", typeof(T)));
-                return o;
-            }
         }
 
         T IsNull<T>(DbDataReader dataReader, int ordinal, T defaultValue)

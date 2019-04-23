@@ -93,8 +93,10 @@ namespace Fetcho
 
         static IEnumerable<Type> GetWebDataPacketConsumerTypes()
         {
-            var types = typeof(Program).Assembly.GetTypes().
-                        Where(t => t.IsSubclassOf(typeof(WebDataPacketConsumer)));
+            var types = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(assembly => !assembly.IsDynamic)
+                .SelectMany(assembly => assembly.GetExportedTypes())
+                .Where(type => type.IsSubclassOf(typeof(WebDataPacketConsumer)));
             return types;
         }
 

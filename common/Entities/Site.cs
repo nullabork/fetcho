@@ -19,11 +19,17 @@ namespace Fetcho.Common.Entities
 
         public bool RobotsNeedsVisiting { get => DateTime.UtcNow > NextRobotsFetch;  }
 
+        public bool UsesEncryption { get; set; }
+
+        public bool UsesCompression { get; set; }
+
         public Site()
         {
             LastRobotsFetched = null;
             IsBlocked = false;
             HostName = String.Empty;
+            UsesCompression = false;
+            UsesEncryption = false;
         }
 
         public Site(Uri anyUri) : this()

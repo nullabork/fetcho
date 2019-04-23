@@ -126,15 +126,17 @@ namespace Fetcho.Common
         /// <returns></returns>
         public bool NextResource()
         {
-            while (inStream.Read())
+            bool readOk = true;
+            do
             {
                 if (inStream.Name == "resource" && inStream.NodeType == XmlNodeType.Element) break;
-            }
+                readOk = inStream.Read();
+            } while (readOk);
 
             ResourceCountSeen++;
 
             // when the packet is malformed this may not ever be true
-            return !inStream.EOF;
+            return readOk;
         }
 
         public void Dispose()

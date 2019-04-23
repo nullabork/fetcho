@@ -14,7 +14,7 @@ namespace Fetcho
     /// <summary>
     /// Used to find links that match specific queries
     /// </summary>
-    internal class QueryConsumer : WebDataPacketConsumer
+    public class QueryConsumer : WebDataPacketConsumer
     {
         /// <summary>
         /// The queries this query consumer is working on
@@ -73,7 +73,6 @@ namespace Fetcho
                             var r = qry.Value.Evaluate(result, evaluationText.ToString(), stream);
                             if (r.Action == EvaluationResultAction.Include)
                             {
-                                result.DebugInfo += String.Format("Cost: {0}\nQuery stats:{1}\n", r.Cost, qry.Value.CostDetails());
                                 postTo.Add(new PostToWorkspaceInstruction()
                                 {
                                     WorkspaceId = qry.Key,

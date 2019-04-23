@@ -29,7 +29,9 @@ namespace Fetcho.Common.Entities
 
         public string DataHash { get; set; }
 
-        public string DebugInfo { get; set; }
+        public string[] Features { get; set; }
+
+        public Guid SourceServerId { get; set; }
 
         [JsonIgnore]
         public Dictionary<string, string> RequestProperties { get; set; }
@@ -53,7 +55,8 @@ namespace Fetcho.Common.Entities
             RefererUri = String.Empty;
             UriHash = String.Empty;
             DataHash = String.Empty;
-            DebugInfo = String.Empty;
+            Features = new string[0];
+            SourceServerId = Guid.Empty;
 
             RequestProperties = new Dictionary<string, string>();
             ResponseProperties = new Dictionary<string, string>();

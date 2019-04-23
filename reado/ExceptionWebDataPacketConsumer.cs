@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace Fetcho
 {
 
-    internal class ExceptionWebDataPacketConsumer : WebDataPacketConsumer
+    public class ExceptionWebDataPacketConsumer : WebDataPacketConsumer
     {
         public Uri CurrentUri;
 

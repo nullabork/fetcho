@@ -6,9 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Fetcho
+namespace Fetcho.Common
 {
-    internal class PacketInfoConsumer : WebDataPacketConsumer
+    public class PacketInfoConsumer : WebDataPacketConsumer
     {
         public Uri CurrentUri;
         public ContentType ContentType;
@@ -43,6 +43,7 @@ namespace Fetcho
 
         public PacketInfoConsumer(params string[] args)
         {
+            if (args == null) args = new string[0];
             Summarise = true;
             if (args.Any(x => x == "--all"))
                 Summarise = false;

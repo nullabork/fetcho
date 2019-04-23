@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Fetcho
 {
-    internal class ExtractKeywordsConsumer : WebDataPacketConsumer
+    public class ExtractKeywordsConsumer : WebDataPacketConsumer
     {
         private FastLookupCache<string> cache = new FastLookupCache<string>(10000);
 

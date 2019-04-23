@@ -69,6 +69,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 Type = f.GetType().Name,
                 Cost = f.Cost,
                 FilterText = f.GetQueryText(),
+                Mode = f.FilterMode,
                 RequiresResultInput = f.RequiresResultInput,
                 RequiresTextInput = f.RequiresTextInput,
                 RequiresStreamInput = f.RequiresStreamInput,
@@ -116,23 +117,6 @@ namespace Fetcho.FetchoAPI.Controllers
 
             return r;
         }
-    }
-
-    public class QueryParserResponseFilterInfo
-    {
-        public string Type { get; set; }
-
-        public decimal Cost { get; set; }
-
-        public string FilterText { get; set; }
-
-        public bool RequiresResultInput { get; set; }
-
-        public bool RequiresTextInput { get; set; }
-
-        public bool RequiresStreamInput { get; set; }
-
-        public QueryParserResponse SubQueryDetails { get; set; }
     }
 
 }

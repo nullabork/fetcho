@@ -135,7 +135,7 @@ namespace Fetcho
             }
         }
 
-        void Shutdown() => Running = false;
+        public void Shutdown() => Running = false;
 
         void CacheUri(QueueItem item)
             => lookupCache.Enqueue(item.TargetUri);
@@ -191,7 +191,7 @@ namespace Fetcho
                         await AddToBuffer(item).ConfigureAwait(false);
                 }
 
-                if (outbuffer.Count >= 1000)
+                if (outbuffer.Count >= 10000)
                     await SendBufferToRejects().ConfigureAwait(false);
 
             }
