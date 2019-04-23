@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
@@ -7,12 +8,14 @@ namespace Fetcho.Common
     /// <summary>
     /// Represents a range between two hashes and allows matehmatical operations to be performed on it
     /// </summary>
-    public class HashRange
+    public sealed class HashRange : IEquatable<HashRange>
     {
-        public MD5Hash MinHash { get; set; }
-        public MD5Hash MaxHash { get; set; }
+        public MD5Hash MinHash { get; private set; }
+        public MD5Hash MaxHash { get; private set; }
 
         public bool IsValid { get => MinHash < MaxHash; }
+
+        public bool IsMaximum { get => this.Equals(Largest); }
 
         public decimal CoverageRatio { get => GetCoverageRatio(this); }
 
@@ -26,7 +29,28 @@ namespace Fetcho.Common
 
         public bool Contains(MD5Hash hash) => Contains(this, hash);
 
-        public override string ToString() => string.Format("{0} to {1}", MinHash, MaxHash);
+        public bool Equals(HashRange other)
+        {
+            if (other == null) return false;
+            return other.MinHash == MinHash && other.MaxHash == MaxHash;
+        }
+
+        public override bool Equals(object obj)
+            => ReferenceEquals(obj, this) || Equals(obj as HashRange);
+
+        public override string ToString()
+            => string.Format("{0} to {1}", MinHash, MaxHash);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = 551915300;
+                hashCode = hashCode * -1521134295 + EqualityComparer<MD5Hash>.Default.GetHashCode(MinHash);
+                hashCode = hashCode * -1521134295 + EqualityComparer<MD5Hash>.Default.GetHashCode(MaxHash);
+                return hashCode;
+            }
+        }
 
         public static decimal[] GetEqualPercentages(int count)
         {
@@ -104,8 +128,21 @@ namespace Fetcho.Common
         {
             if (range == null) throw new ArgumentNullException("range");
             if (hash == null) throw new ArgumentNullException("hash");
+            if (range.IsMaximum) return true;
 
             return range.MinHash <= hash && range.MaxHash >= hash;
         }
+
+        public static bool operator ==(HashRange lhs, HashRange rhs)
+        {
+            if (ReferenceEquals(lhs, rhs))
+                return true;
+            return ReferenceEquals(lhs, null) || ReferenceEquals(rhs, null) ? false : lhs.Equals(rhs);
+        }
+
+        public static bool operator !=(HashRange left, HashRange right)
+            => !(left == right);
+
+        public static HashRange Largest = new HashRange(MD5Hash.MinValue, MD5Hash.MaxValue);
     }
 }

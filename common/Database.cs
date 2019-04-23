@@ -1274,18 +1274,9 @@ namespace Fetcho.Common
 
         private WorkspaceResult GetWorkspaceResultFromReader(DbDataReader reader)
         {
-            byte[] urihash = new byte[MD5Hash.ExpectedByteLength];
-            byte[] datahash = new byte[MD5Hash.ExpectedByteLength];
-
-            reader.GetBytes(0, 0, urihash, 0, MD5Hash.ExpectedByteLength);
-            if (!reader.IsDBNull(9))
-                reader.GetBytes(9, 0, datahash, 0, MD5Hash.ExpectedByteLength);
-
-            var h = new MD5Hash(datahash);
-
             var r = new WorkspaceResult()
             {
-                UriHash = new MD5Hash(urihash).ToString(),
+                UriHash = reader.GetMD5Hash(0).ToString(),
                 Uri = reader.GetString(1),
                 RefererUri = IsNull(reader, 2, ""),
                 Title = IsNull(reader, 3, ""),
@@ -1294,7 +1285,7 @@ namespace Fetcho.Common
                 Updated = IsNull(reader, 10, DateTime.UtcNow),
                 PageSize = reader.GetInt64(6),
                 GlobalSequence = reader.GetInt64(7),
-                DataHash = h == MD5Hash.Empty ? "" : h.ToString(),
+                DataHash = reader.IsDBNull(9) ? "" : reader.GetMD5Hash(9).ToString(),
                 DebugInfo = IsNull(reader, 11, "")
             };
 
@@ -1411,6 +1402,82 @@ namespace Fetcho.Common
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Create or update a server node in the DB
+        /// </summary>
+        /// <param name="serverNode"></param>
+        /// <returns></returns>
+        public async Task<int> SaveServerNode(ServerNode serverNode)
+        {
+            string updateSql = "set client_encoding='UTF8'; update \"Server\" " +
+              "set    name = :name, " +
+              "       min_hash = :min_hash, " +
+              "       max_hash = :max_hash, " +
+              "       approved = :approved, " +
+              "       created = :created " +
+              "where  server_id = :server_id;";
+
+            string insertSql = "set client_encoding='UTF8'; " +
+                "insert into \"Server\" ( server_id, name, min_hash, max_hash, approved, created) " +
+                "values ( :server_id, :name, :min_hash, :max_hash, :approved, :created);";
+
+            NpgsqlCommand cmd = await SetupCommand(updateSql).ConfigureAwait(false);
+            _saveServerNodeSetParams(cmd, serverNode);
+            int count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (count == 0) // no record to update
+            {
+                cmd = await SetupCommand(insertSql).ConfigureAwait(false);
+                _saveServerNodeSetParams(cmd, serverNode);
+                count = await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+            return count;
+        }
+
+        private void _saveServerNodeSetParams(NpgsqlCommand cmd, ServerNode serverNode)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter<Guid>("server_id", serverNode.ServerId));
+            cmd.Parameters.Add(new NpgsqlParameter<string>("name", serverNode.Name));
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("min_hash", serverNode.UriHashRange.MinHash.Values));
+            cmd.Parameters.Add(new NpgsqlParameter<byte[]>("max_hash", serverNode.UriHashRange.MaxHash.Values));
+            cmd.Parameters.Add(new NpgsqlParameter<bool>("approved", serverNode.IsApproved));
+            cmd.Parameters.Add(new NpgsqlParameter<DateTime>("created", serverNode.Created));
+        }
+
+        public async Task<IEnumerable<ServerNode>> GetServerNodes(string name)
+        {
+            string sql = "select server_id, name, min_hash, max_hash, approved, created from \"Server\" ";
+
+            if (!String.IsNullOrWhiteSpace(name))
+                sql += "where name = :name";
+
+            NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
+
+            if (!String.IsNullOrWhiteSpace(name))
+                cmd.Parameters.Add(new NpgsqlParameter<string>("name", name));
+
+            using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                var l = new List<ServerNode>();
+                while ( reader.Read())
+                {
+
+                    var r = new ServerNode
+                    {
+                        ServerId = reader.GetGuid(0),
+                        Name = reader.GetString(1),
+                        UriHashRange = new HashRange(reader.GetMD5Hash(2), reader.GetMD5Hash(3)),
+                        IsApproved = reader.GetBoolean(4),
+                        Created = reader.GetDateTime(5)
+                    };
+
+                    l.Add(r);
+                }
+                return l;
+            }
+
         }
 
         async Task ExecuteSqlAgainstConnection(string sql)

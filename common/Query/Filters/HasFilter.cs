@@ -27,6 +27,7 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
+            if (result == null) return EmptySet;
             if (result.PropertyCache.ContainsKey(PropertyName))
             {
                 var o = result.PropertyCache[PropertyName];

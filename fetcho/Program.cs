@@ -1,4 +1,6 @@
 ﻿using Fetcho.Common;
+using Fetcho.Common.Entities;
+using Fetcho.Common.Net;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -41,7 +43,7 @@ namespace Fetcho
             DatabasePool.Initialise();
 
             // configure fetcho
-            var cfg = SetupConfiguration(paths);
+            await SetupConfiguration(paths);
 
             // buffers to connect the seperate tasks together
             BufferBlock<IEnumerable<QueueItem>> prioritisationBuffer = CreateBufferBlock(DefaultBufferBlockLimit);
@@ -80,7 +82,7 @@ namespace Fetcho
 
         private static void Usage()
         {
-            Console.WriteLine("fetcho path start_index");
+            Console.WriteLine("fetcho paths start_index");
         }
 
         private static BufferBlock<IEnumerable<QueueItem>> CreateBufferBlock(int boundedCapacity) =>
@@ -96,7 +98,7 @@ namespace Fetcho
             if (!FetchoConfiguration.Current.DataSourcePaths.Any())
                 throw new FetchoException("No output data file paths are set");
 
-            foreach ( var path in FetchoConfiguration.Current.DataSourcePaths)
+            foreach (var path in FetchoConfiguration.Current.DataSourcePaths)
             {
                 var packet = CreateNewDataPacketWriter(path);
                 pool.SendAsync(packet).GetAwaiter().GetResult();
@@ -120,7 +122,7 @@ namespace Fetcho
             }
         }
 
-        private static FetchoConfiguration SetupConfiguration(string paths)
+        private static async Task<FetchoConfiguration> SetupConfiguration(string paths)
         {
             var cfg = new FetchoConfiguration();
             FetchoConfiguration.Current = cfg;
@@ -138,8 +140,21 @@ namespace Fetcho
                                             e.OldValue,
                                             e.NewValue
                                         );
+            // get or create a server node with the master
+            await GetOrCreateServerNode(cfg);
 
             return cfg;
+        }
+
+        private static async Task GetOrCreateServerNode(FetchoConfiguration cfg)
+        {
+            if (cfg.FetchoWorkspaceServerBaseUri.Length == 0) return;
+
+            var fetchoClient = new FetchoAPIV1Client(new Uri(cfg.FetchoWorkspaceServerBaseUri));
+
+            cfg.CurrentServerNode = await fetchoClient.GetServerNodeAsync(Environment.MachineName);
+            if (cfg.CurrentServerNode == null)
+                cfg.CurrentServerNode = await fetchoClient.CreateServerNodeAsync(new ServerNode());
         }
 
     }

@@ -228,12 +228,14 @@
     <Compile Include="Entities\FilterHelpInfo.cs" />
     <Compile Include="Entities\InvalidObjectFetchoException.cs" />
     <Compile Include="Entities\IWebResource.cs" />
+    <Compile Include="Entities\ServerNode.cs" />
     <Compile Include="Entities\Workspace.cs" />
     <Compile Include="Entities\WorkspaceAccessPermissions.cs" />
     <Compile Include="Entities\WorkspaceQueryStats.cs" />
     <Compile Include="Entities\WorkspaceResult.cs" />
     <Compile Include="Entities\WorkspaceResultSocialFormat.cs" />
     <Compile Include="Entities\WorkspaceResultTransform.cs" />
+    <Compile Include="Entities\WorkspaceResultTransformAction.cs" />
     <Compile Include="ExceptionClassifier.cs" />
     <Compile Include="FastLookupCache.cs" />
     <Compile Include="FetchoConfiguration.cs" />

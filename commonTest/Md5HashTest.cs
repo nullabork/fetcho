@@ -8,8 +8,10 @@ namespace Fetcho.Common.Tests
 	  [TestMethod]
 	  public void EqualsTest()
 	  {
-	    Assert.IsTrue(MD5Hash.MinValue == MD5Hash.MinValue );
-	    Assert.IsTrue(new MD5Hash("12345678123456781234567812345678") == new MD5Hash("12345678123456781234567812345678") );
+#pragma warning disable CS1718 // Comparison made to same variable
+            Assert.IsTrue(MD5Hash.MinValue == MD5Hash.MinValue );
+#pragma warning restore CS1718 // Comparison made to same variable
+            Assert.IsTrue(new MD5Hash("12345678123456781234567812345678") == new MD5Hash("12345678123456781234567812345678") );
 	  }
 	  
 	  [TestMethod]

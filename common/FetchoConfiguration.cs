@@ -1,4 +1,5 @@
 ﻿using Fetcho.Common.Configuration;
+using Fetcho.Common.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
@@ -124,6 +125,8 @@ namespace Fetcho.Common
 
         [ConfigurationSetting(1000000)]
         public int QueryBudgetForAverageQueryCost { get; private set; }
+
+        public ServerNode CurrentServerNode { get; set; }
 
         public IBlockProvider BlockProvider { get; set; }
 

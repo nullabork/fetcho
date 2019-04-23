@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ namespace Fetcho.Common.Net
         private const string AccountsEndPoint = BaseEndpoint + "/accounts";
         private const string WorkspaceEndPoint = BaseEndpoint + "/workspaces";
         private const string ResourcesEndPoint = BaseEndpoint + "/resources";
+        private const string ServersEndPoint = BaseEndpoint + "/servers";
 
         private HttpClient client = new HttpClient();
 
@@ -169,6 +171,28 @@ namespace Fetcho.Common.Net
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<Account>();
+        }
+
+        #endregion
+
+        #region server nodes
+
+        public async Task<ServerNode[]> GetServerNodesAsync(string serverName = "")
+        {
+            string path = String.Format("{0}?name={1}", ServersEndPoint, serverName);
+            var response = await client.GetAsync(path);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsAsync<ServerNode[]>();
+        }
+
+        public async Task<ServerNode> GetServerNodeAsync(string serverName)
+            => (await GetServerNodesAsync(serverName)).FirstOrDefault();
+
+        public async Task<ServerNode> CreateServerNodeAsync(ServerNode serverNode)
+        {
+            var response = await client.PostAsJsonAsync(ServersEndPoint, serverNode);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsAsync<ServerNode>();
         }
 
         #endregion

@@ -101,6 +101,7 @@ namespace Fetcho.Common
                 BadNetwork ||
                 ChunkSequenceTooHigh ||
                 IPSeenRecently ||
+                NotInServerScope ||
                 IsBlockedByDomain;
         }
 
@@ -118,6 +119,11 @@ namespace Fetcho.Common
         /// The URL is malformed for some reason
         /// </summary>
         public bool MalformedUrl { get; set; }
+
+        /// <summary>
+        /// If this server is not processing UriHashes in this range
+        /// </summary>
+        public bool NotInServerScope { get; set; }
 
         /// <summary>
         /// The priority is not high enough to fetch
@@ -183,6 +189,7 @@ namespace Fetcho.Common
                 if (VisitedRecently) code += 'V';
                 if (IPSeenRecently) code += 'I';
                 if (ChunkSequenceTooHigh) code += 'C';
+                if (NotInServerScope) code += 'S';
 
                 return code;
             }
@@ -199,6 +206,7 @@ namespace Fetcho.Common
                 VisitedRecently = value.Contains("V");
                 IPSeenRecently = value.Contains("I");
                 ChunkSequenceTooHigh = value.Contains("C");
+                NotInServerScope = value.Contains("S");
             }
         }
 

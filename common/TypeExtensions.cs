@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -267,7 +268,18 @@ namespace Fetcho.Common
             if (!EqualityComparer<T>.Default.Equals(item, default(T)))
                 list.Add(item);
         }
+
+        public static MD5Hash GetMD5Hash(this DbDataReader dataReader, int ordinal)
+        {
+            byte[] buffer = new byte[MD5Hash.ExpectedByteLength];
+            if (dataReader.GetBytes(ordinal, 0, buffer, 0, buffer.Length) < MD5Hash.ExpectedByteLength)
+                throw new ArgumentException("Failed to read the correct number of bytes for a MD5Hash");
+
+            return new MD5Hash(buffer);
+        }
+
+
     }
 
-    
+
 }

@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using System;
+using System.IO;
+using System.Linq;
+using Fetcho.ContentReaders;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Fetcho.Common.Tests
@@ -25,6 +28,26 @@ namespace Fetcho.Common.Tests
 
             var eval = f.IsMatch(null, "Test", null);
             Assert.IsTrue(eval.Any());
+        }
+
+        [TestMethod]
+        public void RegexSlowTest()
+        {
+            const string RegexSlowTestFilePath = @"testdata\FilterTest\RegexSlowTest.html";
+            const string ExampleToken = @"regex:(\s*\w*\s*){2,6}\scoffee\s(\s*\w*\s*){2,6}:(\s*\w*\s*){2,6}\scoffee\s(\s*\w*\s*){2,6}";
+            var f = Filter.CreateFilter(ExampleToken, 0);
+
+            Assert.IsInstanceOfType(f, typeof(RegexFilter));
+
+            var regex = f as RegexFilter;
+            Assert.IsTrue(regex.RegexPattern == ExampleToken.Substring(6));
+
+            var fragment = BracketPipeTextExtractor.ReadAllText(File.Open(RegexSlowTestFilePath, FileMode.Open));
+            var tags = regex.IsMatch(null, fragment.Aggregate("", (x, y) => x + " " + y), null);
+
+            foreach (var tag in tags) 
+                Console.WriteLine(tags);
+
         }
 
     }

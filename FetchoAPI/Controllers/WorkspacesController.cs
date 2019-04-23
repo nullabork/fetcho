@@ -859,7 +859,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 using (var db = new Database())
                 {
                     await db.AddWorkspaceQueryStats(stats);
-                    if (DateTime.Now.Millisecond % 1000 == 0)
+                    if (DateTime.Now.Millisecond % 10 == 0)
                         await db.UpdateWorkspaceStatistics();
                     return CreateNoContentResponse();
                 }
@@ -991,7 +991,7 @@ namespace Fetcho.FetchoAPI.Controllers
 
         #endregion
 
-        #region
+        #region parsers
 
         [Route("api/v1/parser/query")]
         [HttpPost()]
@@ -1015,6 +1015,51 @@ namespace Fetcho.FetchoAPI.Controllers
 
         #endregion
 
+        #region server nodes
+
+        [Route("api/v1/servers")]
+        [HttpGet()]
+        public async Task<HttpResponseMessage> GetServerNodes(string name = "")
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    var servers = await db.GetServerNodes(name);
+
+                    return CreateOKResponse(servers);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+        [Route("api/v1/servers")]
+        [HttpPost()]
+        public async Task<HttpResponseMessage> CreateServerNode([FromBody]ServerNode serverNode)
+        {
+            try
+            {
+                using (var db = new Database())
+                {
+                    await ThrowIfServerNodeAlreadyRegistered(db, serverNode);
+
+                    await db.SaveServerNode(serverNode);
+
+                    return CreateOKResponse(serverNode);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateExceptionResponse(ex);
+            }
+        }
+
+
+        #endregion
+
         #region helper methods
 
         /// <summary>
@@ -1025,11 +1070,15 @@ namespace Fetcho.FetchoAPI.Controllers
         private string BuildSqlOrderByStringFromQueryStringOrderString(string order)
             => order.Replace(':', ' ');
 
+        private async Task ThrowIfServerNodeAlreadyRegistered(Database db, ServerNode serverNode)
+        {
+            if ((await db.GetServerNodes(serverNode.Name)).Count() > 0)
+                throw new FetchoException("{0} server node is already registered", serverNode.Name);
+        }
+
         /// <summary>
         /// Test that the GUID and workspace match - throw if not
         /// </summary>
-        /// <param name="workspace"></param>
-        /// <param name="guid"></param>
         private void TestWorkspaceAndGuidMatch(Workspace workspace, Guid guid)
         {
             if (workspace.WorkspaceId != guid)

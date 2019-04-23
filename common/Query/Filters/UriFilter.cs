@@ -24,7 +24,10 @@ namespace Fetcho.Common
             => string.Format("uri:{0}", SearchText);
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
-            => result.Uri.Contains(SearchText) ? new string[1] { Utility.MakeTag(result.Uri) } : EmptySet;
+        {
+            if (result == null) return EmptySet;
+            return result.Uri.Contains(SearchText) ? new string[1] { Utility.MakeTag(result.Uri) } : EmptySet;
+        }
 
         /// <summary>
         /// Parse some text to create this object

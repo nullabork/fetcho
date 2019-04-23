@@ -156,9 +156,14 @@ namespace Fetcho
                     item.IsBlockedByDomain = IsDomainInALanguageICantRead(item);
                     item.IsProbablyBlocked = IsUriProbablyBlocked(item);
                     item.MalformedUrl = item.MalformedUrl || IsMalformedHost(item);
+                    item.NotInServerScope = NotInServerScope(item);
 
                     // cut the cost of this by 99% basically if these things are true
-                    if (!item.IsBlockedByDomain && !item.UnsupportedUri && !item.IsProbablyBlocked && !item.MalformedUrl)
+                    if (!item.IsBlockedByDomain &&
+                        !item.UnsupportedUri &&
+                        !item.IsProbablyBlocked &&
+                        !item.MalformedUrl &&
+                        !item.NotInServerScope)
                     {
                         item.TargetIP = await Utility.GetHostIPAddress(item.TargetUri);
                     }
@@ -171,6 +176,7 @@ namespace Fetcho
                                                                          !item.UnsupportedUri &&
                                                                          !item.IsProbablyBlocked &&
                                                                          !item.MalformedUrl &&
+                                                                         !item.NotInServerScope &&
                                                                          !IsBadIP(item.TargetIP) &&
                                                                          !HasIPBeenSeenRecently(item)));
                 foreach (var item in visitThese)
@@ -230,14 +236,24 @@ namespace Fetcho
             outbuffer.Clear();
         }
 
-        bool RejectItemEarly(QueueItem item) =>
-            (item.IsBlockedByDomain ||
+        bool RejectItemEarly(QueueItem item)
+            => (item.IsBlockedByDomain ||
             item.IsProbablyBlocked ||
             item.UnsupportedUri ||
             item.MalformedUrl ||
             IsBadIP(item.TargetIP) ||
+            item.NotInServerScope ||
             HasIPBeenSeenRecently(item)) && item.CanBeDiscarded;
 
+        /// <summary>
+        /// Checks if this item is within the hashrange of this server
+        /// </summary>
+        bool NotInServerScope(QueueItem item) =>
+            !FetchoConfiguration.Current.CurrentServerNode.UriHashRange.Contains(item.TargetUriHash);
+
+        /// <summary>
+        /// Wierd rules and things that just need to be thrown out
+        /// </summary>
         bool IsMalformedHost(QueueItem item) =>
             item.TargetUri.Host.StartsWith("0."); // wierd!
 
@@ -257,14 +273,11 @@ namespace Fetcho
         /// <summary>
         /// Returns true if theres no resource fetcher for the type of URL
         /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
         bool CantDownloadItYet(QueueItem item) => !ResourceFetcher.HasHandler(item.TargetUri);
 
         /// <summary>
         /// Detects URIs that are probably blocked before we attempt to download them
         /// </summary>
-        /// <param name="item"></param>
         /// <returns>True if the item is likely to be for an item blocked by the default block provider</returns>
         bool IsUriProbablyBlocked(QueueItem item) =>
             item == null ||
@@ -274,7 +287,6 @@ namespace Fetcho
         /// <summary>
         /// Block things I can't read
         /// </summary>
-        /// <param name="item"></param>
         /// <returns>True if the queue item is probably for a site I can't read the language of</returns>
         bool IsDomainInALanguageICantRead(QueueItem item) =>
             item == null ||

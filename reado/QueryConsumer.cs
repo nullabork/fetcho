@@ -109,6 +109,7 @@ namespace Fetcho
                 if (++ResourcesSeen % 1000 == 0)
                 {
                     await SetupQueries(fetchoClient);
+                    await PostQueryStatsToMaster(fetchoClient);
                     ReportStatus();
                 }
             }
@@ -135,7 +136,7 @@ namespace Fetcho
                 Console.WriteLine("{0,-4} {1, -10} {2,-10} {3,-11} {4,-10} {5,-10} {6,-10} {7,-10} {8}",
                     query.AvgCost > FetchoConfiguration.Current.QueryBudgetForAverageQueryCost ? "COST" : "OK  ",
                     query.MaxCost, query.AvgCost, query.TotalCost, query.NumberOfEvaluations,
-                    query.NumberOfInclusions, query.NumberOfExclusions, query.NumberOfTags, query.ToString().ReduceWhitespace().Truncate(160));
+                    query.NumberOfInclusions, query.NumberOfExclusions, query.NumberOfTags, query.ToString().ReduceWhitespace().Truncate(150));
             }
         }
 

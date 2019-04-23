@@ -1,9 +1,12 @@
 using Fetcho.Common;
+using Fetcho.Common.Entities;
+using Fetcho.Common.Net;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Fetcho
 {
@@ -30,7 +33,7 @@ namespace Fetcho
             ThrowIfAppSettingIsNotSet("FetchoWorkspaceServerBaseUri");
             ThrowIfAppSettingIsNotSet("DataSourcePaths");
             ThrowIfAppSettingIsNotSet("MLModelPath");
-            SetupConfiguration();
+            SetupConfiguration().GetAwaiter().GetResult();
 
             if (args.Length < 2 || args[0] == "--help")
                 OutputHelp();
@@ -118,7 +121,7 @@ namespace Fetcho
                 Console.WriteLine("{0}", type.Name);
         }
 
-        static FetchoConfiguration SetupConfiguration()
+        static async Task<FetchoConfiguration> SetupConfiguration()
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             log4net.Config.XmlConfigurator.Configure();
@@ -139,7 +142,21 @@ namespace Fetcho
                 ConfigurationManager.AppSettings["MLModelPath"]
                 );
 
+            await GetOrCreateServerNode(cfg);
+
             return cfg;
         }
+
+        static async Task GetOrCreateServerNode(FetchoConfiguration cfg)
+        {
+            if (cfg.FetchoWorkspaceServerBaseUri.Length == 0) return;
+
+            var fetchoClient = new FetchoAPIV1Client(new Uri(cfg.FetchoWorkspaceServerBaseUri));
+
+            cfg.CurrentServerNode = await fetchoClient.GetServerNodeAsync(Environment.MachineName);
+            if (cfg.CurrentServerNode == null)
+                cfg.CurrentServerNode = await fetchoClient.CreateServerNodeAsync(new ServerNode());
+        }
+
     }
 }

@@ -50,5 +50,36 @@ namespace Fetcho.Common.Tests
                           ranges[1].MinHash + " " + ranges[1].MaxHash);
 
         }
+
+        [TestMethod]
+        public void ContainsTest()
+        {
+            var range = new HashRange(MD5Hash.MinValue, MD5Hash.MaxValue);
+            var ranges = HashRange.SegmentRange(range, new decimal[] { 0.50m, 0.50m });
+
+            var start1 = new MD5Hash("00000000000000000000000000000000");
+            var start2 = new MD5Hash("80000000000000000000000000000000");
+            var end1 = new MD5Hash("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+            var end2 = new MD5Hash("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+
+            Assert.IsTrue(ranges.Length == 2);
+            Assert.IsTrue(ranges[0].Contains(start1));
+            Assert.IsTrue(ranges[0].Contains(end1));
+            Assert.IsTrue(ranges[1].Contains(start2));
+            Assert.IsTrue(ranges[1].Contains(end2));
+
+            Assert.IsFalse(ranges[0].Contains(start2));
+            Assert.IsFalse(ranges[0].Contains(end2));
+            Assert.IsFalse(ranges[1].Contains(start1));
+            Assert.IsFalse(ranges[1].Contains(end1));
+
+            Assert.IsTrue(start1 < end1);
+            Assert.IsTrue(end1 < start2);
+            Assert.IsTrue(start2 < end2);
+
+            Assert.IsFalse(start1 > end1);
+            Assert.IsFalse(end1 > start2);
+            Assert.IsFalse(start2 > end2);
+        }
     }
 }
