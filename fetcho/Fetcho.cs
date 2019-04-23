@@ -42,6 +42,8 @@ namespace Fetcho
 
         public int TotalPagesPerMinute { get => (int)Uptime.TotalMinutes == 0 ? 0 : CompletedFetches / (int)Uptime.TotalMinutes; }
 
+        private FetchQueue FetchQueue { get; set; }
+
         public Fetcho(
             ISourceBlock<IEnumerable<QueueItem>> fetchQueueIn,
             ITargetBlock<IEnumerable<QueueItem>> requeueOut,
@@ -54,6 +56,7 @@ namespace Fetcho
             DataWritersPool = dataWritersPool;
             fetchLock = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentFetches);
             FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
+            FetchQueue = new FetchQueue();
         }
 
         public void Shutdown() => Running = false;
@@ -68,14 +71,20 @@ namespace Fetcho
                 VisitedURIsRecorder = await CreateBlockToRecordVisitedURIs();
 
                 log.Info("Fetcho.Process() queue items started");
-                var u = await NextQueueItem();
 
                 while (Running)
                 {
                     while (!await fetchLock.WaitAsync(FetchoConfiguration.Current.TaskStartupWaitTimeInMilliseconds))
                         log.Debug("Waiting for a fetchLock");
 
-                    u = await CreateTaskToCrawlIPAddress(u);
+                    var items = await FetchQueueIn.ReceiveAsync().ConfigureAwait(false);
+
+                    // chunk everything by TargetIP
+                    foreach (var chunk in items.Where( x => x != null && x.TargetIP != null).GroupBy(item => item.TargetIP))
+                    {
+                        // queue each chunk
+                        await FetchQueue.Enqueue(chunk);
+                    }
                 }
 
                 // wait for all the tasks to finish before shutting down
@@ -93,67 +102,32 @@ namespace Fetcho
         }
 
         /// <summary>
-        /// Get the next item off the queue
-        /// </summary>
-        /// <returns></returns>
-        private async Task<QueueItem> NextQueueItem()
-        {
-            while (queueItemEnum == null || !queueItemEnum.MoveNext())
-            {
-                queueItemEnum = (await FetchQueueIn.ReceiveAsync().ConfigureAwait(false)).GetEnumerator();
-            }
-
-            return queueItemEnum.Current;
-        }
-        private IEnumerator<QueueItem> queueItemEnum = null;
-
-        private async Task<QueueItem> CreateTaskToCrawlIPAddress(QueueItem item)
-        {
-            var addr = await GetQueueItemTargetIP(item);
-            var nextaddr = addr;
-
-            var l = new List<QueueItem>(10);
-
-            while (addr.Equals(nextaddr))
-            {
-                l.Add(item);
-                item = await NextQueueItem();
-
-                if (item == null)
-                    nextaddr = IPAddress.None;
-                else
-                    nextaddr = await GetQueueItemTargetIP(item);
-            }
-
-            var t = FetchChunkOfQueueItems(addr, l);
-
-            return item;
-        }
-
-        /// <summary>
         /// Fetch several queue items in series with a wait between each
         /// </summary>
-        /// <param name="hostaddr"></param>
-        /// <param name="items"></param>
-        /// <returns></returns>
-        private async Task FetchChunkOfQueueItems(IPAddress hostaddr, IEnumerable<QueueItem> items)
+        private async Task FetchItemsForIPAddress(IPAddress hostaddr)
         {
             try
             {
                 DateTime startTime = DateTime.Now;
+                QueueItem item = FetchQueue.Dequeue(hostaddr); 
 
-                foreach (var item in items)
+                do
                 {
-                    if (!Running) break; // we're shutting down
                     await FetchQueueItem(item, startTime);
                     startTime = DateTime.Now; // update to start timing for the next one
 
                     if (await FetchoConfiguration.Current.HostCache.HasHostExceedNetworkIssuesThreshold(item.TargetIP))
                     {
-                        Utility.LogInfo("Too many network issues connecting to {0}, dropping the whole chunk of {1} items", hostaddr, items.Count());
+                        Utility.LogInfo("Too many network issues connecting to {0}, dropping the whole chunk of {1} items", 
+                            hostaddr,
+                            FetchQueue.QueueCount(item.TargetIP));
+                        FetchQueue.RemoveQueue(item.TargetIP);
                         break;
                     }
+
+                    item = FetchQueue.Dequeue(hostaddr);
                 }
+                while (item != null && Running); // drop if we dont have items or we're not running
             }
             catch (Exception ex)
             {
@@ -166,6 +140,9 @@ namespace Fetcho
 
         }
 
+        /// <summary>
+        /// Fetch a single queue item
+        /// </summary>
         private async Task FetchQueueItem(QueueItem item, DateTime startTime)
         {
             try

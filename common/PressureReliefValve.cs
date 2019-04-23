@@ -1,5 +1,4 @@
-﻿using log4net;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,8 +10,6 @@ namespace Fetcho.Common
     /// <remarks>NOTE: The wait should not be infinite</remarks>
     public class PressureReliefValve<T> : IDisposable
     {
-        static readonly ILog log = LogManager.GetLogger(typeof(PressureReliefValve<T>));
-
         /// <summary>
         /// Function for the Wait action - note the wait should not be infinite
         /// </summary>
