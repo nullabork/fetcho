@@ -74,16 +74,22 @@ namespace Fetcho
 
                 while (Running)
                 {
-                    while (!await fetchLock.WaitAsync(FetchoConfiguration.Current.TaskStartupWaitTimeInMilliseconds))
-                        log.Debug("Waiting for a fetchLock");
-
                     var items = await FetchQueueIn.ReceiveAsync().ConfigureAwait(false);
 
-                    // chunk everything by TargetIP
+                    // chunk everything by TargetIP, throw out any bogus stuff
                     foreach (var chunk in items.Where( x => x != null && x.TargetIP != null).GroupBy(item => item.TargetIP))
                     {
-                        // queue each chunk
-                        await FetchQueue.Enqueue(chunk);
+                        // queue each chunk, setup a task
+                        var hostaddr = chunk.First().TargetIP;
+
+                        // if we create a new queue, setup a task to fetch it
+                        if ( await FetchQueue.Enqueue(chunk)) 
+                        {
+                            while (!await fetchLock.WaitAsync(FetchoConfiguration.Current.TaskStartupWaitTimeInMilliseconds))
+                                log.Debug("Waiting for a fetchLock");
+
+                            var u = FetchItemsForIPAddress(hostaddr);
+                        }
                     }
                 }
 
