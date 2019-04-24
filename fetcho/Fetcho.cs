@@ -112,10 +112,12 @@ namespace Fetcho
         /// </summary>
         private async Task FetchItemsForIPAddress(IPAddress hostaddr)
         {
+            //log.Debug("Creating task to fetch: " + hostaddr);
+
             try
             {
                 DateTime startTime = DateTime.Now;
-                QueueItem item = FetchQueue.Dequeue(hostaddr); 
+                QueueItem item = await FetchQueue.Dequeue(hostaddr); 
 
                 do
                 {
@@ -126,12 +128,12 @@ namespace Fetcho
                     {
                         Utility.LogInfo("Too many network issues connecting to {0}, dropping the whole chunk of {1} items", 
                             hostaddr,
-                            FetchQueue.QueueCount(item.TargetIP));
-                        FetchQueue.RemoveQueue(item.TargetIP);
+                            await FetchQueue.QueueCount(item.TargetIP));
+                        await FetchQueue.RemoveQueue(item.TargetIP);
                         break;
                     }
 
-                    item = FetchQueue.Dequeue(hostaddr);
+                    item = await FetchQueue.Dequeue(hostaddr);
                 }
                 while (item != null && Running); // drop if we dont have items or we're not running
             }
@@ -155,7 +157,7 @@ namespace Fetcho
             {
                 if (!await valve.WaitToEnter(item, item.CanBeDiscarded))
                 {
-                    log.Error(String.Format("IP congested, waited too long for access to {0}", item.TargetUri));
+                    log.Error(string.Format("IP congested, waited too long for access to {0}", item.TargetUri));
                     await SendItemsForRequeuing(new QueueItem[] { item });
                 }
                 else
@@ -195,7 +197,7 @@ namespace Fetcho
 
         private async Task WaitForFetchTimeout(DateTime startTime)
         {
-            int waitTime = (int)(DateTime.Now - startTime).TotalMilliseconds - (FetchoConfiguration.Current.MaxFetchSpeedInMilliseconds + 10);
+            int waitTime = (FetchoConfiguration.Current.MaxFetchSpeedInMilliseconds + 100) - (int)(DateTime.Now - startTime).TotalMilliseconds;
             if (waitTime > 0)
             {
                 Interlocked.Increment(ref waitingForFetchTimeout);

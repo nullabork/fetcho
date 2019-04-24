@@ -34,8 +34,8 @@ namespace Fetcho.Common
         public override string GetQueryText()
             => string.Format("{0}{1}):{2}", 
                 PropertyFilterKey, 
-                HeaderKey, 
-                String.IsNullOrWhiteSpace(SearchText) ? WildcardChar : SearchText
+                HeaderKey,
+                string.IsNullOrWhiteSpace(SearchText) ? WildcardChar : SearchText
                 );
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
@@ -46,7 +46,7 @@ namespace Fetcho.Common
 
             if (o == null) return EmptySet;
 
-            if (String.IsNullOrWhiteSpace(SearchText) || o.ToString().Contains(SearchText))
+            if (string.IsNullOrWhiteSpace(SearchText) || o.ToString().Contains(SearchText))
                 return new string[1] { Utility.MakeTag(o?.ToString()) };
             else
                 return EmptySet;
@@ -59,7 +59,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;

@@ -144,7 +144,7 @@ namespace Fetcho.Common.Entities
         {
             Action = WorkspaceResultTransformAction.None;
             Results = null;
-            QueryText = String.Empty;
+            QueryText = string.Empty;
             TargetAccessKeyId = Guid.Empty;
             Tag = "";
             Success = false;
@@ -156,7 +156,7 @@ namespace Fetcho.Common.Entities
         {
             if (transform.IsSpecificResultTransform)
             {
-                if (!transform.Results.Any(x => !String.IsNullOrWhiteSpace(x.UriHash)))
+                if (!transform.Results.Any(x => !string.IsNullOrWhiteSpace(x.UriHash)))
                     throw new InvalidObjectFetchoException("Specific result transforms require the Results property to be filled in with UriHash");
             }
 
@@ -168,13 +168,13 @@ namespace Fetcho.Common.Entities
 
             if (transform.IsByQueryTransform)
             {
-                if (String.IsNullOrWhiteSpace(transform.QueryText))
+                if (string.IsNullOrWhiteSpace(transform.QueryText))
                     throw new InvalidObjectFetchoException("QueryText is required to be passed when using a transform by query text");
             }
 
             if (transform.IsUntag || transform.IsTag)
             {
-                if (String.IsNullOrWhiteSpace(transform.Tag))
+                if (string.IsNullOrWhiteSpace(transform.Tag))
                     throw new InvalidObjectFetchoException("Tag is required to be passed when using a tagging transform");
             }
 

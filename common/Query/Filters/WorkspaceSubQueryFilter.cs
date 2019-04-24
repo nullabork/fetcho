@@ -66,7 +66,7 @@ namespace Fetcho.Common
             if (depth > SubQueryMaxDepth)
                 throw new InvalidObjectFetchoException("Sub query max depth reached");
 
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;

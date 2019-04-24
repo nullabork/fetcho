@@ -19,7 +19,7 @@ namespace Fetcho.Common
 
         public override bool RequiresTextInput { get => true; }
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(Language);
+        public override bool IsReducingFilter => !string.IsNullOrWhiteSpace(Language);
 
         public LanguageFilter(string language) : this()
             => Language = language;
@@ -37,7 +37,7 @@ namespace Fetcho.Common
             var l = detector.DetectAll(fragment).OrderByDescending(x => x.Probability).FirstOrDefault();
 
             if (l == null) return EmptySet;
-            if (String.IsNullOrWhiteSpace(Language)) return new string[] { l.Language };
+            if (string.IsNullOrWhiteSpace(Language)) return new string[] { l.Language };
             if (l.Language == Language) return new string[] { l.Language };
             return EmptySet; 
         }
@@ -49,13 +49,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string language = String.Empty;
+            string language = string.Empty;
 
             int index = queryText.IndexOf(':');
             if ( index > -1 )
             {
                 language = queryText.Substring(index + 1);
-                if (language == "*") language = String.Empty;
+                if (language == "*") language = string.Empty;
             }
 
             return new LanguageFilter(language);

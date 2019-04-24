@@ -5,6 +5,9 @@ namespace Fetcho.Common.Tests
     [TestClass]
     public class BaseTestClass
     {
-
+        public void SetupBasicConfiguration()
+        {
+            FetchoConfiguration.Current = new FetchoConfiguration();
+        }
     }
 }

@@ -20,7 +20,7 @@ namespace Fetcho.Common
 
         public KeyValuePair<string, string>[] Attributes { get; private set; }
 
-        public bool IsBlank { get => String.IsNullOrWhiteSpace(Raw); }
+        public bool IsBlank { get => string.IsNullOrWhiteSpace(Raw); }
         public bool IsTextType { get => ContentType.IsTextContentType(this); }
         public bool IsXmlType { get => ContentType.IsXmlContentType(this); }
         public bool IsBinaryType { get => ContentType.IsBinaryContentType(this); }
@@ -28,9 +28,9 @@ namespace Fetcho.Common
 
         public ContentType(string contentType)
         {
-            if (String.IsNullOrWhiteSpace(contentType)) contentType = String.Empty;
-            SubType = String.Empty;
-            MediaType = String.Empty;
+            if (string.IsNullOrWhiteSpace(contentType)) contentType = string.Empty;
+            SubType = string.Empty;
+            MediaType = string.Empty;
             Raw = contentType;
             Parse(contentType);
         }
@@ -39,7 +39,7 @@ namespace Fetcho.Common
 
         private void Parse(string contentType)
         {
-            if (contentType == String.Empty) return;
+            if (contentType == string.Empty) return;
             string[] attrs = contentType.Split(';');
 
             int index = attrs[0].IndexOf('/');
@@ -98,46 +98,50 @@ namespace Fetcho.Common
         public int Compare(ContentType x, ContentType y)
             => x.Raw.CompareTo(y);
 
-        public static bool operator ==(ContentType lhs, ContentType rhs) => lhs.Equals(rhs);
+        public static bool operator ==(ContentType lhs, ContentType rhs) {
+            if (ReferenceEquals(lhs, rhs))
+                return true;
+            return ReferenceEquals(lhs, null) || ReferenceEquals(rhs, null) ? false : lhs.Equals(rhs);
+        }
 
-        public static bool operator !=(ContentType lhs, ContentType rhs) => !lhs.Equals(rhs);
+        public static bool operator !=(ContentType lhs, ContentType rhs) => !(lhs == rhs);
 
         public override string ToString()
         {
-            if (String.IsNullOrWhiteSpace(Raw)) return String.Empty;
+            if (string.IsNullOrWhiteSpace(Raw)) return string.Empty;
 
             string attr = GetAttributesString();
-            if (String.IsNullOrWhiteSpace(attr))
+            if (string.IsNullOrWhiteSpace(attr))
                 return string.Format("{0}/{1}", MediaType, SubType);
             else
                 return string.Format("{0}/{1}; {2}", MediaType, SubType, attr);
         }
 
-        public static readonly ContentType Unknown = new ContentType(String.Empty);
+        public static readonly ContentType Unknown = new ContentType(string.Empty);
 
         public static readonly ContentType Empty = new ContentType(ApplicationXEmpty);
 
         public static bool IsUnknownOrNull(ContentType contentType) => 
             contentType == null || 
-            contentType == ContentType.Unknown ||
+            contentType == Unknown ||
             contentType.IsBlank;
 
         public const int BytesRequiredForGuessing = 256;
 
         public static bool IsXmlContentType(ContentType value) 
-            => value.MediaType == "application" && value.SubType.Contains("xml");
+            => value != null && value.MediaType == "application" && value.SubType.Contains("xml");
 
         public static bool IsTextContentType(ContentType value) 
-            => value.MediaType == "text";
+            => value != null && value.MediaType == "text";
 
         public static bool IsBinaryContentType(ContentType value)
-            => value.MediaType == "binary";
+            => value != null && value.MediaType == "binary";
 
         public static bool IsHtmlContentType(ContentType value) 
-            => value.MediaType == "text" && value.SubType == "html";
+            => value != null && value.MediaType == "text" && value.SubType == "html";
 
         public static bool IsJavascriptContentType(ContentType value)
-            => value.SubType.Contains("javascript");
+            => value != null && value.SubType.Contains("javascript");
 
         public static ContentType Guess(string fileName)
         {
@@ -159,7 +163,7 @@ namespace Fetcho.Common
 
         public static ContentType Guess(byte[] value)
         {
-            if (value == null) return ContentType.Unknown;
+            if (value == null) return Unknown;
 
             return new ContentType(MimeGuesser.GuessMimeType(value));
         }

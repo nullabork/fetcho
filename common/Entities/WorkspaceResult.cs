@@ -49,12 +49,12 @@ namespace Fetcho.Common.Entities
             GlobalSequence = -1;
             Created = DateTime.MinValue;
             Updated = DateTime.MinValue;
-            Description = String.Empty;
-            Title = String.Empty;
-            Uri = String.Empty;
-            RefererUri = String.Empty;
-            UriHash = String.Empty;
-            DataHash = String.Empty;
+            Description = string.Empty;
+            Title = string.Empty;
+            Uri = string.Empty;
+            RefererUri = string.Empty;
+            UriHash = string.Empty;
+            DataHash = string.Empty;
             Features = new string[0];
             SourceServerId = Guid.Empty;
 
@@ -64,7 +64,7 @@ namespace Fetcho.Common.Entities
         }
 
         public string GetTagString()
-            => Tags.Aggregate(String.Empty, (interim, next) => (interim + " " + next).Trim());
+            => Tags.Aggregate(string.Empty, (interim, next) => (interim + " " + next).Trim());
 
     }
 }

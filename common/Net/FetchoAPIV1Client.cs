@@ -36,21 +36,21 @@ namespace Fetcho.Common.Net
 
         public async Task PostWorkspaceResultsByWorkspaceIdAsync(Guid workspaceId, IEnumerable<WorkspaceResult> results)
         {
-            string path = String.Format("{0}/{1}/results", WorkspaceEndPoint, workspaceId);
+            string path = string.Format("{0}/{1}/results", WorkspaceEndPoint, workspaceId);
             var response = await client.PostAsJsonAsync(path, results);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task PostWorkspaceQueryStatsAsync(WorkspaceQueryStats stats)
         {
-            string path = String.Format("{0}/stats", WorkspaceEndPoint);
+            string path = string.Format("{0}/stats", WorkspaceEndPoint);
             var response = await client.PostAsJsonAsync(path, stats);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task<WorkspaceResult[]> GetRandomWorkspaceResultsAsync(Guid workspaceId, int count = DefaultRandomResultsCount)
         {
-            string path = String.Format("{0}/{1}/results/random?count={2}", WorkspaceEndPoint, workspaceId, count);
+            string path = string.Format("{0}/{1}/results/random?count={2}", WorkspaceEndPoint, workspaceId, count);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
@@ -58,7 +58,7 @@ namespace Fetcho.Common.Net
 
         public async Task<WorkspaceResult[]> GetWorkspaceResultsAsync(Guid workspaceId, int offset = 0, int count = DefaultResultsCount, string order = "asc")
         {
-            string path = String.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", WorkspaceEndPoint, workspaceId, offset, count, order);
+            string path = string.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", WorkspaceEndPoint, workspaceId, offset, count, order);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
@@ -66,7 +66,7 @@ namespace Fetcho.Common.Net
 
         public async Task<Workspace[]> GetWorkspacesAsync()
         {
-            string path = String.Format("{0}/", WorkspaceEndPoint);
+            string path = string.Format("{0}/", WorkspaceEndPoint);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<Workspace[]>();
@@ -79,7 +79,7 @@ namespace Fetcho.Common.Net
         {
             var content = new StreamContent(stream);
             content.Headers.ContentType = new MediaTypeHeaderValue(ContentType.ApplicationOctetStream);
-            string path = String.Format("{0}/", ResourcesEndPoint);
+            string path = string.Format("{0}/", ResourcesEndPoint);
             var response = await client.PostAsync(path, content);
             response.EnsureSuccessStatusCode();
         }
@@ -90,7 +90,7 @@ namespace Fetcho.Common.Net
 
         public async Task<AccessKey> GetAccessKeyAsync(Guid accessKeyId)
         {
-            string path = String.Format("{0}/{1}", AccessKeyEndPoint, accessKeyId);
+            string path = string.Format("{0}/{1}", AccessKeyEndPoint, accessKeyId);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<AccessKey>();
@@ -98,7 +98,7 @@ namespace Fetcho.Common.Net
 
         public async Task<WorkspaceResult[]> GetWorkspaceResultsByAccessKey(Guid accessKeyId, int offset = 0, int count = DefaultResultsCount, string order = "asc")
         {
-            string path = String.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", AccessKeyEndPoint, accessKeyId, offset, count, order);
+            string path = string.Format("{0}/{1}/results?offset={2}&count={3}&order={4}", AccessKeyEndPoint, accessKeyId, offset, count, order);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
@@ -106,14 +106,14 @@ namespace Fetcho.Common.Net
 
         public async Task PostWorkspaceResultsByAccessKey(Guid accessKeyId, IEnumerable<WorkspaceResult> results)
         {
-            string path = String.Format("{0}/{1}/results", AccessKeyEndPoint, accessKeyId);
+            string path = string.Format("{0}/{1}/results", AccessKeyEndPoint, accessKeyId);
             var response = await client.PostAsJsonAsync(path, results);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task<WorkspaceResult[]> GetRandomWorkspaceResultsByAccessKey(Guid accessKeyId, int count = DefaultRandomResultsCount)
         {
-            string path = String.Format("{0}/{1}/results/random?count={2}", AccessKeyEndPoint, accessKeyId, count);
+            string path = string.Format("{0}/{1}/results/random?count={2}", AccessKeyEndPoint, accessKeyId, count);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<WorkspaceResult[]>();
@@ -135,7 +135,7 @@ namespace Fetcho.Common.Net
 
         public async Task DeleteAccessKeyAsync(AccessKey accessKey)
         {
-            string path = String.Format("{0}/{1}", AccessKeyEndPoint, accessKey.Id);
+            string path = string.Format("{0}/{1}", AccessKeyEndPoint, accessKey.Id);
             var response = await client.DeleteAsync(path);
             response.EnsureSuccessStatusCode();
         }
@@ -160,14 +160,14 @@ namespace Fetcho.Common.Net
 
         public async Task DeleteAccountAsync(Account account)
         {
-            string path = String.Format("{0}/{1}", AccountsEndPoint, account.Name);
+            string path = string.Format("{0}/{1}", AccountsEndPoint, account.Name);
             var response = await client.DeleteAsync(path);
             response.EnsureSuccessStatusCode();
         }
 
         public async Task<Account> GetAccountAsync(string accountName)
         {
-            string path = String.Format("{0}/{1}", AccountsEndPoint, accountName);
+            string path = string.Format("{0}/{1}", AccountsEndPoint, accountName);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<Account>();
@@ -179,7 +179,7 @@ namespace Fetcho.Common.Net
 
         public async Task<ServerNode[]> GetServerNodesAsync(string serverName = "")
         {
-            string path = String.Format("{0}?name={1}", ServersEndPoint, serverName);
+            string path = string.Format("{0}?name={1}", ServersEndPoint, serverName);
             var response = await client.GetAsync(path);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsAsync<ServerNode[]>();

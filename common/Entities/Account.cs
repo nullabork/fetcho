@@ -28,7 +28,7 @@ namespace Fetcho.Common.Entities
 
         public static bool IsValid(Account key)
         {
-            if (String.IsNullOrWhiteSpace(key.Name))
+            if (string.IsNullOrWhiteSpace(key.Name))
                 return false;
             if (key.Name.Length < MinKeyLength)
                 return false;
@@ -37,7 +37,7 @@ namespace Fetcho.Common.Entities
 
         public static void Validate(Account key)
         {
-            if (String.IsNullOrWhiteSpace(key.Name))
+            if (string.IsNullOrWhiteSpace(key.Name))
                 throw new InvalidObjectFetchoException("No key set");
             if (key.Name.Length < MinKeyLength)
                 throw new InvalidObjectFetchoException("Key too short");

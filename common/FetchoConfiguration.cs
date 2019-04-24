@@ -27,7 +27,7 @@ namespace Fetcho.Common
         [ConfigurationSetting(100000)]
         public int HostCacheManagerMaxInMemoryDomainRecords { get; private set; }
 
-        [ConfigurationSetting(10000)]
+        [ConfigurationSetting(20000)]
         public int MaxFetchSpeedInMilliseconds { get; private set; }
 
         [ConfigurationSetting(28)]
@@ -45,6 +45,8 @@ namespace Fetcho.Common
         [ConfigurationSetting(15000)]
         public int RequestTimeoutInMilliseconds { get; private set; }
 
+        [ConfigurationSetting(1000)]
+        public int FetchQueueEmptyWaitTimeout { get; private set; }
 
         [ConfigurationSetting(60000)]
         public int HowOftenToReportStatusInMilliseconds { get; private set; }
@@ -76,7 +78,7 @@ namespace Fetcho.Common
         [ConfigurationSetting(2000)]
         public int MaxQueueBufferQueueLength { get; private set; }
 
-        [ConfigurationSetting(250)]
+        [ConfigurationSetting(2000)]
         public int MaxQueueBufferQueues { get; private set; }
 
 
@@ -126,6 +128,9 @@ namespace Fetcho.Common
         [ConfigurationSetting(1000000)]
         public int QueryBudgetForAverageQueryCost { get; private set; }
 
+        [ConfigurationSetting(4)]
+        public int MaxConcurrentLinkReaders { get; private set; }
+
         public ServerNode CurrentServerNode { get; set; }
 
         public IBlockProvider BlockProvider { get; set; }
@@ -174,6 +179,15 @@ namespace Fetcho.Common
 
         public void SetConfigurationSetting<T>(Expression<Func<T>> propertyLambda, T value) =>
             SetConfigurationSetting(Utility.GetPropertyName(propertyLambda), value);
+
+        public void SetupConfigurationBasedOnEnvironment()
+        {
+            MaxConcurrentLinkReaders = Math.Max(1, Environment.ProcessorCount / 6);
+            HostCacheManagerMaxInMemoryDomainRecords = Environment.ProcessorCount * 10000;
+            MaxConcurrentFetches = Math.Max(500, Environment.ProcessorCount * 500);
+            PressureReliefThreshold = MaxConcurrentFetches - 100;
+            MaxQueueBufferQueues = Math.Max(250, MaxConcurrentLinkReaders * 250);
+        }
     }
 }
 

@@ -89,7 +89,7 @@ namespace Fetcho.Common
                 int index = 0;
                 do
                 {
-                    fileName = Path.Combine(path, String.Format("{0}-{1}{2}", name, index, extension));
+                    fileName = Path.Combine(path, string.Format("{0}-{1}{2}", name, index, extension));
                     index++;
                 }
                 while (File.Exists(fileName));
@@ -170,7 +170,7 @@ namespace Fetcho.Common
             if (!yes)
                 return false;
 
-            var header = new ArraySegment<Byte>(bytes, 0, 10);
+            var header = new ArraySegment<byte>(bytes, 0, 10);
             byte[] a = header.Array;
 
             return a.SequenceEqual(GZipHeaderBytes2) || a.SequenceEqual(GZipHeaderBytes) || a.SequenceEqual(GZipLevel10HeaderBytes);
@@ -221,7 +221,7 @@ namespace Fetcho.Common
                 if (schemeIndex > -1)
                 {
                     string scheme = tempUrl.Substring(0, schemeIndex).ToLower();
-                    if (scheme.All(Char.IsLetter) && !acceptedSchemes.Any(x => scheme == x))
+                    if (scheme.All(char.IsLetter) && !acceptedSchemes.Any(x => scheme == x))
                     {
                         //log.DebugFormat("Unaccepted scheme detected: {0}", tempUrl);
                         return list;

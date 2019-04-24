@@ -211,12 +211,12 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static string ReduceWhitespace(this string value)
         {
-            if (value.Length == 0) return String.Empty;
+            if (value.Length == 0) return string.Empty;
             var sb = new StringBuilder();
 
             sb.Append(value[0]);
             for ( int i=1;i<value.Length;i++)
-                if ( !Char.IsWhiteSpace(value[i]) || !Char.IsWhiteSpace(value[i-1]) )
+                if ( !char.IsWhiteSpace(value[i]) || !char.IsWhiteSpace(value[i-1]) )
                     sb.Append(value[i]);
 
             return sb.ToString();
@@ -242,7 +242,7 @@ namespace Fetcho.Common
             // we should return Empty.
             catch (RegexMatchTimeoutException)
             {
-                return String.Empty;
+                return string.Empty;
             }
         }
 

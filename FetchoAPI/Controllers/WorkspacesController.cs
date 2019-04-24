@@ -52,7 +52,7 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             try
             {
-                if (String.IsNullOrWhiteSpace(accountName))
+                if (string.IsNullOrWhiteSpace(accountName))
                     throw new InvalidRequestFetchoException("No object passed");
 
                 using (var db = new Database())
@@ -148,7 +148,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 using (var db = new Database())
                 {
                     await ThrowIfNotAValidAccount(db, accountName);
-                    await db.SetAccountProperty(accountName, property.Key, String.Empty);
+                    await db.SetAccountProperty(accountName, property.Key, string.Empty);
                 }
 
                 return CreateNoContentResponse();
@@ -510,7 +510,7 @@ namespace Fetcho.FetchoAPI.Controllers
                 ThrowIfOrderParameterIsInvalid(acceptableOrderByTokens, order);
 
                 Query qry = null;
-                if (!String.IsNullOrWhiteSpace(query))
+                if (!string.IsNullOrWhiteSpace(query))
                 {
                     qry = new Query(query);
                     ThrowIfQueryContainsInvalidOptions(qry);
@@ -890,7 +890,7 @@ namespace Fetcho.FetchoAPI.Controllers
                         await db.AddWebResourceDataCache(hash, ms.GetBuffer());
                 }
 
-                return CreateCreatedResponse((Object)null);
+                return CreateCreatedResponse((object)null);
             }
             catch (Exception ex)
             {
@@ -909,7 +909,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     byte[] bytes = await db.GetWebResourceCacheData(new MD5Hash(datahash));
 
                     if (bytes == null)
-                        return Create404Response((Object)null);
+                        return Create404Response((object)null);
 
                     var result = new HttpResponseMessage(HttpStatusCode.OK)
                     {
@@ -962,7 +962,7 @@ namespace Fetcho.FetchoAPI.Controllers
                     byte[] bytes = await db.GetWebResourceCacheData(new MD5Hash(datahash));
 
                     if (bytes == null)
-                        return Create404Response((Object)null);
+                        return Create404Response((object)null);
 
                     var l = new List<BracketPipeTextFragment>();
                     using (var ms = new MemoryStream(bytes))

@@ -124,7 +124,7 @@ namespace Fetcho.Common
                 return result.DataHash;
             if (fieldName == "tags")
                 return result.Tags.Aggregate("", (x, y) => x + y);
-            return String.Empty;
+            return string.Empty;
         }
 
         private void ThrowIfInvalidFieldName(string fieldName)

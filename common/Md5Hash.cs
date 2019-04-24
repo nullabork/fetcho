@@ -49,7 +49,7 @@ namespace Fetcho.Common
             if (copyValues.Length != ExpectedByteLength)
                 throw new ArgumentException("Unexpected byte length: " + copyValues.Length + ". Expected " + ExpectedByteLength,
                                             "values");
-            Values = new Byte[ExpectedByteLength];
+            Values = new byte[ExpectedByteLength];
             Array.Copy(copyValues, Values, ExpectedByteLength);
         }
 
@@ -62,7 +62,7 @@ namespace Fetcho.Common
         /// <summary>
         /// Cache of the hash string
         /// </summary>
-        private string toStringCache = String.Empty;
+        private string toStringCache = string.Empty;
 
         public override string ToString()
         {

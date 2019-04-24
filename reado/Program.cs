@@ -51,7 +51,7 @@ namespace Fetcho
                 else
                 {
                     string path = Path.GetDirectoryName(packetPath);
-                    if (String.IsNullOrWhiteSpace(path))
+                    if (string.IsNullOrWhiteSpace(path))
                         path = Environment.CurrentDirectory;
 
                     string searchPattern = "*";

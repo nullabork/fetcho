@@ -173,7 +173,7 @@ namespace Fetcho.ContentReaders
             public string Current { get { return _current; } }
 
             object System.Collections.IEnumerator.Current { get { return _current; } }
-            private string _current = String.Empty;
+            private string _current = string.Empty;
 
             public WordTokenizerEnumerator(WordTokenizer tokenizer)
             {

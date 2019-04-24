@@ -126,7 +126,7 @@ namespace Fetcho.ContentReaders
         {
             var propertyName = reader.GetAttribute("property").ToLower();
 
-            if (!String.IsNullOrWhiteSpace(propertyName))
+            if (!string.IsNullOrWhiteSpace(propertyName))
             {
                 propertyName = SanitiseProperty(propertyName);
                 var content = SanitiseAttribute(reader.GetAttribute("content"));
@@ -190,7 +190,7 @@ namespace Fetcho.ContentReaders
 
         void ProcessHeaders(WorkspaceResult result, string requestString, string responseHeaders)
         {
-            if (!String.IsNullOrWhiteSpace(requestString))
+            if (!string.IsNullOrWhiteSpace(requestString))
             {
                 var lines = requestString.Split('\n');
                 foreach (var line in lines)
@@ -200,12 +200,12 @@ namespace Fetcho.ContentReaders
                     string key = line.Substring(0, idx).Trim().ToLower();
                     string value = line.Substring(idx + 1).Trim();
 
-                    if (!String.IsNullOrWhiteSpace(key) && !result.RequestProperties.ContainsKey(key))
+                    if (!string.IsNullOrWhiteSpace(key) && !result.RequestProperties.ContainsKey(key))
                         result.RequestProperties.Add(key, value);
                 }
             }
 
-            if (!String.IsNullOrWhiteSpace(responseHeaders))
+            if (!string.IsNullOrWhiteSpace(responseHeaders))
             {
                 var lines = responseHeaders.Split('\n');
                 foreach (var line in lines)
@@ -215,7 +215,7 @@ namespace Fetcho.ContentReaders
                     string key = line.Substring(0, idx).Trim().ToLower();
                     string value = line.Substring(idx + 1).Trim();
 
-                    if (!String.IsNullOrWhiteSpace(key) && !result.ResponseProperties.ContainsKey(key))
+                    if (!string.IsNullOrWhiteSpace(key) && !result.ResponseProperties.ContainsKey(key))
                         result.ResponseProperties.Add(key, value);
                 }
             }

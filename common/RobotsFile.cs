@@ -254,7 +254,7 @@ namespace Fetcho.Common
             var sb = new StringBuilder();
             sb.AppendFormat("Uri:\t{0}\n", Uri);
             sb.AppendFormat("Malformed:\t{0}\n", Malformed);
-            sb.AppendFormat("SiteMaps:\t{0}\n", String.Join("\n\t", SiteMaps.ToArray()));
+            sb.AppendFormat("SiteMaps:\t{0}\n", string.Join("\n\t", SiteMaps.ToArray()));
             sb.AppendFormat("Disallow:\t{0}\n", Disallow);
             sb.AppendFormat("Allow:\t{0}\n", Allow);
             return sb.ToString();

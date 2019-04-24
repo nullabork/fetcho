@@ -195,7 +195,7 @@ namespace Fetcho.Common
             }
             set
             {
-                if (String.IsNullOrWhiteSpace(value)) return;
+                if (string.IsNullOrWhiteSpace(value)) return;
                 BlockedByRobots = value.Contains("R");
                 PriorityTooLow = value.Contains("H");
                 MalformedUrl = value.Contains("M");
@@ -222,7 +222,7 @@ namespace Fetcho.Common
         {
             try
             {
-                return String.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", StateCode, Priority, TargetUri, SourceUri, TargetIP, ChunkSequence);
+                return string.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}", StateCode, Priority, TargetUri, SourceUri, TargetIP, ChunkSequence);
             }
             catch(Exception)
             {

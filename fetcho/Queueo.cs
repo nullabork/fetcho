@@ -481,7 +481,7 @@ namespace Fetcho
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        bool IsMalformedQueueItem(QueueItem item) => String.IsNullOrWhiteSpace(item.TargetUri.Host);
+        bool IsMalformedQueueItem(QueueItem item) => string.IsNullOrWhiteSpace(item.TargetUri.Host);
 
         /// <summary>
         /// Returns true if the queue item sequence is too high

@@ -151,7 +151,7 @@ namespace Fetcho.Common
             try
             {
 
-                if (String.IsNullOrWhiteSpace(token)) return null;
+                if (string.IsNullOrWhiteSpace(token)) return null;
 
                 var t = GetFilterType(token);
 

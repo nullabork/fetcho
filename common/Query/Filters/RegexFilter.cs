@@ -30,7 +30,7 @@ namespace Fetcho.Common
         public override bool RequiresTextInput { get => true; }
 
         public override bool IsReducingFilter 
-            => !String.IsNullOrWhiteSpace(RegexPattern);
+            => !string.IsNullOrWhiteSpace(RegexPattern);
 
         public override string GetQueryText()
             => string.Format("regex:{0}", RegexPattern);
@@ -71,7 +71,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string regexPattern = String.Empty;
+            string regexPattern = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)

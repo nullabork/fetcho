@@ -26,8 +26,8 @@ namespace Fetcho
         /// </summary>
         private FetchoAPIV1Client fetchoClient;
 
-        private string requestString = String.Empty;
-        private string responseHeaders = String.Empty;
+        private string requestString = string.Empty;
+        private string responseHeaders = string.Empty;
         
         public override string Name { get => "Processes workspace queries"; }
         public override bool ProcessesRequest { get => true; }
@@ -151,7 +151,7 @@ namespace Fetcho
             foreach (var workspace in workspaces.Distinct())
             {
                 var id = workspace.WorkspaceId.GetValueOrDefault();
-                if (!workspace.IsActive || String.IsNullOrWhiteSpace(workspace.QueryText))
+                if (!workspace.IsActive || string.IsNullOrWhiteSpace(workspace.QueryText))
                 {
                     if (Queries.ContainsKey(id))
                         Queries.Remove(id);
@@ -169,8 +169,8 @@ namespace Fetcho
 
         void ClearAll()
         {
-            requestString = String.Empty;
-            responseHeaders = String.Empty;
+            requestString = string.Empty;
+            responseHeaders = string.Empty;
         }
 
         internal class PostToWorkspaceInstruction

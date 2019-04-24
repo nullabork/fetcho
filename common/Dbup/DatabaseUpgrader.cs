@@ -35,7 +35,7 @@ namespace Fetcho.Common.Dbup
         public static void ThrowIfConnectionStringNotConfigured()
         {
             string connectionString = ConfigurationManager.ConnectionStrings["db"]?.ToString();
-            if (String.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrWhiteSpace(connectionString))
                 throw new FetchoException("No connection string specified");
 
         }

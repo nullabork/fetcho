@@ -14,8 +14,8 @@ namespace Fetcho.Common
     {
         public WebDataPacketWriter Writer { get; set; }
 
-        private string requestString = String.Empty;
-        private string responseHeaders = String.Empty;
+        private string requestString = string.Empty;
+        private string responseHeaders = string.Empty;
         private QueueItem queueItem = null;
 
         public WorkspaceResourcePacketWriter(WebDataPacketWriter writer)
@@ -26,8 +26,8 @@ namespace Fetcho.Common
         public void OutputStartResource(QueueItem item)
         {
             queueItem = item;
-            requestString = String.Empty;
-            responseHeaders = String.Empty;
+            requestString = string.Empty;
+            responseHeaders = string.Empty;
             Writer.OutputStartResource(item);
         }
 

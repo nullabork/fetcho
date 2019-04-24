@@ -15,7 +15,7 @@ namespace Fetcho.Common
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
+        public override bool IsReducingFilter => !string.IsNullOrWhiteSpace(SearchText);
 
         public FileTypeFilter(string filetype) 
             => SearchText = filetype;
@@ -25,8 +25,8 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
-            string contentType = result.ResponseProperties.SafeGet("content-type") ?? String.Empty;
-            return String.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
+            string contentType = result.ResponseProperties.SafeGet("content-type") ?? string.Empty;
+            return string.IsNullOrWhiteSpace(SearchText) || contentType.Contains(SearchText) ? new string[1] { Utility.MakeTag(contentType) } : EmptySet;
         }
 
         /// <summary>
@@ -36,13 +36,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == WildcardChar) searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = string.Empty;
             }
 
             return new FileTypeFilter(searchText);

@@ -115,7 +115,7 @@ namespace Fetcho.Common.Entities
         /// <param name="workspace"></param>
         public static void Validate(Workspace workspace)
         {
-            if (String.IsNullOrWhiteSpace(workspace?.Name))
+            if (string.IsNullOrWhiteSpace(workspace?.Name))
                 throw new InvalidObjectFetchoException("Name not set");
             if (workspace.WorkspaceId == Guid.Empty)
                 throw new InvalidObjectFetchoException("WorkspaceId is not set");

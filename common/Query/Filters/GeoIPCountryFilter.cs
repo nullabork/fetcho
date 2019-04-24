@@ -30,13 +30,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string country = String.Empty;
+            string country = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 country = queryText.Substring(index + 1);
-                if (country == "*") country = String.Empty;
+                if (country == "*") country = string.Empty;
             }
 
             return new GeoIPCountryFilter(country);

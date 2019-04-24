@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Cache;
 using System.Net.Sockets;
@@ -87,11 +88,12 @@ namespace Fetcho.Common
                             throw new TimeoutException("WriteOutResponse timed out");
                         var wait = Task.Delay(queueItem == null ? FetchoConfiguration.Current.ResponseReadTimeoutInMilliseconds : queueItem.ReadTimeoutInMilliseconds);
                         await Task.WhenAny(wait, rspw);
-                        if (!firstTime && ActiveFetches < 5) log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
+                        if (!firstTime && ActiveFetches < 5)
+                            log.DebugFormat("Been waiting a while for {0}", request.RequestUri);
                         firstTime = false;
                     }
 
-                    wroteOk = await rspw;
+                    wroteOk = await rspw.ConfigureAwait(false);
 
                     //await DoBookkeeping(queueItem, request);
                 }
@@ -150,24 +152,31 @@ namespace Fetcho.Common
             int bytesread = 0;
 
             // Read as much into memory as possible up to the max limit
+
+            Stream readStream = null;
             try
             {
-                using (var readStream = response.GetResponseStream())
+                // this is down without using() as it may run slow and the cleanup of the object may happen before we get to cleanup
+                // ie. race conditions. By doing it after we handle exceptions we control when the disposal occurs ourselves.
+                readStream = response.GetResponseStream();
+
+                int l = 0;
+                do
                 {
-                    int l = 0;
-                    do
-                    {
-                        l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread); // dont configureawait - disposed?
-                        bytesread += l;
-                    }
-                    while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit and ditch the rest
+                    l = await readStream.ReadAsync(buffer, bytesread, buffer.Length - bytesread); // dont configureawait - disposed?
+                    bytesread += l;
                 }
+                while (l > 0 && bytesread < buffer.Length); // read up to the buffer limit and ditch the rest
             }
             catch (Exception ex)
             {
                 log.Error(ex);
                 exception = ex;
                 bytesread = 0;
+            }
+            finally
+            {
+                readStream.Dispose();
             }
 
             try

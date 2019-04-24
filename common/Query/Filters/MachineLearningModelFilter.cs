@@ -21,7 +21,7 @@ namespace Fetcho.Common
         const float DefaultConfidenceThresholdWhenAny = 0.01f;
         const string MachineLearningModelFilterKey = "ml-model(";
 
-        private string lastDataHash = String.Empty;
+        private string lastDataHash = string.Empty;
         private PageClassPrediction lastPrediction = null;
 
         public string ModelName { get; set; }
@@ -50,7 +50,7 @@ namespace Fetcho.Common
                 MachineLearningModelFilterKey,
                 ModelName,
                 ConfidenceThreshold,
-                String.IsNullOrWhiteSpace(SearchText) ? WildcardChar : SearchText
+                string.IsNullOrWhiteSpace(SearchText) ? WildcardChar : SearchText
                 );
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
@@ -116,7 +116,7 @@ namespace Fetcho.Common
         {
             //try
             //{
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;
@@ -174,12 +174,12 @@ namespace Fetcho.Common
 
             public float[] Score;
 
-            public bool HasPrediction { get => !String.IsNullOrWhiteSpace(PredictedLabels); }
+            public bool HasPrediction { get => !string.IsNullOrWhiteSpace(PredictedLabels); }
 
             public float MaxScore { get => Score.Max(); }
 
             public bool IsMatchingPrediction(string searchText)
-                => String.IsNullOrWhiteSpace(searchText) || PredictedLabels.Contains(searchText);
+                => string.IsNullOrWhiteSpace(searchText) || PredictedLabels.Contains(searchText);
         }
 
     }

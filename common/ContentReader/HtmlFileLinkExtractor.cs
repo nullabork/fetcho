@@ -34,7 +34,7 @@ namespace Fetcho.ContentReaders
                 if (node.Value == "a")
                 {
                     var href = reader.GetAttribute("href");
-                    if (!String.IsNullOrWhiteSpace(href))
+                    if (!string.IsNullOrWhiteSpace(href))
                     {
                         var links = Utility.GetLinks(CurrentSourceUri, href);
                         if (links.Any())
@@ -44,7 +44,7 @@ namespace Fetcho.ContentReaders
                 else if ( node.Value == "script")
                 {
                     var href = reader.GetAttribute("src");
-                    if (!String.IsNullOrWhiteSpace(href))
+                    if (!string.IsNullOrWhiteSpace(href))
                     {
                         var links = Utility.GetLinks(CurrentSourceUri, href);
                         if (links.Any())
@@ -54,7 +54,7 @@ namespace Fetcho.ContentReaders
                 else if ( node.Value == "link")
                 {
                     var href = reader.GetAttribute("href");
-                    if (!String.IsNullOrWhiteSpace(href))
+                    if (!string.IsNullOrWhiteSpace(href))
                     {
                         var links = Utility.GetLinks(CurrentSourceUri, href);
                         if (links.Any())
@@ -64,7 +64,7 @@ namespace Fetcho.ContentReaders
                 else if (node.Value == "base")
                 {
                     var href = reader.GetAttribute("href");
-                    if (!String.IsNullOrWhiteSpace(href))
+                    if (!string.IsNullOrWhiteSpace(href))
                     {
                         // sometimes the links are bogus?!
                         var l = Utility.GetLinks(null, href);

@@ -117,7 +117,7 @@ namespace Fetcho.Common
                 }
 
                 var ct = (ContentType ?? ContentType.Unknown);
-                string key = String.Format("{0}{1}/{2}", guess ? "(GUESS) " : "", ct.MediaType, ct.SubType);
+                string key = string.Format("{0}{1}/{2}", guess ? "(GUESS) " : "", ct.MediaType, ct.SubType);
 
                 Increment(ContentTypes, key);
             }
@@ -191,7 +191,7 @@ namespace Fetcho.Common
                         "\t{0}\t{1}%\t{2}",
                         kvp.Value,
                         ResourceCount == 0 ? 0 : kvp.Value / ResourceCount,
-                        String.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
+                        string.IsNullOrWhiteSpace(kvp.Key.ToString()) ? "(Blank)" : kvp.Key.ToString());
             if (Summarise)
                 Console.WriteLine("\t...");
             Console.WriteLine("\t{0}\tTotal", dict.Count);

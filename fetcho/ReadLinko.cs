@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -19,6 +20,7 @@ namespace Fetcho
 
         private ReadoProcessor processor = null;
         private ExtractLinksAndBufferConsumer consumer = null;
+        private readonly SemaphoreSlim taskPool = new SemaphoreSlim(FetchoConfiguration.Current.MaxConcurrentLinkReaders);
 
         public int CurrentPacketIndex { get; set; }
         public int CurrentDataSourceIndex { get; set; }
@@ -35,6 +37,7 @@ namespace Fetcho
             processor = new ReadoProcessor();
             consumer = new ExtractLinksAndBufferConsumer(PrioritisationBufferOut);
             processor.Processor.Consumer = consumer;
+            FetchoConfiguration.Current.ConfigurationChange += (sender, e) => UpdateConfigurationSettings(e);
         }
 
         public async Task Process()
@@ -48,10 +51,10 @@ namespace Fetcho
                 while (Running)
                 {
                     var filename = GetNextFile();
-                    log.Debug(filename);
                     try
                     {
-                        await processor.Process(filename).ConfigureAwait(false);
+                        await taskPool.WaitAsync();
+                        var u = ProcessFile(filename).ContinueWith(x => taskPool.Release());
                     }
                     catch (Exception ex)
                     {
@@ -71,6 +74,19 @@ namespace Fetcho
         }
 
         public void Shutdown() => Running = false;
+
+        async Task ProcessFile(string filename)
+        {
+            try
+            {
+                log.Debug(filename);
+                await processor.Process(filename).ConfigureAwait(false);
+            }
+            catch ( Exception ex)
+            {
+                Utility.LogException(ex);
+            }
+        }
 
         string GetNextFile()
         {
@@ -99,5 +115,17 @@ namespace Fetcho
             if (!FetchoConfiguration.Current.DataSourcePaths.Any())
                 throw new FetchoException("Fetcho needs at least one data source path for packets");
         }
+
+        private void UpdateConfigurationSettings(ConfigurationChangeEventArgs e)
+        {
+            e.IfPropertyIs(
+                 () => FetchoConfiguration.Current.MaxConcurrentLinkReaders,
+                 () => UpdateTaskPoolConfiguration(e)
+            );
+        }
+
+        private void UpdateTaskPoolConfiguration(ConfigurationChangeEventArgs e)
+            => taskPool.ReleaseOrReduce((int)e.OldValue, (int)e.NewValue).GetAwaiter().GetResult();
+
     }
 }

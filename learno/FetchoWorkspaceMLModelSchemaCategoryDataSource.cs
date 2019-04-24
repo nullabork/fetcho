@@ -37,7 +37,7 @@ namespace learno
         private string MakeCategory(WorkspaceResult result)
         {
             string tags = result.Tags.FirstOrDefault();
-            if (String.IsNullOrWhiteSpace(tags) || UseNameForCategory)
+            if (string.IsNullOrWhiteSpace(tags) || UseNameForCategory)
                 return Name;
             return tags;
         }

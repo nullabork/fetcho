@@ -85,7 +85,7 @@ namespace Fetcho.Common
         /// <param name="queryText"></param>
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
-            => !String.IsNullOrWhiteSpace(queryText) ? new SimpleTextMatchFilter(queryText) : null;
+            => !string.IsNullOrWhiteSpace(queryText) ? new SimpleTextMatchFilter(queryText) : null;
 
         public static bool TokenIsFilter(string token)
             => !token.Contains(":");

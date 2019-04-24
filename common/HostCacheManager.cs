@@ -88,10 +88,9 @@ namespace Fetcho.Common
                     while (!await host_record.FetchWaitHandle.WaitAsync(360000))
                         Utility.LogInfo("Been waiting a long time to update a record: {0}", host_record.Host);
 
-                    DateTime n = DateTime.UtcNow;
                     if (host_record.IsFetchable)
                     {
-                        host_record.LastCall = n;
+                        host_record.LastCall = DateTime.UtcNow;
                         host_record.TouchCount++;
                         keepWaiting = false;
                         success = true;
@@ -111,10 +110,7 @@ namespace Fetcho.Common
                     if (timeoutMilliseconds != Timeout.Infinite && (DateTime.UtcNow - startTime).TotalMilliseconds > timeoutMilliseconds)
                         keepWaiting = false;
                     else
-                    {
-                        //log.InfoFormat("Waiting on {0}", hostName);
-                        await Task.Delay(random.Next(host_record.MaxFetchSpeedInMilliseconds * 7 / 8, host_record.MaxFetchSpeedInMilliseconds * 2));
-                    }
+                        await Task.Delay(host_record.MaxFetchSpeedInMilliseconds);
                 }
             }
 

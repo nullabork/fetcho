@@ -4,6 +4,7 @@ using Fetcho.Common.Entities;
 using Fetcho.Common.Net;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -152,8 +153,14 @@ namespace Fetcho
         private static async Task<FetchoConfiguration> SetupConfiguration(string paths)
         {
             var cfg = new FetchoConfiguration();
+            cfg.SetupConfigurationBasedOnEnvironment();
             FetchoConfiguration.Current = cfg;
             cfg.SetConfigurationSetting(() => cfg.DataSourcePaths, paths.Split(','));
+
+            cfg.SetConfigurationSetting(
+                () => cfg.FetchoWorkspaceServerBaseUri, 
+                ConfigurationManager.AppSettings["FetchoWorkspaceServerBaseUri"]
+                );
 
             // setup the block provider we want to use
             cfg.BlockProvider = new DefaultBlockProvider();

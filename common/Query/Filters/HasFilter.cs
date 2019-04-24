@@ -31,7 +31,7 @@ namespace Fetcho.Common
             if (result.PropertyCache.ContainsKey(PropertyName))
             {
                 var o = result.PropertyCache[PropertyName];
-                if ( o == null || String.IsNullOrWhiteSpace(o.ToString())) return EmptySet;
+                if ( o == null || string.IsNullOrWhiteSpace(o.ToString())) return EmptySet;
                 return new string[1] { Utility.MakeTag(o.ToString()) };
             }
             else
@@ -40,7 +40,7 @@ namespace Fetcho.Common
 
         public static Filter Parse(string queryText, int depth)
         {
-            string propertyName = String.Empty;
+            string propertyName = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;

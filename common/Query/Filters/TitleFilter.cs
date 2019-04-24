@@ -18,7 +18,7 @@ namespace Fetcho.Common
 
         public override bool CallOncePerPage => true;
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(SearchText);
+        public override bool IsReducingFilter => !string.IsNullOrWhiteSpace(SearchText);
 
         public override bool RequiresResultInput { get => true; }
 
@@ -37,13 +37,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == WildcardChar) searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = string.Empty;
             }
 
             return new TitleFilter(searchText);

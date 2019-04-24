@@ -12,7 +12,7 @@ namespace Fetcho.Common.Tests
         public void FetchTest()
         {
             var s = RedditSubmissionFetcher.GetSubmissions("science").GetAwaiter().GetResult();
-            var l = s.Count(x => !String.IsNullOrWhiteSpace(x.LinkFlairText));
+            var l = s.Count(x => !string.IsNullOrWhiteSpace(x.LinkFlairText));
             Assert.IsFalse(l > 2700, l.ToString());
         }
     }

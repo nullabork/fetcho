@@ -27,7 +27,7 @@ namespace Fetcho.Common.Entities
         {
             LastRobotsFetched = null;
             IsBlocked = false;
-            HostName = String.Empty;
+            HostName = string.Empty;
             UsesCompression = false;
             UsesEncryption = false;
         }

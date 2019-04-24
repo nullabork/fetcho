@@ -19,8 +19,8 @@ namespace Fetcho.Common.DataFlow
 
         private static TextWriter CreateOutputWriter(string path, string prefix)
         {
-            if (String.IsNullOrWhiteSpace(path)) return null;
-            if (String.IsNullOrWhiteSpace(prefix)) return null;
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            if (string.IsNullOrWhiteSpace(prefix)) return null;
             string filename = Path.Combine(path, prefix + ".txt");
             filename = Utility.CreateNewFileOrIndexNameIfExists(filename);
             return new StreamWriter(new FileStream(filename, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read));

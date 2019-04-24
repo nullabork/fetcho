@@ -28,13 +28,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string vector = String.Empty;
+            string vector = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 vector = queryText.Substring(index + 1);
-                if (vector == "*") vector = String.Empty;
+                if (vector == "*") vector = string.Empty;
             }
 
             return new GeoIPCoordinateFilter(vector);

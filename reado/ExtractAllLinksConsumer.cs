@@ -48,7 +48,7 @@ namespace Fetcho
                             if (node.Value == "script")
                             {
                                 string src = p.GetAttribute("src");
-                                if ( !String.IsNullOrWhiteSpace(src))
+                                if ( !string.IsNullOrWhiteSpace(src))
                                     Console.WriteLine(src);
                             }
 

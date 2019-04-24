@@ -61,7 +61,7 @@ namespace Fetcho.Common.Entities
             Permissions = WorkspaceAccessPermissions.Read;
             IsWellknown = false;
             Id = Guid.NewGuid();
-            AccountName = String.Empty;
+            AccountName = string.Empty;
             Revision = 0;
         }
 
@@ -76,9 +76,9 @@ namespace Fetcho.Common.Entities
                 throw new InvalidObjectFetchoException("Invalid permissions");
             if (accessKey.Permissions >= WorkspaceAccessPermissions.Max)
                 throw new InvalidObjectFetchoException("Permissions invalid");
-            if (String.IsNullOrWhiteSpace(accessKey.AccountName))
+            if (string.IsNullOrWhiteSpace(accessKey.AccountName))
                 throw new InvalidObjectFetchoException("Account Name not set");
-            if (String.IsNullOrWhiteSpace(accessKey.Name))
+            if (string.IsNullOrWhiteSpace(accessKey.Name))
                 throw new InvalidObjectFetchoException("Name not set");
         }
     }

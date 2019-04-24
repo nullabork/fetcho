@@ -22,7 +22,7 @@ namespace Fetcho.Common.Net
             {
                 for (int j = 2; j <= 12; j++)
                 {
-                    string path = String.Format("{0}?subreddit={1}&size=1000&after={2}-{3:00}-01&before={4}-{5:00}-01",
+                    string path = string.Format("{0}?subreddit={1}&size=1000&after={2}-{3:00}-01&before={4}-{5:00}-01",
                         ApiEndPoint, subreddit, i, j - 1, i, j);
 
                     var response = await client.GetAsync(path);

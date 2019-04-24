@@ -63,7 +63,7 @@ namespace Fetcho.Common
             ReadToElement("request");
 
             if (inStream.Name != "request")
-                return String.Empty;
+                return string.Empty;
 
             return inStream.ReadElementContentAsString();
         }
@@ -77,7 +77,7 @@ namespace Fetcho.Common
                 ReadToElement("header");
             }
 
-            if (inStream.Name != "header") return String.Empty;
+            if (inStream.Name != "header") return string.Empty;
 
             return inStream.ReadElementContentAsString();
         }
@@ -106,10 +106,10 @@ namespace Fetcho.Common
         /// <returns>A string of all the exception text</returns>
         public string GetException()
         {
-            if (!String.IsNullOrWhiteSpace(this.currentException))
+            if (!string.IsNullOrWhiteSpace(this.currentException))
             {
                 string ex = currentException;
-                currentException = String.Empty;
+                currentException = string.Empty;
                 return ex;
             }
 
@@ -117,7 +117,7 @@ namespace Fetcho.Common
             if (inStream.Name == "exception")
                 return inStream.ReadElementContentAsString();
             else
-                return String.Empty;
+                return string.Empty;
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Fetcho.Common
             if (inStream.Name == "exception")
                 currentException = inStream.ReadElementContentAsString();
             else
-                currentException = String.Empty;
+                currentException = string.Empty;
         }
 
         private void ReadToElement(params string[] names)
@@ -177,7 +177,7 @@ namespace Fetcho.Common
         {
             const string UriPrefix = "Uri:";
 
-            if (String.IsNullOrWhiteSpace(requestString)) return null;
+            if (string.IsNullOrWhiteSpace(requestString)) return null;
             if (!requestString.StartsWith(UriPrefix)) return null;
 
             int i = requestString.IndexOf("\n", StringComparison.InvariantCultureIgnoreCase);
@@ -197,7 +197,7 @@ namespace Fetcho.Common
         {
             const string RefererPrefix = "referer:";
 
-            if (String.IsNullOrWhiteSpace(requestString)) return null;
+            if (string.IsNullOrWhiteSpace(requestString)) return null;
             if (requestString.IndexOf(RefererPrefix, StringComparison.InvariantCultureIgnoreCase) < 0) return null;
 
             requestString = requestString.Substring(requestString.IndexOf(RefererPrefix, StringComparison.InvariantCultureIgnoreCase));
@@ -218,7 +218,7 @@ namespace Fetcho.Common
         {
             const string ContentTypePrefix = "content-type:";
 
-            string contentType = String.Empty;
+            string contentType = string.Empty;
 
             int index = responseHeaders.IndexOf(ContentTypePrefix, StringComparison.InvariantCultureIgnoreCase);
             if (index >= 0)
@@ -270,6 +270,6 @@ namespace Fetcho.Common
         /// <param name="exceptionString"></param>
         /// <returns></returns>
         public static bool IsException(string exceptionString)
-            => !String.IsNullOrWhiteSpace(exceptionString);
+            => !string.IsNullOrWhiteSpace(exceptionString);
     }
 }

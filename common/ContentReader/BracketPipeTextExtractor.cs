@@ -79,7 +79,7 @@ namespace Fetcho.ContentReaders
                             if (cache == null || !cache.Contains(c.Value))
                             {
                                 cache?.Enqueue(c.Value);
-                                string tagvalue = String.Empty;
+                                string tagvalue = string.Empty;
                                 if ( tag.Count > 0 ) tagvalue = tag.Peek();
                                 var fragment = new BracketPipeTextFragment(tagvalue, c.Value);
                                 if ( filter(fragment)) callback(fragment);

@@ -56,10 +56,10 @@ namespace Fetcho.FetchoAPI.Controllers
         {
             Filters = null;
             EstimatedMaxCost = null;
-            ErrorReason = String.Empty;
+            ErrorReason = string.Empty;
             Success = false;
-            ParsedQueryText = String.Empty;
-            OriginalQueryText = String.Empty;
+            ParsedQueryText = string.Empty;
+            OriginalQueryText = string.Empty;
             Tokens = new List<string>();
         }
 

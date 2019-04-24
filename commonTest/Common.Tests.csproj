@@ -138,6 +138,7 @@
     <Compile Include="FilterTest.cs" />
     <Compile Include="HackerNewsFetcherTest.cs" />
     <Compile Include="HashRangeTest.cs" />
+    <Compile Include="HostCacheManagerTest.cs" />
     <Compile Include="HTMLParserVisitorTest.cs" />
     <Compile Include="IndexableQueueTest.cs" />
     <Compile Include="Md5HashTest.cs" />

@@ -6,7 +6,7 @@ namespace Fetcho.Common
     {
         public static ExceptionClassification Classify(string exception)
         {
-            if (String.IsNullOrWhiteSpace(exception)) return ExceptionClassification.Unsure;
+            if (string.IsNullOrWhiteSpace(exception)) return ExceptionClassification.Unsure;
             if (exception.Contains("(300)")) return ExceptionClassification.HTTP300;
             else if (exception.Contains("(302)")) return ExceptionClassification.HTTP302;
             else if (exception.Contains("(308)")) return ExceptionClassification.HTTP308;

@@ -16,7 +16,7 @@ namespace Fetcho.Common
 
         public override bool CallOncePerPage => false;
 
-        public override bool IsReducingFilter => !String.IsNullOrWhiteSpace(Hash);
+        public override bool IsReducingFilter => !string.IsNullOrWhiteSpace(Hash);
 
         public DataHashFilter(string hash) 
             => Hash = hash.ToLower();
@@ -27,10 +27,10 @@ namespace Fetcho.Common
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
         {
             var hash = "";
-            if (!String.IsNullOrWhiteSpace(result.DataHash))
+            if (!string.IsNullOrWhiteSpace(result.DataHash))
                 hash = result.DataHash;
 
-            if (hash.Equals(Hash, StringComparison.InvariantCultureIgnoreCase) || String.IsNullOrWhiteSpace(Hash)) return new string[1] { hash };
+            if (hash.Equals(Hash, StringComparison.InvariantCultureIgnoreCase) || string.IsNullOrWhiteSpace(Hash)) return new string[1] { hash };
             return EmptySet;
         }
 
@@ -41,13 +41,13 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == "*") searchText = String.Empty;
+                if (searchText == "*") searchText = string.Empty;
             }
 
             return new DataHashFilter(searchText);

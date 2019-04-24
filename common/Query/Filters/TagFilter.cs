@@ -42,7 +42,7 @@ namespace Fetcho.Common
 
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;

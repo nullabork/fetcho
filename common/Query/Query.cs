@@ -100,14 +100,14 @@ namespace Fetcho.Common.QueryEngine
         /// Distill the results by this query
         /// </summary>
         public IEnumerable<WorkspaceResult> Distill(IEnumerable<WorkspaceResult> results)
-            => results.Where((result) => Evaluate(result, String.Empty, null).Action == EvaluationResultAction.Include);
+            => results.Where((result) => Evaluate(result, string.Empty, null).Action == EvaluationResultAction.Include);
 
         /// <summary>
         /// Parse query text to build the filter collections
         /// </summary>
         private void ParseQueryText(string text, int depth)
         {
-            if (String.IsNullOrWhiteSpace(text)) return;
+            if (string.IsNullOrWhiteSpace(text)) return;
 
             var tokens = TokeniseQueryText(text).ToArray();
 
@@ -135,7 +135,7 @@ namespace Fetcho.Common.QueryEngine
         private IEnumerable<Filter> GetFiltersFromToken(string token, int depth)
         {
             string filterToken = token;
-            string tagToken = String.Empty;
+            string tagToken = string.Empty;
 
             FilterMode filterMode = DetermineFilterMode(token);
             if (filterMode == FilterMode.None) return new Filter[0];
@@ -270,7 +270,7 @@ namespace Fetcho.Common.QueryEngine
         /// Builds a string of the cost details of this query
         /// </summary>
         public string CostDetails()
-            => String.Format("Min: {0,-10}, Max: {1, -10}, Avg: {2,-10}, Total: {3,-10}, #: {4,-10}",
+            => string.Format("Min: {0,-10}, Max: {1, -10}, Avg: {2,-10}, Total: {3,-10}, #: {4,-10}",
                 MinCost, MaxCost, AvgCost, TotalCost, NumberOfEvaluations);
 
         /// <summary>
@@ -312,7 +312,7 @@ namespace Fetcho.Common.QueryEngine
             var sb = new StringBuilder();
             for (int i = 0; i < queryText.Length; i++)
             {
-                if (Char.IsWhiteSpace(queryText[i]) && !inString)
+                if (char.IsWhiteSpace(queryText[i]) && !inString)
                 {
                     l.Add(sb.ToString());
                     sb.Clear();
@@ -328,7 +328,7 @@ namespace Fetcho.Common.QueryEngine
 
             l.Add(sb.ToString());
 
-            return l.Where(x => !String.IsNullOrWhiteSpace(x));
+            return l.Where(x => !string.IsNullOrWhiteSpace(x));
         }
 
         /// <summary>

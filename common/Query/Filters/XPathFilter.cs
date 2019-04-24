@@ -62,18 +62,18 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             int index = queryText.IndexOf(':');
             if (index > -1)
             {
                 searchText = queryText.Substring(index + 1);
-                if (searchText == WildcardChar) searchText = String.Empty;
+                if (searchText == WildcardChar) searchText = string.Empty;
             }
 
             // TODO: Check for bogus Xpath
 
-            if (String.IsNullOrWhiteSpace(searchText))
+            if (string.IsNullOrWhiteSpace(searchText))
                 return null;
             else
                 return new XPathFilter(searchText);

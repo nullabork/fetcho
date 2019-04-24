@@ -44,10 +44,10 @@ namespace Fetcho.Common
 
         public Database(string connectionString)
         {
-            if (String.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrWhiteSpace(connectionString))
                 throw new FetchoException("db connection string is not configured");
             connstr = new NpgsqlConnectionStringBuilder(connectionString);
-            if (!String.IsNullOrWhiteSpace(connstr.Host))
+            if (!string.IsNullOrWhiteSpace(connstr.Host))
                 Server = connstr.Host;
             if (connstr.Port > 0)
                 Port = connstr.Port;
@@ -69,7 +69,7 @@ namespace Fetcho.Common
 
                 if (Port > 0)
                     connstr.Port = Port;
-                if (!String.IsNullOrWhiteSpace(Server))
+                if (!string.IsNullOrWhiteSpace(Server))
                     connstr.Host = Server;
                 conn = new NpgsqlConnection(connstr.ToString());
 
@@ -292,7 +292,7 @@ namespace Fetcho.Common
                 var n = new List<MD5Hash>();
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
-                    var buffer = new Byte[MD5Hash.ExpectedByteLength];
+                    var buffer = new byte[MD5Hash.ExpectedByteLength];
                     while (reader.Read())
                     {
                         reader.GetBytes(0, 0, buffer, 0, MD5Hash.ExpectedByteLength);
@@ -357,7 +357,7 @@ namespace Fetcho.Common
                     {
                         WorkspaceId = reader.GetGuid(0),
                         Name = reader.GetString(1),
-                        Description = reader.IsDBNull(2) ? String.Empty : reader.GetFieldValue<string>(2),
+                        Description = reader.IsDBNull(2) ? string.Empty : reader.GetFieldValue<string>(2),
                         IsActive = reader.GetBoolean(3),
                         QueryText = reader.GetString(4),
                         ResultCount = reader.GetInt64(5),
@@ -402,7 +402,7 @@ namespace Fetcho.Common
                     {
                         WorkspaceId = reader.GetGuid(0),
                         Name = reader.GetString(1),
-                        Description = reader.IsDBNull(2) ? String.Empty : reader.GetFieldValue<string>(2),
+                        Description = reader.IsDBNull(2) ? string.Empty : reader.GetFieldValue<string>(2),
                         IsActive = reader.GetBoolean(3),
                         QueryText = reader.GetString(4),
                         ResultCount = reader.GetInt64(5),
@@ -610,7 +610,7 @@ namespace Fetcho.Common
                     return new AccountProperty()
                     {
                         Key = reader.GetString(0),
-                        Value = reader.IsDBNull(1) ? String.Empty : reader.GetString(1)
+                        Value = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
                     };
                 }
             }
@@ -634,7 +634,7 @@ namespace Fetcho.Common
                     l.Add(new AccountProperty()
                     {
                         Key = reader.GetString(0),
-                        Value = reader.IsDBNull(1) ? String.Empty : reader.GetString(1)
+                        Value = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
                     });
                 }
             }
@@ -1070,12 +1070,12 @@ namespace Fetcho.Common
                 "select workspace_access_key_id, workspace_id, account_name, is_active, permissions, created, expiry, is_wellknown, name, revision " +
                 "from   \"WorkspaceAccessKey\" ";
 
-            if (!String.IsNullOrWhiteSpace(accountName))
+            if (!string.IsNullOrWhiteSpace(accountName))
                 sql += "where  account_name = :account_name;";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
 
-            if (!String.IsNullOrWhiteSpace(accountName))
+            if (!string.IsNullOrWhiteSpace(accountName))
                 cmd.Parameters.Add(new NpgsqlParameter<string>("account_name", accountName));
 
             Dictionary<Guid, Guid> wsak = new Dictionary<Guid, Guid>();
@@ -1300,7 +1300,7 @@ namespace Fetcho.Common
             if (!reader.IsDBNull(8))
             {
                 string t = reader.GetString(8);
-                if (!String.IsNullOrWhiteSpace(t))
+                if (!string.IsNullOrWhiteSpace(t))
                     r.Tags.AddRange(t.Trim().Split(' '));
             }
 
@@ -1460,12 +1460,12 @@ namespace Fetcho.Common
         {
             string sql = "select server_id, name, min_hash, max_hash, approved, created from \"Server\" ";
 
-            if (!String.IsNullOrWhiteSpace(name))
+            if (!string.IsNullOrWhiteSpace(name))
                 sql += "where name = :name";
 
             NpgsqlCommand cmd = await SetupCommand(sql).ConfigureAwait(false);
 
-            if (!String.IsNullOrWhiteSpace(name))
+            if (!string.IsNullOrWhiteSpace(name))
                 cmd.Parameters.Add(new NpgsqlParameter<string>("name", name));
 
             using (var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))

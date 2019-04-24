@@ -59,7 +59,7 @@ namespace Fetcho
                     if ( Commands.ContainsKey(commandName))
                     {
                         var args = new ArraySegment<string>(tokens, 1, tokens.Length - 1).ToArray();
-                        Utility.LogInfo("Command: {0} {1}", commandName, args.Aggregate(String.Empty, (x, y) => x + " " + y));
+                        Utility.LogInfo("Command: {0} {1}", commandName, args.Aggregate(string.Empty, (x, y) => x + " " + y));
                         try
                         {
                             await Commands[commandName].Execute(args);

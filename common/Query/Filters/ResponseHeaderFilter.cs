@@ -33,7 +33,7 @@ namespace Fetcho.Common
 
         public override string[] IsMatch(WorkspaceResult result, string fragment, Stream stream)
             => result.ResponseProperties.ContainsKey(HeaderKey)
-               && (String.IsNullOrWhiteSpace(SearchText) || result.ResponseProperties[HeaderKey].Contains(SearchText)) ?
+               && (string.IsNullOrWhiteSpace(SearchText) || result.ResponseProperties[HeaderKey].Contains(SearchText)) ?
                       new string[1] { Utility.MakeTag(result.ResponseProperties[HeaderKey]) } : EmptySet;
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace Fetcho.Common
         /// <returns></returns>
         public static Filter Parse(string queryText, int depth)
         {
-            string searchText = String.Empty;
+            string searchText = string.Empty;
 
             var tokens = queryText.Split(':');
             if (tokens.Length != 2) return null;

@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Xml;
@@ -23,6 +24,10 @@ namespace Fetcho.Common
 
             try
             {
+                var ip = await Utility.GetHostIPAddress(robotsUri);
+                /*while (!await FetchoConfiguration.Current.HostCache.WaitToFetch(ip, 60000))
+                    Utility.LogInfo("IP Congestion {0}", ip);*/
+
                 var bb = new BufferBlock<IWebResourceWriter>();
 
                 using (var ms = new MemoryStream())
